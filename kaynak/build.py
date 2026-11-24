@@ -1,4 +1,4 @@
-"""Sorgu Atölyesi derleme betiği.
+"""SorguLab derleme betiği.
 
 Kullanım (repo kökünden):
     python3 kaynak/build.py
@@ -30,7 +30,7 @@ PWA_BAS = '''<link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2453c8">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Sorgu Atölyesi">
+<meta name="apple-mobile-web-app-title" content="SorguLab">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -58,7 +58,7 @@ PWA_KAYIT = '''<script>
 </script>
 '''
 
-SW = """// Sorgu Atölyesi service worker: tüm dosyaları cihaza kaydeder, sonra internetsiz çalışır.
+SW = """// SorguLab service worker: tüm dosyaları cihaza kaydeder, sonra internetsiz çalışır.
 const SURUM = '__SURUM__';
 const DOSYALAR = __DOSYALAR__;
 self.addEventListener('install', e => {
@@ -88,7 +88,7 @@ def pwa(t):
     a = "const PY_KAYNAKLAR = [new URL('pyodide/', location.href).href, 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/'];"
     assert a in t, 'PY_KAYNAKLAR satırı bulunamadı'
     t = t.replace(a, "const PY_KAYNAKLAR = [new URL('./', location.href).href];")
-    t = t.replace('<title>Sorgu Atölyesi</title>\n', '<title>Sorgu Atölyesi</title>\n' + PWA_BAS, 1)
+    t = t.replace('<title>SorguLab</title>\n', '<title>SorguLab</title>\n' + PWA_BAS, 1)
     t = t.replace('</body>', PWA_KAYIT + '</body>')
     assert 'fonts.googleapis' not in t and 'cdnjs' not in t
     return t
@@ -101,7 +101,7 @@ def main():
     open(os.path.join(KOK, 'index.html'), 'w', encoding='utf-8').write(pwa(t))
     for f in glob.glob(os.path.join(SRC, 'ikon', '*.png')):
         shutil.copy(f, os.path.join(KOK, os.path.basename(f)))
-    m = {"name": "Sorgu Atölyesi", "short_name": "Sorgu Atölyesi", "description": "SQL, pandas ve NumPy alıştırma uygulaması",
+    m = {"name": "SorguLab", "short_name": "SorguLab", "description": "SQL, pandas ve NumPy alıştırma uygulaması",
          "start_url": "./", "scope": "./", "display": "standalone", "background_color": "#f2f4f7", "theme_color": "#2453c8", "lang": "tr",
          "icons": [{"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
                    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},

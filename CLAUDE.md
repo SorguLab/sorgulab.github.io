@@ -1,4 +1,4 @@
-# Sorgu Atölyesi — çalışma talimatları
+# SorguLab — çalışma talimatları
 
 Esra'nın SQL / pandas / NumPy alıştırma uygulaması. Kullanıcıyla Türkçe konuş.
 
@@ -21,4 +21,4 @@ Bekleyen istekler `YAPILACAKLAR.md` dosyasında. Kullanıcı "yapılacaklar list
 2. `python3 kaynak/test/dogrula.py` → "SONUÇ: tamam" olmalı.
 3. `python3 kaynak/build.py` → kök dosyaları + `kaynak/cikti/claude-ai.html` üretilir.
 4. Commit + push (GitHub Pages ~1-2 dk'da güncellenir; iPad uygulaması internete bağlıyken açılınca yeni sürümü indirir).
-5. claude.ai sürümünü de güncelle: `kaynak/cikti/claude-ai.html` dosyasını artifact'e `index.html` olarak yayınla (publish_files, mode "patch"). Artifact: "Sorgu Atölyesi", slug `5720ef7e-3add-4b1b-b28e-96b536e1eab0`. Artifact'in Pyodide dosyaları `pyodide/` alt yolunda zaten yüklü; sadece `index.html` değişir. `sample` yeteneği tanımlı (Claude ile soru üretme/değerlendirme).
+5. claude.ai sürümünü de güncelle: `kaynak/cikti/claude-ai.html` dosyasını artifact'e `index.html` olarak yayınla (publish_files, mode "patch"). Artifact: "SorguLab" (eski adı Sorgu Atölyesi), slug `5720ef7e-3add-4b1b-b28e-96b536e1eab0`. Artifact'in Pyodide dosyaları `pyodide/` alt yolunda zaten yüklü; sadece `index.html` değişir. `sample` yeteneği tanımlı (Claude ile soru üretme/değerlendirme).

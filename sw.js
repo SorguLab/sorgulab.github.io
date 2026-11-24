@@ -1,5 +1,5 @@
-// Sorgu Atölyesi service worker: tüm dosyaları cihaza kaydeder, sonra internetsiz çalışır.
-const SURUM = 'sa-28b1a79556';
+// SorguLab service worker: tüm dosyaları cihaza kaydeder, sonra internetsiz çalışır.
+const SURUM = 'sa-84d0e96dc2';
 const DOSYALAR = [
  "./",
  "index.html",

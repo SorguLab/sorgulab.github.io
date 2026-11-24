@@ -1,4 +1,4 @@
-# Sorgu Atölyesi
+# SorguLab
 
 SQL, pandas ve NumPy alıştırma uygulaması. Tamamen tarayıcıda çalışır; ilk açılıştan sonra internet gerekmez.
 

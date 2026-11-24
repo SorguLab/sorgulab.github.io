@@ -1,6 +1,6 @@
 {
- "name": "Sorgu Atölyesi",
- "short_name": "Sorgu Atölyesi",
+ "name": "SorguLab",
+ "short_name": "SorguLab",
  "description": "SQL, pandas ve NumPy alıştırma uygulaması",
  "start_url": "./",
  "scope": "./",
