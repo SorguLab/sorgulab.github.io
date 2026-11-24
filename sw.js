@@ -1,5 +1,5 @@
 // SorguLab service worker: tüm dosyaları cihaza kaydeder, sonra internetsiz çalışır.
-const SURUM = 'sa-9fb3d610b3';
+const SURUM = 'sa-9a8801c562';
 const DOSYALAR = [
  "./",
  "index.html",
@@ -34,8 +34,11 @@ const DOSYALAR = [
  "pyodide.js",
  "python_stdlib.wasm",
  "sql-asm.js",
+ "veri-flo.json",
  "veri-hr.json",
+ "veri-northwind.json",
  "veri-ornek.json",
+ "veri-titanic.json",
  "xlsx.full.min.js"
 ];
 self.addEventListener('install', e => {
