@@ -353,14 +353,71 @@ legend { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
 .ai-etiket { font-weight: 600; font-size: 14px; }
 .ai-satir { display: flex; gap: 8px; flex-wrap: wrap; }
 .ai-satir input { flex: 1; min-width: 0; font: inherit; font-family: var(--f-kod); padding: 8px 10px; border: 1px solid var(--cizgi); border-radius: 8px; background: var(--yuzey-2); color: var(--murekkep); }
+.marka { gap: 10px; }
+.marka-aktif { font-size: 20px; }
+.marka-gec { all: unset; cursor: pointer; display: inline-flex; align-items: baseline; gap: 8px; border-radius: 6px; padding: 0 2px; }
+.marka-gec .ok { color: var(--vurgu); font-size: 17px; font-family: var(--f-govde); }
+.marka-gec .diger { font-size: 15px; font-weight: 600; color: var(--soluk); }
+.marka-gec:hover .diger { color: var(--vurgu); text-decoration: underline; }
+.marka-gec:focus-visible { outline: 2px solid var(--vurgu); }
+body:not([data-lab="konu"]) .konu-ozel, body[data-lab="konu"] .sorgu-ozel { display: none !important; }
+.konu-sayfa { display: grid; grid-template-columns: 280px minmax(0, 1fr) 200px; gap: 32px; max-width: 1400px; margin: 0 auto; padding: 24px max(16px, 2vw) 60px; align-items: start; }
+.konu-yan { position: sticky; top: 76px; max-height: calc(100vh - 96px); overflow: auto; background: var(--yuzey); border: 1px solid var(--cizgi); border-radius: 12px; padding: 14px 10px; display: grid; gap: 12px; }
+.konu-yan input { font: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid var(--cizgi); border-radius: 8px; background: var(--yuzey-2); color: var(--murekkep); width: 100%; box-sizing: border-box; }
+.konu-grup-ad { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--soluk); padding: 4px 10px; }
+.konu-link { display: flex; gap: 8px; align-items: baseline; font-size: 14px; color: var(--murekkep); text-decoration: none; padding: 6px 10px; border-radius: 8px; }
+.konu-link:hover { background: var(--yuzey-2); }
+.konu-link[aria-current="page"] { background: var(--vurgu-acik); color: var(--vurgu); font-weight: 600; }
+.konu-link .no { width: 20px; flex-shrink: 0; color: var(--h-yorum); font: 12px var(--f-kod); }
+.konu-alt { border-top: 1px solid var(--cizgi); padding-top: 8px; display: grid; gap: 2px; }
+.konu-yazi { min-width: 0; max-width: 800px; font-size: 16px; line-height: 1.7; }
+.konu-yazi > * + * { margin-top: 16px; }
+.konu-yazi h1 { font-size: 34px; line-height: 1.15; margin: 4px 0 0; }
+.konu-yazi h2 { font-size: 22px; margin-top: 32px; scroll-margin-top: 80px; }
+.konu-yazi h3 { font-size: 18px; margin-top: 24px; }
+.konu-yazi p, .konu-yazi ul, .konu-yazi ol { margin-bottom: 0; }
+.konu-yazi ul, .konu-yazi ol { padding-left: 22px; }
+.konu-yazi li + li { margin-top: 4px; }
+.konu-yazi code { background: var(--kod-zemin); border: 1px solid var(--cizgi); border-radius: 5px; padding: 1px 5px; }
+.konu-yazi pre code { background: none; border: 0; padding: 0; }
+.konu-ust { font-size: 13px; color: var(--soluk); }
+.konu-giris { font-size: 18px; color: var(--soluk); }
+.ornek { border: 1px solid var(--cizgi); border-radius: 12px; overflow: hidden; background: var(--yuzey); }
+.ornek .kod-blok { border: 0; border-radius: 0; font-size: 14px; }
+.ornek-cikti { padding: 10px 14px 12px; border-top: 1px solid var(--cizgi); display: grid; gap: 6px; }
+.ornek-etiket { font-size: 11.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--soluk); display: flex; gap: 8px; align-items: center; }
+.ornek-etiket .veri { font-weight: 500; text-transform: none; letter-spacing: 0; background: var(--yuzey-2); border: 1px solid var(--cizgi); border-radius: 999px; padding: 0 8px; }
+.ornek-cikti pre { margin: 0; font: 13.5px/1.55 var(--f-kod); white-space: pre-wrap; word-break: break-word; }
+.ornek-cikti .tablo-kap { max-height: 340px; }
+.ornek-cikti .hata-metin { color: var(--kotu); }
+.konu-kutu { border-radius: 10px; padding: 12px 16px; border: 1px solid var(--cizgi); background: var(--yuzey-2); }
+.konu-kutu > * + * { margin-top: 10px; }
+.konu-kutu .kutu-ad { font-weight: 600; font-size: 13px; letter-spacing: .03em; text-transform: uppercase; }
+.konu-kutu.dikkat { background: var(--py-acik); border-color: color-mix(in srgb, var(--uyari) 30%, transparent); } .konu-kutu.dikkat .kutu-ad { color: var(--uyari); }
+.konu-kutu.kural, .konu-kutu.ipucu { background: var(--vurgu-acik); border-color: color-mix(in srgb, var(--vurgu) 25%, transparent); } .konu-kutu.kural .kutu-ad, .konu-kutu.ipucu .kutu-ad { color: var(--vurgu); }
+.konu-kutu.not .kutu-ad { color: var(--soluk); }
+.konu-kutu p { margin: 0; }
+.konu-tablo { overflow-x: auto; }
+.konu-tablo table { border-collapse: collapse; font-size: 14.5px; min-width: 100%; }
+.konu-tablo th, .konu-tablo td { border-bottom: 1px solid var(--cizgi); padding: 8px 12px; text-align: left; vertical-align: top; }
+.konu-tablo th { background: var(--yuzey-2); font-weight: 600; }
+.konu-son { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 36px !important; padding-top: 20px; border-top: 1px solid var(--cizgi); }
+.konu-son .gezinme-btn { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.konu-sag { position: sticky; top: 76px; font-size: 13.5px; display: grid; gap: 6px; }
+.konu-sag a { color: var(--soluk); text-decoration: none; } .konu-sag a:hover { color: var(--vurgu); }
+.konu-bul { color: var(--soluk); font-size: 14px; padding: 6px 10px; }
+.konu-oku { font-size: 13px; font-weight: 500; color: var(--vurgu); text-decoration: none; } .konu-oku:hover { text-decoration: underline; }
+.konu-acilir { display: none; }
+@media (max-width: 1180px) { .konu-sayfa { grid-template-columns: 260px minmax(0, 1fr); } .konu-sag { display: none; } }
+@media (max-width: 820px) { .konu-sayfa { grid-template-columns: minmax(0, 1fr); gap: 16px; } .konu-yan { position: static; max-height: none; } .konu-yan.kapali > :not(.konu-acilir) { display: none; } .konu-acilir { display: flex; } .konu-yazi h1 { font-size: 28px; } }
 </style>
 <script src="sql-asm.js"></script>
 <script src="xlsx.full.min.js"></script>
 </head>
 <body>
 <header class="ust">
-  <div class="marka">SorguLab <span class="imza"><b>SQL</b> · <i>Python</i></span></div>
-  <nav aria-label="Bölümler">
+  <div class="marka" id="marka"></div>
+  <nav aria-label="Bölümler" class="sorgu-ozel">
     <button class="nav-btn" data-view="alistirma">Alıştırmalar</button>
     <button class="nav-btn" data-view="tahmin">Tahmin Et</button>
     <button class="nav-btn" data-view="mulakat">Mülakat</button>
@@ -368,10 +425,11 @@ legend { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
     <button class="nav-btn" data-view="veri">Veri</button>
   </nav>
   <div class="ust-sag">
-    <label for="vsSec">Veri seti</label>
-    <select id="vsSec"></select>
-    <span class="hap" id="pyDurum" data-durum="yok">Python: kapalı</span>
-    <button class="hap ai-hap" id="aiBtn" type="button" data-durum="yok">Yapay zekâ: kapalı</button>
+    <label for="vsSec" class="sorgu-ozel">Veri seti</label>
+    <select id="vsSec" class="sorgu-ozel"></select>
+    <span class="hap sorgu-ozel" id="pyDurum" data-durum="yok">Python: kapalı</span>
+    <button class="hap ai-hap sorgu-ozel" id="aiBtn" type="button" data-durum="yok">Yapay zekâ: kapalı</button>
+    <div class="seg konu-ozel" id="konuDil" role="tablist" aria-label="Konu dili"><button role="tab" class="seg-btn dil-sql" data-kdil="sql">SQL</button><button role="tab" class="seg-btn dil-python" data-kdil="python">Python</button></div>
   </div>
 </header>
 <main id="ana"></main>
@@ -1764,6 +1822,7 @@ const VERI_KATALOG = [
 {"key": "titanic", "ad": "Titanic", "etiket": "Hazır veri · Kaggle eğitim seti", "aciklama": "1912'de batan Titanic'in 891 yolcusu (Kaggle \"Titanic\" yarışmasının eğitim seti). Hayatta kalma (Survived), sınıf, cinsiyet, yaş, aile, bilet ücreti, kabin ve binilen liman bilgileri. Eksik veri, değişken türetme ve kategorik dönüşüm alıştırmaları için ideal. Liman kodlarının açık adları ayrı bir liman tablosunda.", "varsayilan": {"sql": "SELECT PassengerId, Name, Sex, Age, Pclass, Fare, Survived\nFROM titanic\nLIMIT 20;", "python": "# DataFrame'ler hazır: titanic, liman\ntitanic.head(10)"}, "ornekler": {"sql": [["İlk 20 yolcu", "SELECT * FROM titanic LIMIT 20;"], ["Cinsiyete göre", "SELECT Sex, COUNT(*) AS yolcu, AVG(Survived) AS oran\nFROM titanic\nGROUP BY Sex;"], ["Liman tablosu", "SELECT * FROM liman;"]], "python": [["İlk 10 yolcu", "titanic.head(10)"], ["Eksik değerler", "titanic.isnull().sum()"], ["Veri tipleri", "titanic.dtypes"]]}, "ilk_soru": "ti01", "dosya": "veri-titanic.json", "meta": {"titanic": {"columns": ["PassengerId", "Survived", "Pclass", "Name", "Sex", "Age", "SibSp", "Parch", "Ticket", "Fare", "Cabin", "Embarked"], "types": ["INTEGER", "INTEGER", "INTEGER", "TEXT", "TEXT", "REAL", "INTEGER", "INTEGER", "TEXT", "REAL", "TEXT", "TEXT"], "n": 891}, "liman": {"columns": ["Embarked", "liman_adi"], "types": ["TEXT", "TEXT"], "n": 3}}, "sorular": [].concat(TT_SORULAR)},
 {"key": "flo", "ad": "FLO Müşteri", "etiket": "Hazır veri · Miuul FLO vakası", "aciklama": "Ayakkabı perakendecisi FLO'nun 2020-2021'de hem online hem mağazadan (OmniChannel) alışveriş yapmış 19.945 müşterisi. Her satır bir müşteri: ilk/son alışveriş tarihleri, kanal, online ve offline sipariş sayısı ve harcama, son 12 aydaki ilgi alanı kategorileri. RFM segmentasyonu, tarih farkları ve metin içinde arama alıştırmaları için ideal.", "varsayilan": {"sql": "SELECT master_id, order_channel, last_order_date,\n       order_num_total_ever_online, order_num_total_ever_offline,\n       customer_value_total_ever_online, customer_value_total_ever_offline,\n       interested_in_categories_12\nFROM flo\nLIMIT 20;", "python": "# DataFrame hazır: flo (tarih sütunları datetime)\nflo.head(10)"}, "ornekler": {"sql": [["İlk 20 müşteri", "SELECT * FROM flo LIMIT 20;"], ["Kanallar", "SELECT order_channel, COUNT(*) AS musteri\nFROM flo\nGROUP BY order_channel;"], ["Tarih aralığı", "SELECT MIN(first_order_date), MAX(last_order_date) FROM flo;"]], "python": [["İlk 10 müşteri", "flo.head(10)"], ["Veri tipleri", "flo.dtypes"], ["Özet", "flo.describe().T"]]}, "ilk_soru": "fl01", "dosya": "veri-flo.json", "meta": {"flo": {"columns": ["master_id", "order_channel", "last_order_channel", "first_order_date", "last_order_date", "last_order_date_online", "last_order_date_offline", "order_num_total_ever_online", "order_num_total_ever_offline", "customer_value_total_ever_offline", "customer_value_total_ever_online", "interested_in_categories_12"], "types": ["TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "INTEGER", "INTEGER", "REAL", "REAL", "TEXT"], "n": 19945}}, "sorular": [].concat(FLO_SORULAR)}
 ];
+const KONU_OZET = [{"id": "sql-baslarken", "grup": "sql", "baslik": "Başlarken", "alistirma": {"dil": "sql", "kategori": "Temel SELECT"}, "dil": "sql"}, {"id": "sql-filtreleme", "grup": "sql", "baslik": "Filtreleme", "alistirma": {"dil": "sql", "kategori": "Filtreleme"}, "dil": "sql"}, {"id": "sql-null", "grup": "sql", "baslik": "NULL ile çalışmak", "alistirma": {"dil": "sql", "kategori": "Eksik Veri"}, "dil": "sql"}, {"id": "sql-siralama", "grup": "sql", "baslik": "Sıralama", "dil": "sql"}, {"id": "sql-gruplama", "grup": "sql", "baslik": "Toplama ve gruplama", "alistirma": {"dil": "sql", "kategori": "Aggregation"}, "dil": "sql"}, {"id": "sql-case-when", "grup": "sql", "baslik": "CASE WHEN", "alistirma": {"dil": "sql", "kategori": "CASE WHEN"}, "dil": "sql"}, {"id": "sql-join", "grup": "sql", "baslik": "JOIN'ler", "alistirma": {"dil": "sql", "kategori": "JOIN"}, "dil": "sql"}, {"id": "sql-alt-sorgu-cte", "grup": "sql", "baslik": "Alt sorgular ve CTE", "alistirma": {"dil": "sql", "kategori": "Subquery / CTE"}, "dil": "sql"}, {"id": "sql-window", "grup": "sql", "baslik": "Window function'lar", "alistirma": {"dil": "sql", "kategori": "Window Functions"}, "dil": "sql"}, {"id": "sql-metin", "grup": "sql", "baslik": "Metin fonksiyonları", "alistirma": {"dil": "sql", "kategori": "Metin"}, "dil": "sql"}, {"id": "sql-tarih", "grup": "sql", "baslik": "Tarih işlemleri", "alistirma": {"dil": "sql", "kategori": "Tarih"}, "dil": "sql"}, {"id": "sql-recursive-cte", "grup": "sql", "baslik": "Recursive CTE", "dil": "sql"}, {"id": "sql-lehce-farklari", "grup": "sql", "baslik": "Lehçe farkları", "dil": "sql"}];
 const HELPER_PY = "import warnings\nwarnings.filterwarnings(\"ignore\", category=DeprecationWarning)\nimport pandas as pd, numpy as np, json, io, sys, ast, traceback, re, datetime\n\n_BASE = {}\n_TARIH = re.compile(r'^\\d{4}-\\d{2}-\\d{2}([ T]\\d{2}:\\d{2}(:\\d{2})?)?$')\n\ndef _yukle(js):\n    _BASE.clear()\n    veri = json.loads(js)\n    for ad, t in veri.items():\n        df = pd.DataFrame(t['rows'], columns=t['columns'])\n        for c in df.columns:\n            if df[c].dtype == object or pd.api.types.is_string_dtype(df[c]):\n                dolu = df[c].dropna()\n                if len(dolu) and dolu.map(lambda v: isinstance(v, str) and bool(_TARIH.match(v))).all():\n                    df[c] = pd.to_datetime(df[c], errors='coerce')\n        _BASE[ad] = df\n    return json.dumps({a: [[c, str(d)] for c, d in df.dtypes.items()] for a, df in _BASE.items()})\n\ndef _deger(v):\n    if v is None:\n        return None\n    if isinstance(v, (pd.Timestamp, datetime.datetime)):\n        if pd.isna(v):\n            return None\n        return v.strftime('%Y-%m-%d') if (v.hour, v.minute, v.second) == (0, 0, 0) else v.strftime('%Y-%m-%d %H:%M:%S')\n    if isinstance(v, datetime.date):\n        return v.isoformat()\n    if isinstance(v, pd.Timedelta):\n        return None if pd.isna(v) else str(v)\n    if isinstance(v, (pd.Period, pd.Interval)):\n        return str(v)\n    if isinstance(v, (np.bool_, bool)):\n        return bool(v)\n    if isinstance(v, np.integer):\n        return int(v)\n    if isinstance(v, (np.floating, float)):\n        return None if np.isnan(v) else float(v)\n    if isinstance(v, (int, str)):\n        return v\n    try:\n        if pd.isna(v):\n            return None\n    except Exception:\n        pass\n    return str(v)\n\ndef _tablo(obj, limit=5000):\n    tur = type(obj).__name__\n    if obj is None:\n        return None\n    if isinstance(obj, pd.Series):\n        ad = obj.name if obj.name is not None else 'deger'\n        df = obj.to_frame(name=ad)\n        isimsiz_sayi = obj.index.name is None and not isinstance(obj.index, pd.MultiIndex) and pd.api.types.is_integer_dtype(obj.index)\n        if isimsiz_sayi:\n            df = df.reset_index(drop=True)\n        else:\n            if ad in [n for n in df.index.names if n is not None]:\n                df.columns = [str(ad) + '_deger']\n            df = df.reset_index()\n    elif isinstance(obj, pd.DataFrame):\n        df = obj\n        if isinstance(df.index, pd.MultiIndex) or df.index.name is not None:\n            df = df.reset_index()\n        elif not isinstance(df.index, pd.RangeIndex) and not pd.api.types.is_integer_dtype(df.index):\n            df = df.reset_index()\n        else:\n            df = df.reset_index(drop=True)\n    elif isinstance(obj, np.ndarray) and obj.ndim == 2:\n        df = pd.DataFrame(obj, columns=[f'sutun_{i+1}' for i in range(obj.shape[1])])\n    elif isinstance(obj, tuple) and len(obj) > 0 and all(isinstance(x, np.ndarray) and x.ndim == 1 for x in obj) and len({len(x) for x in obj}) == 1:\n        df = pd.DataFrame({f'deger_{i+1}': list(x) for i, x in enumerate(obj)})\n    elif isinstance(obj, (tuple, list)) and all(not isinstance(x, (list, tuple, dict, pd.Series, pd.DataFrame, np.ndarray)) for x in obj):\n        if isinstance(obj, tuple):\n            df = pd.DataFrame([list(obj)], columns=[f'deger_{i+1}' for i in range(len(obj))])\n        else:\n            df = pd.DataFrame({'deger': list(obj)})\n    elif isinstance(obj, dict):\n        df = pd.DataFrame({'anahtar': list(obj.keys()), 'deger': [str(v) if isinstance(v, (list, dict)) else v for v in obj.values()]})\n    elif isinstance(obj, (pd.Index, np.ndarray)):\n        df = pd.DataFrame({'deger': list(np.asarray(obj).ravel())})\n    elif np.isscalar(obj) or isinstance(obj, (pd.Timestamp, pd.Timedelta)):\n        df = pd.DataFrame({'deger': [obj]})\n    else:\n        return {'columns': ['deger'], 'rows': [[repr(obj)[:2000]]], 'total': 1, 'tur': tur}\n    if isinstance(df.columns, pd.MultiIndex):\n        df = df.copy()\n        df.columns = ['_'.join(str(x) for x in c if str(x) != '') for c in df.columns]\n    cols = [str(c) for c in df.columns]\n    rows = [[_deger(v) for v in r] for r in df.head(limit).itertuples(index=False, name=None)]\n    return {'columns': cols, 'rows': rows, 'total': int(len(df)), 'tur': tur}\n\ndef _calistir(kod):\n    ns = {'pd': pd, 'np': np}\n    for k, v in _BASE.items():\n        ns[k] = v.copy()\n    buf = io.StringIO()\n    eski = sys.stdout\n    sys.stdout = buf\n    try:\n        agac = ast.parse(kod)\n        son = None\n        if agac.body and isinstance(agac.body[-1], ast.Expr):\n            ifade = ast.Expression(agac.body.pop().value)\n            exec(compile(agac, '<kod>', 'exec'), ns)\n            son = eval(compile(ifade, '<kod>', 'eval'), ns)\n        else:\n            exec(compile(agac, '<kod>', 'exec'), ns)\n        deger = ns['sonuc'] if 'sonuc' in ns else son\n        return json.dumps({'ok': True, 'stdout': buf.getvalue()[-20000:], 'table': _tablo(deger), 'sonucVar': 'sonuc' in ns})\n    except Exception as e:\n        satir = ''\n        tb = traceback.extract_tb(sys.exc_info()[2])\n        for f in tb:\n            if f.filename == '<kod>':\n                satir = f' (sat\u0131r {f.lineno})'\n        if isinstance(e, SyntaxError):\n            satir = f' (sat\u0131r {e.lineno})'\n        return json.dumps({'ok': False, 'stdout': buf.getvalue()[-20000:], 'error': f'{type(e).__name__}: {e}{satir}'})\n    finally:\n        sys.stdout = eski\n";
 // ═══════════════ SorguLab ═══════════════
 const $ = (s, el = document) => el.querySelector(s);
@@ -1818,7 +1877,8 @@ const S = {
   aktifId: Object.fromEntries([...VERI_KATALOG.map(k => [k.key, k.ilk_soru]), ['yuklenen', null]]),
   tahminId: 't01', tahminDil: 'sql',
   serbestDil: 'sql', serbestKod: null,
-  gecmis: [], mulakat: null, teorik: null, claude: null, uretiliyor: false
+  gecmis: [], mulakat: null, teorik: null, claude: null, uretiliyor: false,
+  lab: 'sorgu', konuId: null, konuDil: 'sql', konuAra: ''
 };
 
 // ─── Yapay zekâ: claude.ai içinde Claude, başka yerde kullanıcının kendi Gemini anahtarı ───
@@ -2260,6 +2320,11 @@ function ilerlemeMetni() {
   return `SQL ${say('sql')} · Python ${say('python')}`;
 }
 function ustCiz() {
+  document.body.dataset.lab = S.lab;
+  const konu = S.lab === 'konu';
+  $('#marka').innerHTML = `<span class="marka-aktif">${konu ? 'KonuLab' : 'SorguLab'}</span><button class="marka-gec" id="labGec" type="button" aria-label="${konu ? 'SorguLab' : 'KonuLab'} bölümüne geç"><span class="ok" aria-hidden="true">⇄</span><span class="diger">${konu ? 'SorguLab' : 'KonuLab'}</span></button>`;
+  $('#labGec').onclick = () => konu ? git(S.view) : konuGit(S.konuId);
+  $$('#konuDil .seg-btn').forEach(b => b.setAttribute('aria-selected', String(b.dataset.kdil === S.konuDil)));
   $$('.nav-btn').forEach(b => b.setAttribute('aria-current', b.dataset.view === S.view ? 'page' : 'false'));
   const sel = $('#vsSec');
   sel.innerHTML = HAZIR.map(k => `<option value="${k}">${esc(VS[k].ad)}</option>`).join('') + (VS.yuklenen ? `<option value="yuklenen">${esc(VS.yuklenen.ad)}</option>` : '');
@@ -2271,15 +2336,23 @@ $('#vsSec').addEventListener('change', e => { veriSetiDegistir(e.target.value); 
 function veriSetiDegistir(k) { S.veriSeti = k; S.mulakat = null; S.filtre.kategori = ''; S.filtre.kaynak = ''; S.serbestKod = varsayilanKod(k); veriHazirla(k).catch(() => { }); yenidenCiz(); }
 $$('.nav-btn').forEach(b => b.addEventListener('click', () => git(b.dataset.view)));
 $('#aiBtn').addEventListener('click', aiPanelAc);
+$$('#konuDil .seg-btn').forEach(b => b.addEventListener('click', () => { S.konuDil = b.dataset.kdil; const k = KONU_OZET.find(x => x.dil === S.konuDil); konuGit(k ? k.id : 'yakinda'); }));
 const VIEWLER = ['alistirma', 'tahmin', 'mulakat', 'serbest', 'veri'];
-function git(v) { if (location.hash !== '#' + v) location.hash = v; else { S.view = v; yenidenCiz(); } }
-window.addEventListener('hashchange', () => { const v = location.hash.slice(1); if (VIEWLER.includes(v)) { S.view = v; yenidenCiz(); } });
+function git(v) { if (location.hash !== '#' + v) location.hash = v; else { S.lab = 'sorgu'; S.view = v; yenidenCiz(); } }
+function hashOku() {
+  const v = location.hash.slice(1);
+  if (v === 'konu' || v.startsWith('konu/')) { S.lab = 'konu'; const id = decodeURIComponent(v.slice(5)); if (id) S.konuId = id; return true; }
+  if (VIEWLER.includes(v)) { S.lab = 'sorgu'; S.view = v; return true; }
+  return false;
+}
+window.addEventListener('hashchange', () => { if (hashOku()) { yenidenCiz(); if (S.lab === 'konu') window.scrollTo(0, 0); } });
 let sayacInterval = null;
 function yenidenCiz() {
   if (sayacInterval && !(S.view === 'mulakat' && S.mulakat && S.mulakat.durum === 'devam')) { clearInterval(sayacInterval); sayacInterval = null; }
   ustCiz();
   const ana = $('#ana');
-  ana.dataset.view = S.view;
+  ana.dataset.view = S.lab === 'konu' ? 'konu' : S.view;
+  if (S.lab === 'konu') return konuCiz();
   ({ alistirma: alistirmaCiz, tahmin: tahminCiz, mulakat: mulakatCiz, serbest: serbestCiz, veri: veriCiz })[S.view]();
 }
 
@@ -2364,7 +2437,7 @@ function soruCalismaCiz(host, q, { mod, liste, onKontrol }) {
   if (ESKI_BASLANGIC.includes(ilkKod)) ilkKod = '';
   host.innerHTML = `
     <div class="soru-kart">
-      <div class="rozetler"><span class="rozet dil-${q.dil}">${DIL[q.dil]}</span><span class="rozet sev-${q.seviye}">${SEVIYE[q.seviye]}</span><span class="rozet">${esc(q.kategori)}</span>${q.sirali ? '<span class="rozet uyari">Sıralama önemli</span>' : ''}</div>
+      <div class="rozetler"><span class="rozet dil-${q.dil}">${DIL[q.dil]}</span><span class="rozet sev-${q.seviye}">${SEVIYE[q.seviye]}</span><span class="rozet">${esc(q.kategori)}</span>${q.sirali ? '<span class="rozet uyari">Sıralama önemli</span>' : ''}${konuBul(q) ? `<a class="konu-oku" href="#konu/${konuBul(q).id}">Konuyu oku →</a>` : ''}</div>
       <h2>${esc(q.baslik)}</h2>
       <div class="soru-metni">${q.soru}</div>
       <details class="beklenen" open><summary>Beklenen çıktı</summary><div id="beklenen" class="beklenen-ic">${q.dil === 'python' && pyDurum !== 'hazir' ? pyBekleHTML() : '<div class="yukleniyor">Hesaplanıyor…</div>'}</div></details>
@@ -2963,10 +3036,124 @@ Sadece şu JSON'u döndür:
   }
 }
 
+
+// ═══════════════ KONULAB ═══════════════
+// İçerik konular.json'da (kaynak/konular → konu_derle.py). Kod örneklerinin çıktıları derlemede üretildi, burada çalıştırılmaz.
+let KONULAR = null, konuYukleniyor = null;
+function konularAl() {
+  if (KONULAR) return Promise.resolve(KONULAR);
+  if (!konuYukleniyor) konuYukleniyor = fetch('konular.json').then(r => { if (!r.ok) throw new Error('Konular indirilemedi (' + r.status + ')'); return r.json(); })
+    .then(d => { KONULAR = d; return d; }).catch(e => { konuYukleniyor = null; throw e; });
+  return konuYukleniyor;
+}
+function konuBul(q) { return KONU_OZET.find(k => k.alistirma && k.alistirma.dil === q.dil && k.alistirma.kategori === q.kategori); }
+function konuGit(id) { location.hash = 'konu' + (id ? '/' + encodeURIComponent(id) : ''); if (location.hash === '#konu' + (id ? '/' + encodeURIComponent(id) : '')) { S.lab = 'konu'; if (id) S.konuId = id; yenidenCiz(); } }
+const trKucuk = s => String(s || '').toLocaleLowerCase('tr');
+function konuGrupDil(K, grup) { const g = K.gruplar.find(x => x.id === grup); return g ? g.dil : 'genel'; }
+function konuCiz() {
+  const ana = $('#ana');
+  if (!KONULAR) {
+    ana.innerHTML = '<div class="konu-sayfa"><div></div><div class="yukleniyor">Konular yükleniyor…</div></div>';
+    konularAl().then(() => { if (S.lab === 'konu') konuCiz(); }).catch(e => { ana.innerHTML = `<div class="konu-sayfa"><div></div><div class="hata-kutu">${esc(e.message)} <button class="btn kucuk-btn" id="konuTekrar">Tekrar dene</button></div></div>`; $('#konuTekrar').onclick = konuCiz; });
+    return;
+  }
+  const K = KONULAR;
+  let k = K.konular.find(x => x.id === S.konuId);
+  if (S.konuId === 'sozluk' || S.konuId === 'yakinda') k = null;
+  else if (!k) { k = K.konular.find(x => konuGrupDil(K, x.grup) === S.konuDil) || K.konular[0]; S.konuId = k.id; }
+  if (k) { const d = konuGrupDil(K, k.grup); if (d !== 'genel') S.konuDil = d; }
+  $$('#konuDil .seg-btn').forEach(b => b.setAttribute('aria-selected', String(b.dataset.kdil === S.konuDil)));
+  ana.innerHTML = `<div class="konu-sayfa">
+    <nav class="konu-yan kapali" aria-label="Konular" id="konuYan">
+      <button class="btn konu-acilir" type="button" id="konuAcKapa" aria-expanded="false">☰ Konular${k ? ' · ' + esc(k.baslik) : ''}</button>
+      <label class="konu-grup-ad" for="konuAra" style="padding:0 4px">Konu ara</label>
+      <input type="search" id="konuAra" placeholder="JOIN, groupby, lambda…" value="${esc(S.konuAra)}" autocomplete="off">
+      <div id="konuListe"></div>
+      <div class="konu-alt">${K.gruplar.filter(g => g.dil === 'genel').map(g => K.konular.filter(x => x.grup === g.id).length ? `<div class="konu-grup-ad">${esc(g.ad)}</div>` + konuLinkler(K.konular.filter(x => x.grup === g.id), k) : '').join('')}
+        ${K.sozluk && K.sozluk.length ? `<a class="konu-link" href="#konu/sozluk" ${S.konuId === 'sozluk' ? 'aria-current="page"' : ''}><span class="no">Aa</span>Sözlük</a>` : ''}</div>
+    </nav>
+    <article class="konu-yazi" id="konuYazi">${k ? konuYaziHTML(K, k) : S.konuId === 'yakinda' ? '<h1>Python konuları hazırlanıyor</h1><p class="konu-giris">Python Temelleri, pandas ve NumPy konuları yakında burada olacak. Şimdilik SQL konularına göz atabilirsin.</p>' : sozlukHTML(K)}</article>
+    <aside class="konu-sag" aria-label="Bu sayfada">${k && k.basliklar.length ? '<div class="konu-grup-ad" style="padding:0">Bu sayfada</div>' + k.basliklar.map(b => `<a href="#" data-b="${esc(b.id)}">${esc(b.ad)}</a>`).join('') : ''}</aside>
+  </div>`;
+  konuListeCiz(K, k);
+  const ara = $('#konuAra');
+  ara.oninput = () => { S.konuAra = ara.value; konuListeCiz(K, k); if (S.konuId === 'sozluk') { $('#konuYazi').innerHTML = sozlukHTML(K); } };
+  $('#konuAcKapa').onclick = e => { const y = $('#konuYan'); y.classList.toggle('kapali'); e.currentTarget.setAttribute('aria-expanded', String(!y.classList.contains('kapali'))); };
+  $$('[data-b]', ana).forEach(a => a.onclick = e => { e.preventDefault(); const h = document.getElementById('b-' + a.dataset.b); if (h) h.scrollIntoView({ behavior: azHareket() ? 'auto' : 'smooth' }); });
+  const al = $('#konuAlistirma'); if (al) al.onclick = () => konuAlistirmayaGit(k);
+}
+function konuLinkler(liste, aktif) {
+  return liste.map(x => `<a class="konu-link" href="#konu/${encodeURIComponent(x.id)}" ${aktif && aktif.id === x.id ? 'aria-current="page"' : ''}><span class="no">${x.sira}</span>${esc(x.baslik)}</a>`).join('');
+}
+function konuListeCiz(K, aktif) {
+  const ara = trKucuk(S.konuAra).trim();
+  const kap = $('#konuListe');
+  if (ara) {
+    const bulunan = K.konular.filter(x => trKucuk(x.ara).includes(ara));
+    kap.innerHTML = bulunan.length ? `<div class="konu-grup-ad">${bulunan.length} sonuç</div>` + bulunan.map(x => `<a class="konu-link" href="#konu/${encodeURIComponent(x.id)}" ${aktif && aktif.id === x.id ? 'aria-current="page"' : ''}><span class="no">${esc(K.gruplar.find(g => g.id === x.grup).ad.slice(0, 3))}</span>${esc(x.baslik)}</a>`).join('') : '<div class="konu-bul">Bu kelimeyle konu bulunamadı.</div>';
+    return;
+  }
+  kap.innerHTML = K.gruplar.filter(g => g.dil === S.konuDil).map(g => {
+    const l = K.konular.filter(x => x.grup === g.id);
+    return l.length ? `<div style="display:grid;gap:2px"><div class="konu-grup-ad">${esc(g.ad)}</div>${konuLinkler(l, aktif)}</div>` : '';
+  }).join('');
+}
+function konuBlokHTML(b) {
+  if (b.t === 'html') return b.h;
+  if (b.t === 'kutu') return `<div class="konu-kutu ${b.tur}"><div class="kutu-ad">${esc(b.ad)}</div>${b.bloklar.map(konuBlokHTML).join('')}</div>`;
+  if (b.t !== 'kod') return '';
+  const c = b.cikti;
+  let cikti = '';
+  if (c) {
+    const parca = [];
+    if (c.stdout) parca.push(`<pre>${esc(c.stdout.replace(/\n$/, ''))}</pre>`);
+    if (c.tablo) parca.push(tabloHTML(c.tablo, 50));
+    if (c.metin) parca.push(`<pre>${esc(c.metin)}</pre>`);
+    if (c.hata) parca.push(`<pre class="hata-metin">${esc(c.hata)}</pre>`);
+    cikti = `<div class="ornek-cikti"><div class="ornek-etiket">${c.hata ? 'Hata' : 'Çıktı'}${b.veri && VS[b.veri] ? `<span class="veri">${esc(VS[b.veri].ad)}</span>` : ''}</div>${parca.join('')}</div>`;
+  }
+  return `<div class="ornek"><pre class="kod-blok"><code>${renklendir(b.kod, b.dil)}</code></pre>${cikti}</div>`;
+}
+function konuAlistirmaSay(k) {
+  if (!k.alistirma) return 0;
+  return HAZIR.reduce((n, key) => n + VS[key].sorular.filter(q => q.dil === k.alistirma.dil && q.kategori === k.alistirma.kategori && !q.kaynak).length, 0);
+}
+function konuYaziHTML(K, k) {
+  const sira = K.gruplar.flatMap(g => K.konular.filter(x => x.grup === g.id));
+  const i = sira.indexOf(k), once = sira[i - 1], sonra = sira[i + 1];
+  const grup = K.gruplar.find(g => g.id === k.grup), grupKonu = K.konular.filter(x => x.grup === k.grup);
+  const n = konuAlistirmaSay(k);
+  return `<div class="konu-ust">${esc(grup.ad)} · Konu ${k.sira} / ${grupKonu.length}</div>
+    <h1>${esc(k.baslik)}</h1>
+    ${k.ozet ? `<p class="konu-giris">${esc(k.ozet)}</p>` : ''}
+    ${k.bloklar.map(konuBlokHTML).join('')}
+    <div class="konu-son">
+      ${n ? `<button class="btn birincil" id="konuAlistirma">Bu konuyla alıştırma yap · ${n} soru →</button>` : ''}
+      <span class="gezinme-btn">${once ? `<a class="btn" href="#konu/${encodeURIComponent(once.id)}">← ${esc(once.baslik)}</a>` : ''}${sonra ? `<a class="btn" href="#konu/${encodeURIComponent(sonra.id)}">${esc(sonra.baslik)} →</a>` : ''}</span>
+    </div>`;
+}
+function konuAlistirmayaGit(k) {
+  const { dil, kategori } = k.alistirma;
+  const uygun = key => VS[key].sorular.some(q => q.dil === dil && q.kategori === kategori && !q.kaynak);
+  const key = uygun(S.veriSeti) ? S.veriSeti : HAZIR.find(uygun);
+  if (!key) return;
+  if (key !== S.veriSeti) { S.veriSeti = key; S.mulakat = null; S.serbestKod = varsayilanKod(key); veriHazirla(key).catch(() => { }); }
+  S.filtre = { dil, seviye: 0, kategori, kaynak: '' };
+  const ilk = filtreliSorular()[0]; if (ilk) S.aktifId[key] = ilk.id;
+  git('alistirma');
+}
+function sozlukHTML(K) {
+  const ara = trKucuk(S.konuAra).trim();
+  const liste = (K.sozluk || []).filter(x => !ara || trKucuk(x.ad + ' ' + x.tanim + ' ' + (x.karsilik || '')).includes(ara));
+  return `<div class="konu-ust">Sözlük · ${K.sozluk.length} madde</div><h1>Sözlük</h1>
+    <p class="konu-giris">Fonksiyonlar ve kavramlar, kısa tanım ve örnekle. Soldaki arama kutusu sözlükte de arar.</p>
+    ${liste.map(x => `<div class="konu-kutu"><div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap"><code style="font-size:15px">${esc(x.ad)}</code><span class="rozet dil-${x.dil === 'sql' ? 'sql' : 'python'}">${esc(x.dil === 'sql' ? 'SQL' : x.dil === 'numpy' ? 'NumPy' : x.dil === 'pandas' ? 'pandas' : 'Python')}</span></div>
+      <p>${esc(x.tanim)}</p>${x.ornek ? kodBlok(x.ornek, x.dil === 'sql' ? 'sql' : 'python') : ''}${x.karsilik ? `<p class="kucuk">Karşılığı: <code>${esc(x.karsilik)}</code></p>` : ''}${x.konu ? `<a class="konu-oku" href="#konu/${encodeURIComponent(x.konu)}">Konuyu oku →</a>` : ''}</div>`).join('') || '<div class="konu-bul">Bu kelimeyle madde bulunamadı.</div>'}`;
+}
+
 // ─── Başlat ───
 (function baslat() {
-  const v = location.hash.slice(1);
-  if (VIEWLER.includes(v)) S.view = v;
+  hashOku();
   veriHazirla(S.veriSeti).catch(() => { });
   yenidenCiz();
   sqlHazir.then(() => { if (!SQLlib) { $('#ana').insertAdjacentHTML('afterbegin', '<div class="hata-kutu">SQL motoru yüklenemedi. Sayfayı yenilemeyi dene.</div>'); } });

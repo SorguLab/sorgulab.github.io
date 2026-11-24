@@ -51,7 +51,8 @@ const S = {
   aktifId: Object.fromEntries([...VERI_KATALOG.map(k => [k.key, k.ilk_soru]), ['yuklenen', null]]),
   tahminId: 't01', tahminDil: 'sql',
   serbestDil: 'sql', serbestKod: null,
-  gecmis: [], mulakat: null, teorik: null, claude: null, uretiliyor: false
+  gecmis: [], mulakat: null, teorik: null, claude: null, uretiliyor: false,
+  lab: 'sorgu', konuId: null, konuDil: 'sql', konuAra: ''
 };
 
 // ─── Yapay zekâ: claude.ai içinde Claude, başka yerde kullanıcının kendi Gemini anahtarı ───
@@ -493,6 +494,11 @@ function ilerlemeMetni() {
   return `SQL ${say('sql')} · Python ${say('python')}`;
 }
 function ustCiz() {
+  document.body.dataset.lab = S.lab;
+  const konu = S.lab === 'konu';
+  $('#marka').innerHTML = `<span class="marka-aktif">${konu ? 'KonuLab' : 'SorguLab'}</span><button class="marka-gec" id="labGec" type="button" aria-label="${konu ? 'SorguLab' : 'KonuLab'} bölümüne geç"><span class="ok" aria-hidden="true">⇄</span><span class="diger">${konu ? 'SorguLab' : 'KonuLab'}</span></button>`;
+  $('#labGec').onclick = () => konu ? git(S.view) : konuGit(S.konuId);
+  $$('#konuDil .seg-btn').forEach(b => b.setAttribute('aria-selected', String(b.dataset.kdil === S.konuDil)));
   $$('.nav-btn').forEach(b => b.setAttribute('aria-current', b.dataset.view === S.view ? 'page' : 'false'));
   const sel = $('#vsSec');
   sel.innerHTML = HAZIR.map(k => `<option value="${k}">${esc(VS[k].ad)}</option>`).join('') + (VS.yuklenen ? `<option value="yuklenen">${esc(VS.yuklenen.ad)}</option>` : '');
@@ -504,15 +510,23 @@ $('#vsSec').addEventListener('change', e => { veriSetiDegistir(e.target.value); 
 function veriSetiDegistir(k) { S.veriSeti = k; S.mulakat = null; S.filtre.kategori = ''; S.filtre.kaynak = ''; S.serbestKod = varsayilanKod(k); veriHazirla(k).catch(() => { }); yenidenCiz(); }
 $$('.nav-btn').forEach(b => b.addEventListener('click', () => git(b.dataset.view)));
 $('#aiBtn').addEventListener('click', aiPanelAc);
+$$('#konuDil .seg-btn').forEach(b => b.addEventListener('click', () => { S.konuDil = b.dataset.kdil; const k = KONU_OZET.find(x => x.dil === S.konuDil); konuGit(k ? k.id : 'yakinda'); }));
 const VIEWLER = ['alistirma', 'tahmin', 'mulakat', 'serbest', 'veri'];
-function git(v) { if (location.hash !== '#' + v) location.hash = v; else { S.view = v; yenidenCiz(); } }
-window.addEventListener('hashchange', () => { const v = location.hash.slice(1); if (VIEWLER.includes(v)) { S.view = v; yenidenCiz(); } });
+function git(v) { if (location.hash !== '#' + v) location.hash = v; else { S.lab = 'sorgu'; S.view = v; yenidenCiz(); } }
+function hashOku() {
+  const v = location.hash.slice(1);
+  if (v === 'konu' || v.startsWith('konu/')) { S.lab = 'konu'; const id = decodeURIComponent(v.slice(5)); if (id) S.konuId = id; return true; }
+  if (VIEWLER.includes(v)) { S.lab = 'sorgu'; S.view = v; return true; }
+  return false;
+}
+window.addEventListener('hashchange', () => { if (hashOku()) { yenidenCiz(); if (S.lab === 'konu') window.scrollTo(0, 0); } });
 let sayacInterval = null;
 function yenidenCiz() {
   if (sayacInterval && !(S.view === 'mulakat' && S.mulakat && S.mulakat.durum === 'devam')) { clearInterval(sayacInterval); sayacInterval = null; }
   ustCiz();
   const ana = $('#ana');
-  ana.dataset.view = S.view;
+  ana.dataset.view = S.lab === 'konu' ? 'konu' : S.view;
+  if (S.lab === 'konu') return konuCiz();
   ({ alistirma: alistirmaCiz, tahmin: tahminCiz, mulakat: mulakatCiz, serbest: serbestCiz, veri: veriCiz })[S.view]();
 }
 
@@ -597,7 +611,7 @@ function soruCalismaCiz(host, q, { mod, liste, onKontrol }) {
   if (ESKI_BASLANGIC.includes(ilkKod)) ilkKod = '';
   host.innerHTML = `
     <div class="soru-kart">
-      <div class="rozetler"><span class="rozet dil-${q.dil}">${DIL[q.dil]}</span><span class="rozet sev-${q.seviye}">${SEVIYE[q.seviye]}</span><span class="rozet">${esc(q.kategori)}</span>${q.sirali ? '<span class="rozet uyari">Sıralama önemli</span>' : ''}</div>
+      <div class="rozetler"><span class="rozet dil-${q.dil}">${DIL[q.dil]}</span><span class="rozet sev-${q.seviye}">${SEVIYE[q.seviye]}</span><span class="rozet">${esc(q.kategori)}</span>${q.sirali ? '<span class="rozet uyari">Sıralama önemli</span>' : ''}${konuBul(q) ? `<a class="konu-oku" href="#konu/${konuBul(q).id}">Konuyu oku →</a>` : ''}</div>
       <h2>${esc(q.baslik)}</h2>
       <div class="soru-metni">${q.soru}</div>
       <details class="beklenen" open><summary>Beklenen çıktı</summary><div id="beklenen" class="beklenen-ic">${q.dil === 'python' && pyDurum !== 'hazir' ? pyBekleHTML() : '<div class="yukleniyor">Hesaplanıyor…</div>'}</div></details>
@@ -1196,10 +1210,124 @@ Sadece şu JSON'u döndür:
   }
 }
 
+
+// ═══════════════ KONULAB ═══════════════
+// İçerik konular.json'da (kaynak/konular → konu_derle.py). Kod örneklerinin çıktıları derlemede üretildi, burada çalıştırılmaz.
+let KONULAR = null, konuYukleniyor = null;
+function konularAl() {
+  if (KONULAR) return Promise.resolve(KONULAR);
+  if (!konuYukleniyor) konuYukleniyor = fetch('konular.json').then(r => { if (!r.ok) throw new Error('Konular indirilemedi (' + r.status + ')'); return r.json(); })
+    .then(d => { KONULAR = d; return d; }).catch(e => { konuYukleniyor = null; throw e; });
+  return konuYukleniyor;
+}
+function konuBul(q) { return KONU_OZET.find(k => k.alistirma && k.alistirma.dil === q.dil && k.alistirma.kategori === q.kategori); }
+function konuGit(id) { location.hash = 'konu' + (id ? '/' + encodeURIComponent(id) : ''); if (location.hash === '#konu' + (id ? '/' + encodeURIComponent(id) : '')) { S.lab = 'konu'; if (id) S.konuId = id; yenidenCiz(); } }
+const trKucuk = s => String(s || '').toLocaleLowerCase('tr');
+function konuGrupDil(K, grup) { const g = K.gruplar.find(x => x.id === grup); return g ? g.dil : 'genel'; }
+function konuCiz() {
+  const ana = $('#ana');
+  if (!KONULAR) {
+    ana.innerHTML = '<div class="konu-sayfa"><div></div><div class="yukleniyor">Konular yükleniyor…</div></div>';
+    konularAl().then(() => { if (S.lab === 'konu') konuCiz(); }).catch(e => { ana.innerHTML = `<div class="konu-sayfa"><div></div><div class="hata-kutu">${esc(e.message)} <button class="btn kucuk-btn" id="konuTekrar">Tekrar dene</button></div></div>`; $('#konuTekrar').onclick = konuCiz; });
+    return;
+  }
+  const K = KONULAR;
+  let k = K.konular.find(x => x.id === S.konuId);
+  if (S.konuId === 'sozluk' || S.konuId === 'yakinda') k = null;
+  else if (!k) { k = K.konular.find(x => konuGrupDil(K, x.grup) === S.konuDil) || K.konular[0]; S.konuId = k.id; }
+  if (k) { const d = konuGrupDil(K, k.grup); if (d !== 'genel') S.konuDil = d; }
+  $$('#konuDil .seg-btn').forEach(b => b.setAttribute('aria-selected', String(b.dataset.kdil === S.konuDil)));
+  ana.innerHTML = `<div class="konu-sayfa">
+    <nav class="konu-yan kapali" aria-label="Konular" id="konuYan">
+      <button class="btn konu-acilir" type="button" id="konuAcKapa" aria-expanded="false">☰ Konular${k ? ' · ' + esc(k.baslik) : ''}</button>
+      <label class="konu-grup-ad" for="konuAra" style="padding:0 4px">Konu ara</label>
+      <input type="search" id="konuAra" placeholder="JOIN, groupby, lambda…" value="${esc(S.konuAra)}" autocomplete="off">
+      <div id="konuListe"></div>
+      <div class="konu-alt">${K.gruplar.filter(g => g.dil === 'genel').map(g => K.konular.filter(x => x.grup === g.id).length ? `<div class="konu-grup-ad">${esc(g.ad)}</div>` + konuLinkler(K.konular.filter(x => x.grup === g.id), k) : '').join('')}
+        ${K.sozluk && K.sozluk.length ? `<a class="konu-link" href="#konu/sozluk" ${S.konuId === 'sozluk' ? 'aria-current="page"' : ''}><span class="no">Aa</span>Sözlük</a>` : ''}</div>
+    </nav>
+    <article class="konu-yazi" id="konuYazi">${k ? konuYaziHTML(K, k) : S.konuId === 'yakinda' ? '<h1>Python konuları hazırlanıyor</h1><p class="konu-giris">Python Temelleri, pandas ve NumPy konuları yakında burada olacak. Şimdilik SQL konularına göz atabilirsin.</p>' : sozlukHTML(K)}</article>
+    <aside class="konu-sag" aria-label="Bu sayfada">${k && k.basliklar.length ? '<div class="konu-grup-ad" style="padding:0">Bu sayfada</div>' + k.basliklar.map(b => `<a href="#" data-b="${esc(b.id)}">${esc(b.ad)}</a>`).join('') : ''}</aside>
+  </div>`;
+  konuListeCiz(K, k);
+  const ara = $('#konuAra');
+  ara.oninput = () => { S.konuAra = ara.value; konuListeCiz(K, k); if (S.konuId === 'sozluk') { $('#konuYazi').innerHTML = sozlukHTML(K); } };
+  $('#konuAcKapa').onclick = e => { const y = $('#konuYan'); y.classList.toggle('kapali'); e.currentTarget.setAttribute('aria-expanded', String(!y.classList.contains('kapali'))); };
+  $$('[data-b]', ana).forEach(a => a.onclick = e => { e.preventDefault(); const h = document.getElementById('b-' + a.dataset.b); if (h) h.scrollIntoView({ behavior: azHareket() ? 'auto' : 'smooth' }); });
+  const al = $('#konuAlistirma'); if (al) al.onclick = () => konuAlistirmayaGit(k);
+}
+function konuLinkler(liste, aktif) {
+  return liste.map(x => `<a class="konu-link" href="#konu/${encodeURIComponent(x.id)}" ${aktif && aktif.id === x.id ? 'aria-current="page"' : ''}><span class="no">${x.sira}</span>${esc(x.baslik)}</a>`).join('');
+}
+function konuListeCiz(K, aktif) {
+  const ara = trKucuk(S.konuAra).trim();
+  const kap = $('#konuListe');
+  if (ara) {
+    const bulunan = K.konular.filter(x => trKucuk(x.ara).includes(ara));
+    kap.innerHTML = bulunan.length ? `<div class="konu-grup-ad">${bulunan.length} sonuç</div>` + bulunan.map(x => `<a class="konu-link" href="#konu/${encodeURIComponent(x.id)}" ${aktif && aktif.id === x.id ? 'aria-current="page"' : ''}><span class="no">${esc(K.gruplar.find(g => g.id === x.grup).ad.slice(0, 3))}</span>${esc(x.baslik)}</a>`).join('') : '<div class="konu-bul">Bu kelimeyle konu bulunamadı.</div>';
+    return;
+  }
+  kap.innerHTML = K.gruplar.filter(g => g.dil === S.konuDil).map(g => {
+    const l = K.konular.filter(x => x.grup === g.id);
+    return l.length ? `<div style="display:grid;gap:2px"><div class="konu-grup-ad">${esc(g.ad)}</div>${konuLinkler(l, aktif)}</div>` : '';
+  }).join('');
+}
+function konuBlokHTML(b) {
+  if (b.t === 'html') return b.h;
+  if (b.t === 'kutu') return `<div class="konu-kutu ${b.tur}"><div class="kutu-ad">${esc(b.ad)}</div>${b.bloklar.map(konuBlokHTML).join('')}</div>`;
+  if (b.t !== 'kod') return '';
+  const c = b.cikti;
+  let cikti = '';
+  if (c) {
+    const parca = [];
+    if (c.stdout) parca.push(`<pre>${esc(c.stdout.replace(/\n$/, ''))}</pre>`);
+    if (c.tablo) parca.push(tabloHTML(c.tablo, 50));
+    if (c.metin) parca.push(`<pre>${esc(c.metin)}</pre>`);
+    if (c.hata) parca.push(`<pre class="hata-metin">${esc(c.hata)}</pre>`);
+    cikti = `<div class="ornek-cikti"><div class="ornek-etiket">${c.hata ? 'Hata' : 'Çıktı'}${b.veri && VS[b.veri] ? `<span class="veri">${esc(VS[b.veri].ad)}</span>` : ''}</div>${parca.join('')}</div>`;
+  }
+  return `<div class="ornek"><pre class="kod-blok"><code>${renklendir(b.kod, b.dil)}</code></pre>${cikti}</div>`;
+}
+function konuAlistirmaSay(k) {
+  if (!k.alistirma) return 0;
+  return HAZIR.reduce((n, key) => n + VS[key].sorular.filter(q => q.dil === k.alistirma.dil && q.kategori === k.alistirma.kategori && !q.kaynak).length, 0);
+}
+function konuYaziHTML(K, k) {
+  const sira = K.gruplar.flatMap(g => K.konular.filter(x => x.grup === g.id));
+  const i = sira.indexOf(k), once = sira[i - 1], sonra = sira[i + 1];
+  const grup = K.gruplar.find(g => g.id === k.grup), grupKonu = K.konular.filter(x => x.grup === k.grup);
+  const n = konuAlistirmaSay(k);
+  return `<div class="konu-ust">${esc(grup.ad)} · Konu ${k.sira} / ${grupKonu.length}</div>
+    <h1>${esc(k.baslik)}</h1>
+    ${k.ozet ? `<p class="konu-giris">${esc(k.ozet)}</p>` : ''}
+    ${k.bloklar.map(konuBlokHTML).join('')}
+    <div class="konu-son">
+      ${n ? `<button class="btn birincil" id="konuAlistirma">Bu konuyla alıştırma yap · ${n} soru →</button>` : ''}
+      <span class="gezinme-btn">${once ? `<a class="btn" href="#konu/${encodeURIComponent(once.id)}">← ${esc(once.baslik)}</a>` : ''}${sonra ? `<a class="btn" href="#konu/${encodeURIComponent(sonra.id)}">${esc(sonra.baslik)} →</a>` : ''}</span>
+    </div>`;
+}
+function konuAlistirmayaGit(k) {
+  const { dil, kategori } = k.alistirma;
+  const uygun = key => VS[key].sorular.some(q => q.dil === dil && q.kategori === kategori && !q.kaynak);
+  const key = uygun(S.veriSeti) ? S.veriSeti : HAZIR.find(uygun);
+  if (!key) return;
+  if (key !== S.veriSeti) { S.veriSeti = key; S.mulakat = null; S.serbestKod = varsayilanKod(key); veriHazirla(key).catch(() => { }); }
+  S.filtre = { dil, seviye: 0, kategori, kaynak: '' };
+  const ilk = filtreliSorular()[0]; if (ilk) S.aktifId[key] = ilk.id;
+  git('alistirma');
+}
+function sozlukHTML(K) {
+  const ara = trKucuk(S.konuAra).trim();
+  const liste = (K.sozluk || []).filter(x => !ara || trKucuk(x.ad + ' ' + x.tanim + ' ' + (x.karsilik || '')).includes(ara));
+  return `<div class="konu-ust">Sözlük · ${K.sozluk.length} madde</div><h1>Sözlük</h1>
+    <p class="konu-giris">Fonksiyonlar ve kavramlar, kısa tanım ve örnekle. Soldaki arama kutusu sözlükte de arar.</p>
+    ${liste.map(x => `<div class="konu-kutu"><div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap"><code style="font-size:15px">${esc(x.ad)}</code><span class="rozet dil-${x.dil === 'sql' ? 'sql' : 'python'}">${esc(x.dil === 'sql' ? 'SQL' : x.dil === 'numpy' ? 'NumPy' : x.dil === 'pandas' ? 'pandas' : 'Python')}</span></div>
+      <p>${esc(x.tanim)}</p>${x.ornek ? kodBlok(x.ornek, x.dil === 'sql' ? 'sql' : 'python') : ''}${x.karsilik ? `<p class="kucuk">Karşılığı: <code>${esc(x.karsilik)}</code></p>` : ''}${x.konu ? `<a class="konu-oku" href="#konu/${encodeURIComponent(x.konu)}">Konuyu oku →</a>` : ''}</div>`).join('') || '<div class="konu-bul">Bu kelimeyle madde bulunamadı.</div>'}`;
+}
+
 // ─── Başlat ───
 (function baslat() {
-  const v = location.hash.slice(1);
-  if (VIEWLER.includes(v)) S.view = v;
+  hashOku();
   veriHazirla(S.veriSeti).catch(() => { });
   yenidenCiz();
   sqlHazir.then(() => { if (!SQLlib) { $('#ana').insertAdjacentHTML('afterbegin', '<div class="hata-kutu">SQL motoru yüklenemedi. Sayfayı yenilemeyi dene.</div>'); } });

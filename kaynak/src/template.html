@@ -347,14 +347,71 @@ legend { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
 .ai-etiket { font-weight: 600; font-size: 14px; }
 .ai-satir { display: flex; gap: 8px; flex-wrap: wrap; }
 .ai-satir input { flex: 1; min-width: 0; font: inherit; font-family: var(--f-kod); padding: 8px 10px; border: 1px solid var(--cizgi); border-radius: 8px; background: var(--yuzey-2); color: var(--murekkep); }
+.marka { gap: 10px; }
+.marka-aktif { font-size: 20px; }
+.marka-gec { all: unset; cursor: pointer; display: inline-flex; align-items: baseline; gap: 8px; border-radius: 6px; padding: 0 2px; }
+.marka-gec .ok { color: var(--vurgu); font-size: 17px; font-family: var(--f-govde); }
+.marka-gec .diger { font-size: 15px; font-weight: 600; color: var(--soluk); }
+.marka-gec:hover .diger { color: var(--vurgu); text-decoration: underline; }
+.marka-gec:focus-visible { outline: 2px solid var(--vurgu); }
+body:not([data-lab="konu"]) .konu-ozel, body[data-lab="konu"] .sorgu-ozel { display: none !important; }
+.konu-sayfa { display: grid; grid-template-columns: 280px minmax(0, 1fr) 200px; gap: 32px; max-width: 1400px; margin: 0 auto; padding: 24px max(16px, 2vw) 60px; align-items: start; }
+.konu-yan { position: sticky; top: 76px; max-height: calc(100vh - 96px); overflow: auto; background: var(--yuzey); border: 1px solid var(--cizgi); border-radius: 12px; padding: 14px 10px; display: grid; gap: 12px; }
+.konu-yan input { font: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid var(--cizgi); border-radius: 8px; background: var(--yuzey-2); color: var(--murekkep); width: 100%; box-sizing: border-box; }
+.konu-grup-ad { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--soluk); padding: 4px 10px; }
+.konu-link { display: flex; gap: 8px; align-items: baseline; font-size: 14px; color: var(--murekkep); text-decoration: none; padding: 6px 10px; border-radius: 8px; }
+.konu-link:hover { background: var(--yuzey-2); }
+.konu-link[aria-current="page"] { background: var(--vurgu-acik); color: var(--vurgu); font-weight: 600; }
+.konu-link .no { width: 20px; flex-shrink: 0; color: var(--h-yorum); font: 12px var(--f-kod); }
+.konu-alt { border-top: 1px solid var(--cizgi); padding-top: 8px; display: grid; gap: 2px; }
+.konu-yazi { min-width: 0; max-width: 800px; font-size: 16px; line-height: 1.7; }
+.konu-yazi > * + * { margin-top: 16px; }
+.konu-yazi h1 { font-size: 34px; line-height: 1.15; margin: 4px 0 0; }
+.konu-yazi h2 { font-size: 22px; margin-top: 32px; scroll-margin-top: 80px; }
+.konu-yazi h3 { font-size: 18px; margin-top: 24px; }
+.konu-yazi p, .konu-yazi ul, .konu-yazi ol { margin-bottom: 0; }
+.konu-yazi ul, .konu-yazi ol { padding-left: 22px; }
+.konu-yazi li + li { margin-top: 4px; }
+.konu-yazi code { background: var(--kod-zemin); border: 1px solid var(--cizgi); border-radius: 5px; padding: 1px 5px; }
+.konu-yazi pre code { background: none; border: 0; padding: 0; }
+.konu-ust { font-size: 13px; color: var(--soluk); }
+.konu-giris { font-size: 18px; color: var(--soluk); }
+.ornek { border: 1px solid var(--cizgi); border-radius: 12px; overflow: hidden; background: var(--yuzey); }
+.ornek .kod-blok { border: 0; border-radius: 0; font-size: 14px; }
+.ornek-cikti { padding: 10px 14px 12px; border-top: 1px solid var(--cizgi); display: grid; gap: 6px; }
+.ornek-etiket { font-size: 11.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--soluk); display: flex; gap: 8px; align-items: center; }
+.ornek-etiket .veri { font-weight: 500; text-transform: none; letter-spacing: 0; background: var(--yuzey-2); border: 1px solid var(--cizgi); border-radius: 999px; padding: 0 8px; }
+.ornek-cikti pre { margin: 0; font: 13.5px/1.55 var(--f-kod); white-space: pre-wrap; word-break: break-word; }
+.ornek-cikti .tablo-kap { max-height: 340px; }
+.ornek-cikti .hata-metin { color: var(--kotu); }
+.konu-kutu { border-radius: 10px; padding: 12px 16px; border: 1px solid var(--cizgi); background: var(--yuzey-2); }
+.konu-kutu > * + * { margin-top: 10px; }
+.konu-kutu .kutu-ad { font-weight: 600; font-size: 13px; letter-spacing: .03em; text-transform: uppercase; }
+.konu-kutu.dikkat { background: var(--py-acik); border-color: color-mix(in srgb, var(--uyari) 30%, transparent); } .konu-kutu.dikkat .kutu-ad { color: var(--uyari); }
+.konu-kutu.kural, .konu-kutu.ipucu { background: var(--vurgu-acik); border-color: color-mix(in srgb, var(--vurgu) 25%, transparent); } .konu-kutu.kural .kutu-ad, .konu-kutu.ipucu .kutu-ad { color: var(--vurgu); }
+.konu-kutu.not .kutu-ad { color: var(--soluk); }
+.konu-kutu p { margin: 0; }
+.konu-tablo { overflow-x: auto; }
+.konu-tablo table { border-collapse: collapse; font-size: 14.5px; min-width: 100%; }
+.konu-tablo th, .konu-tablo td { border-bottom: 1px solid var(--cizgi); padding: 8px 12px; text-align: left; vertical-align: top; }
+.konu-tablo th { background: var(--yuzey-2); font-weight: 600; }
+.konu-son { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 36px !important; padding-top: 20px; border-top: 1px solid var(--cizgi); }
+.konu-son .gezinme-btn { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.konu-sag { position: sticky; top: 76px; font-size: 13.5px; display: grid; gap: 6px; }
+.konu-sag a { color: var(--soluk); text-decoration: none; } .konu-sag a:hover { color: var(--vurgu); }
+.konu-bul { color: var(--soluk); font-size: 14px; padding: 6px 10px; }
+.konu-oku { font-size: 13px; font-weight: 500; color: var(--vurgu); text-decoration: none; } .konu-oku:hover { text-decoration: underline; }
+.konu-acilir { display: none; }
+@media (max-width: 1180px) { .konu-sayfa { grid-template-columns: 260px minmax(0, 1fr); } .konu-sag { display: none; } }
+@media (max-width: 820px) { .konu-sayfa { grid-template-columns: minmax(0, 1fr); gap: 16px; } .konu-yan { position: static; max-height: none; } .konu-yan.kapali > :not(.konu-acilir) { display: none; } .konu-acilir { display: flex; } .konu-yazi h1 { font-size: 28px; } }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-asm.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 <header class="ust">
-  <div class="marka">SorguLab <span class="imza"><b>SQL</b> · <i>Python</i></span></div>
-  <nav aria-label="Bölümler">
+  <div class="marka" id="marka"></div>
+  <nav aria-label="Bölümler" class="sorgu-ozel">
     <button class="nav-btn" data-view="alistirma">Alıştırmalar</button>
     <button class="nav-btn" data-view="tahmin">Tahmin Et</button>
     <button class="nav-btn" data-view="mulakat">Mülakat</button>
@@ -362,10 +419,11 @@ legend { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
     <button class="nav-btn" data-view="veri">Veri</button>
   </nav>
   <div class="ust-sag">
-    <label for="vsSec">Veri seti</label>
-    <select id="vsSec"></select>
-    <span class="hap" id="pyDurum" data-durum="yok">Python: kapalı</span>
-    <button class="hap ai-hap" id="aiBtn" type="button" data-durum="yok">Yapay zekâ: kapalı</button>
+    <label for="vsSec" class="sorgu-ozel">Veri seti</label>
+    <select id="vsSec" class="sorgu-ozel"></select>
+    <span class="hap sorgu-ozel" id="pyDurum" data-durum="yok">Python: kapalı</span>
+    <button class="hap ai-hap sorgu-ozel" id="aiBtn" type="button" data-durum="yok">Yapay zekâ: kapalı</button>
+    <div class="seg konu-ozel" id="konuDil" role="tablist" aria-label="Konu dili"><button role="tab" class="seg-btn dil-sql" data-kdil="sql">SQL</button><button role="tab" class="seg-btn dil-python" data-kdil="python">Python</button></div>
   </div>
 </header>
 <main id="ana"></main>

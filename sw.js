@@ -1,5 +1,5 @@
 // SorguLab service worker: tüm dosyaları cihaza kaydeder, sonra internetsiz çalışır.
-const SURUM = 'sa-94d50cefd3';
+const SURUM = 'sa-24d18e37ab';
 const DOSYALAR = [
  "./",
  "index.html",
@@ -23,6 +23,7 @@ const DOSYALAR = [
  "jetbrains-mono-latin-500-normal.woff2",
  "jetbrains-mono-latin-ext-400-normal.woff2",
  "jetbrains-mono-latin-ext-500-normal.woff2",
+ "konular.json",
  "paket-numpy.wasm",
  "paket-pandas.wasm",
  "paket-python_dateutil.wasm",

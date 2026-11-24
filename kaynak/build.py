@@ -9,7 +9,9 @@ Kullanım (repo kökünden):
 
 Python motoru, kütüphaneler, fontlar ve ikonlar repo kökünde düz (klasörsüz) durur.
 """
-import json, re, os, glob, hashlib, shutil
+import json, re, os, glob, hashlib, shutil, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import konu_derle
 
 KOK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(KOK, 'kaynak', 'src')
@@ -31,7 +33,7 @@ def veri_dosyalari_yaz(katalog):
     return metalar
 
 
-def birlestir(katalog, metalar):
+def birlestir(katalog, metalar, konu_ozet):
     t = open(os.path.join(SRC, 'template.html'), encoding='utf-8').read()
     dosyalar = ['bank.js'] + [d for v in katalog for d in v['dosyalar']]
     parcalar = []
@@ -47,7 +49,7 @@ def birlestir(katalog, metalar):
         alan['meta'] = metalar[v['key']]
         js = json.dumps(alan, ensure_ascii=False)
         ogeler.append(js[:-1] + ', "sorular": [].concat(' + ', '.join(v['bankalar']) + ')}')
-    kat = 'const VERI_KATALOG = [\n' + ',\n'.join(ogeler) + '\n];'
+    kat = 'const VERI_KATALOG = [\n' + ',\n'.join(ogeler) + '\n];\nconst KONU_OZET = ' + json.dumps([dict(k, dil=next(g['dil'] for g in konu_derle.GRUPLAR if g['id'] == k['grup'])) for k in konu_ozet], ensure_ascii=False) + ';'
     app = open(os.path.join(SRC, 'app.js'), encoding='utf-8').read()
     assert '</script' not in app
     t = t.replace('/*BANKALAR*/', '\n'.join(parcalar)).replace('/*KATALOG*/', kat).replace('/*APP*/', app)
@@ -131,7 +133,11 @@ def pwa(t):
 def main():
     katalog = katalog_oku()
     metalar = veri_dosyalari_yaz(katalog)
-    t = birlestir(katalog, metalar)
+    try:
+        konu = konu_derle.derle()
+    except konu_derle.KonuHatasi as e:
+        sys.exit('KONU HATASI: ' + str(e))
+    t = birlestir(katalog, metalar, konu['ozet'])
     os.makedirs(CIKTI, exist_ok=True)
     open(os.path.join(CIKTI, 'claude-ai.html'), 'w', encoding='utf-8').write(t)
     open(os.path.join(KOK, 'index.html'), 'w', encoding='utf-8').write(pwa(t))
@@ -153,7 +159,7 @@ def main():
     surum = 'sa-' + h.hexdigest()[:10]
     sw = SW.replace('__SURUM__', surum).replace('__DOSYALAR__', json.dumps(dosyalar, indent=1))
     open(os.path.join(KOK, 'sw.js'), 'w', encoding='utf-8').write(sw)
-    print('Derlendi:', surum, '-', len(dosyalar), 'dosya önbellekte')
+    print('Derlendi:', surum, '-', len(dosyalar), 'dosya önbellekte ·', konu['adet'], 'konu')
 
 
 if __name__ == '__main__':
