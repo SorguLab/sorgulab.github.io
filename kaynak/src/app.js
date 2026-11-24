@@ -239,7 +239,19 @@ function iletisimBaglam() {
   }
   return parca.join(' · ');
 }
+// Form sadece kendi sitemizde çalışır (claude.ai gibi başka adreslerde dış isteklere izin verilmiyor): orada siteye ve e-postaya yönlendir.
+const formCalisir = () => /(^|\.)sorgulab\.com$|\.github\.io$|^localhost$|^127\.0\.0\.1$/.test(location.hostname);
 function iletisimCiz(d) {
+  if (!formCalisir()) {
+    d.innerHTML = `<div class="ai-panel">
+      <div class="ai-ust"><h2>Bize yaz</h2><button class="btn kucuk-btn" type="button" id="iltKapat" aria-label="Kapat">✕</button></div>
+      <p>Öneri, hata bildirimi ya da şikâyet: mesajın doğrudan SorguLab ekibine ulaşır.</p>
+      <div class="ai-satir"><a class="btn birincil" href="https://sorgulab.com/#iletisim" target="_blank" rel="noopener">sorgulab.com'da formu aç</a>
+      <a class="btn" href="mailto:${ILETISIM_POSTA}?subject=${encodeURIComponent('SorguLab · Öneri')}&body=${encodeURIComponent('\n\n---\nSayfa: ' + iletisimBaglam())}">E-posta ile yaz</a></div>
+      <p class="kucuk">İletişim formu sadece sorgulab.com'da çalışıyor. E-posta adresimiz: <b>${ILETISIM_POSTA}</b></p></div>`;
+    $('#iltKapat', d).onclick = () => d.close();
+    return;
+  }
   d.innerHTML = `<form class="ai-panel ilt-form" id="iltForm" novalidate>
     <div class="ai-ust"><h2>Bize yaz</h2><button class="btn kucuk-btn" type="button" id="iltKapat" aria-label="Kapat">✕</button></div>
     <p>Öneri, hata bildirimi ya da şikâyet: mesajın doğrudan SorguLab ekibine ulaşır.</p>
@@ -1458,9 +1470,12 @@ function sozlukHTML(K) {
 
 // ─── Başlat ───
 (function baslat() {
+  const iletisimIstendi = location.hash === '#iletisim';
+  if (iletisimIstendi) history.replaceState(null, '', location.pathname + location.search);
   hashOku();
   veriHazirla(S.veriSeti).catch(() => { });
   yukleneniGeriYukle();
+  if (iletisimIstendi) setTimeout(iletisimAc, 300);
   yenidenCiz();
   sqlHazir.then(() => { if (!SQLlib) { $('#ana').insertAdjacentHTML('afterbegin', '<div class="hata-kutu">SQL motoru yüklenemedi. Sayfayı yenilemeyi dene.</div>'); } });
 })();
