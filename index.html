@@ -370,7 +370,6 @@ legend { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
   <div class="ust-sag">
     <label for="vsSec">Veri seti</label>
     <select id="vsSec"></select>
-    <span class="hap" id="ilerleme" title="Çözülen sorular"></span>
     <span class="hap" id="pyDurum" data-durum="yok">Python: kapalı</span>
     <button class="hap ai-hap" id="aiBtn" type="button" data-durum="yok">Yapay zekâ: kapalı</button>
   </div>
@@ -2265,7 +2264,6 @@ function ustCiz() {
   const sel = $('#vsSec');
   sel.innerHTML = HAZIR.map(k => `<option value="${k}">${esc(VS[k].ad)}</option>`).join('') + (VS.yuklenen ? `<option value="yuklenen">${esc(VS.yuklenen.ad)}</option>` : '');
   sel.value = S.veriSeti;
-  $('#ilerleme').textContent = ilerlemeMetni();
   pyDurumAyarla(pyDurum);
   const ai = $('#aiBtn'); if (ai) { ai.textContent = 'Yapay zekâ: ' + aiDurumMetni(); ai.dataset.durum = aiTur() ? 'hazir' : 'yok'; }
 }
@@ -2978,21 +2976,21 @@ Sadece şu JSON'u döndür:
 <script>
 (function () {
   if (!('serviceWorker' in navigator)) return;
-  var sag = document.querySelector('.ust-sag');
-  var hap = document.createElement('span'); hap.className = 'hap'; hap.id = 'cevrimdisi';
-  hap.textContent = 'Çevrimdışı: hazırlanıyor…'; sag.appendChild(hap);
-  var yaz = function (t, renk) { hap.textContent = t; if (renk) hap.style.color = renk; };
+  // Normalde görünür bir rozet yok; sadece yeni sürüm indiğinde kısa bir uyarı çıkar.
+  var uyar = function (t) {
+    var hap = document.createElement('span'); hap.className = 'hap'; hap.id = 'cevrimdisi';
+    hap.textContent = t; hap.style.color = 'var(--uyari)'; document.querySelector('.ust-sag').appendChild(hap);
+  };
   navigator.serviceWorker.register('./sw.js').then(function (reg) {
     reg.addEventListener('updatefound', function () {
       var yeni = reg.installing;
       if (!yeni || !navigator.serviceWorker.controller) return;
-      yeni.addEventListener('statechange', function () { if (yeni.state === 'activated') yaz('Yeni sürüm indi · uygulamayı kapatıp aç', 'var(--uyari)'); });
+      yeni.addEventListener('statechange', function () { if (yeni.state === 'activated') uyar('Yeni sürüm indi · uygulamayı kapatıp aç'); });
     });
     return navigator.serviceWorker.ready;
   }).then(function () {
-    yaz('Çevrimdışı kullanıma hazır', 'var(--iyi)');
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});
-  }).catch(function (e) { yaz('Çevrimdışı kurulamadı', 'var(--kotu)'); console.warn(e); });
+  }).catch(function (e) { console.warn('Çevrimdışı kurulamadı', e); });
 })();
 </script>
 </body>

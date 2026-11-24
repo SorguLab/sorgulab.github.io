@@ -497,7 +497,6 @@ function ustCiz() {
   const sel = $('#vsSec');
   sel.innerHTML = HAZIR.map(k => `<option value="${k}">${esc(VS[k].ad)}</option>`).join('') + (VS.yuklenen ? `<option value="yuklenen">${esc(VS.yuklenen.ad)}</option>` : '');
   sel.value = S.veriSeti;
-  $('#ilerleme').textContent = ilerlemeMetni();
   pyDurumAyarla(pyDurum);
   const ai = $('#aiBtn'); if (ai) { ai.textContent = 'Yapay zekâ: ' + aiDurumMetni(); ai.dataset.durum = aiTur() ? 'hazir' : 'yok'; }
 }

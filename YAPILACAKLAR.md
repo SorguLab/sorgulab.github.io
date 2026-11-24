@@ -13,4 +13,5 @@ Esra'nın sonraya bıraktığı istekler. Bir madde bitince buradan sil ve commi
   - **Esra'nın ilerlemesi kaybolmasın:** tutulan soruların `id`'lerini değiştirme (çözüldü işaretleri `id` ile saklanıyor).
   - Seviyeleri (1-3) gözden geçir; liste seviyeye göre sıralanıyor.
   - Hiç `kaynak` sorusu kalmayınca "Uygulama soruları / Miuul Bitirme" seçimi kendiliğinden kaybolur; kod tarafında başka değişiklik gerekmez. Mülakat havuzu da bu soruları otomatik içerir.
+  - Kaynak filtresi ("Uygulama soruları / Miuul Bitirme") kalkınca **yerine soru sayacı** koy: SQL ve Python için ayrı ayrı çözülen/toplam (örn. "SQL 12/52", "Python 3/26"). Esra üstteki sayaç rozetini kaldırttı; `ilerlemeMetni()` fonksiyonu duruyor, oradan yararlan.
   - `dogrula.py` → `build.py` → push → claude.ai sürümünü yayınla.

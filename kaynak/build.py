@@ -67,21 +67,21 @@ PWA_BAS = '''<link rel="manifest" href="manifest.webmanifest">
 PWA_KAYIT = '''<script>
 (function () {
   if (!('serviceWorker' in navigator)) return;
-  var sag = document.querySelector('.ust-sag');
-  var hap = document.createElement('span'); hap.className = 'hap'; hap.id = 'cevrimdisi';
-  hap.textContent = 'Çevrimdışı: hazırlanıyor…'; sag.appendChild(hap);
-  var yaz = function (t, renk) { hap.textContent = t; if (renk) hap.style.color = renk; };
+  // Normalde görünür bir rozet yok; sadece yeni sürüm indiğinde kısa bir uyarı çıkar.
+  var uyar = function (t) {
+    var hap = document.createElement('span'); hap.className = 'hap'; hap.id = 'cevrimdisi';
+    hap.textContent = t; hap.style.color = 'var(--uyari)'; document.querySelector('.ust-sag').appendChild(hap);
+  };
   navigator.serviceWorker.register('./sw.js').then(function (reg) {
     reg.addEventListener('updatefound', function () {
       var yeni = reg.installing;
       if (!yeni || !navigator.serviceWorker.controller) return;
-      yeni.addEventListener('statechange', function () { if (yeni.state === 'activated') yaz('Yeni sürüm indi · uygulamayı kapatıp aç', 'var(--uyari)'); });
+      yeni.addEventListener('statechange', function () { if (yeni.state === 'activated') uyar('Yeni sürüm indi · uygulamayı kapatıp aç'); });
     });
     return navigator.serviceWorker.ready;
   }).then(function () {
-    yaz('Çevrimdışı kullanıma hazır', 'var(--iyi)');
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});
-  }).catch(function (e) { yaz('Çevrimdışı kurulamadı', 'var(--kotu)'); console.warn(e); });
+  }).catch(function (e) { console.warn('Çevrimdışı kurulamadı', e); });
 })();
 </script>
 '''
