@@ -2,6 +2,8 @@
 
 Esra'nın SQL / pandas / NumPy alıştırma uygulaması. Kullanıcıyla Türkçe konuş.
 
+Repo: `sorgulab/sorgulab.github.io` (GitHub organizasyonu SorguLab). Site: https://sorgulab.github.io. Eski adres `eesrassoner/sorgu-atolyesi` artık kullanılmıyor.
+
 ## Yapı
 - Repo kökü = GitHub Pages ile yayınlanan iPad (PWA, çevrimdışı) sürümü. Tüm varlıklar kökte **düz** durur (klasör yok): Pyodide (`pyodide.js`, `pyodide.asm.*`, `python_stdlib.wasm`, `paket-*.wasm` = yeniden sıkıştırılmış wheel'ler), `sql-asm.js`, `xlsx.full.min.js`, fontlar, ikonlar. Bunları elle düzenleme.
 - `kaynak/src/` = tek doğruluk kaynağı:
