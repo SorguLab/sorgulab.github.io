@@ -1084,7 +1084,8 @@ function veriCiz() {
           <span class="birak-ic"><b>${Y ? 'Başka bir dosya yükle' : 'Dosyayı buraya bırak'}</b><span class="kucuk">ya da tıklayıp seç · .xlsx, .xls, .csv</span></span></label>
         <div id="yukDurum"></div>
         ${Y ? `<ul class="tablo-ozet">${Object.entries(Y.tablolar).map(([a, t]) => `<li><code>${esc(a)}</code><span>${t.columns.length} sütun · ${t.rows.length} satır</span></li>`).join('')}</ul>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${S.veriSeti === 'yuklenen' ? '<span class="aktif-etiket">Şu an bu veriyle çalışıyorsun</span>' : '<button class="btn" data-vs="yuklenen">Bu veriyle çalış</button>'}<button class="btn hafif" id="veriSil" type="button">Veriyi sil</button></div>` : ''}
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${S.veriSeti === 'yuklenen' ? '<span class="aktif-etiket">Şu an bu veriyle çalışıyorsun</span>' : '<button class="btn" data-vs="yuklenen">Bu veriyle çalış</button>'}<button class="btn hafif" id="veriSil" type="button">Veriyi sil</button></div>
+          <p class="kucuk" style="margin:6px 0 0;color:var(--soluk)"><i>* Yeni bir dosya yüklersen bu veri ve ona özel ürettiğin sorular silinir. Aynı anda tek bir kendi veri setin saklanır.</i></p>` : ''}
       </article>
     </div>
     ${Y ? uretPanelHTML() : ''}
