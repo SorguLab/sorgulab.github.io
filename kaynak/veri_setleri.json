@@ -165,5 +165,52 @@
     ]
    ]
   }
+ },
+ {
+  "key": "titanic",
+  "ad": "Titanic",
+  "etiket": "Hazır veri · Kaggle eğitim seti",
+  "dosyalar": [
+   "tt_bank.js"
+  ],
+  "bankalar": [
+   "TT_SORULAR"
+  ],
+  "ilk_soru": "ti01",
+  "aciklama": "1912'de batan Titanic'in 891 yolcusu (Kaggle \"Titanic\" yarışmasının eğitim seti). Hayatta kalma (Survived), sınıf, cinsiyet, yaş, aile, bilet ücreti, kabin ve binilen liman bilgileri. Eksik veri, değişken türetme ve kategorik dönüşüm alıştırmaları için ideal. Liman kodlarının açık adları ayrı bir liman tablosunda.",
+  "varsayilan": {
+   "sql": "SELECT PassengerId, Name, Sex, Age, Pclass, Fare, Survived\nFROM titanic\nLIMIT 20;",
+   "python": "# DataFrame'ler hazır: titanic, liman\ntitanic.head(10)"
+  },
+  "ornekler": {
+   "sql": [
+    [
+     "İlk 20 yolcu",
+     "SELECT * FROM titanic LIMIT 20;"
+    ],
+    [
+     "Cinsiyete göre",
+     "SELECT Sex, COUNT(*) AS yolcu, AVG(Survived) AS oran\nFROM titanic\nGROUP BY Sex;"
+    ],
+    [
+     "Liman tablosu",
+     "SELECT * FROM liman;"
+    ]
+   ],
+   "python": [
+    [
+     "İlk 10 yolcu",
+     "titanic.head(10)"
+    ],
+    [
+     "Eksik değerler",
+     "titanic.isnull().sum()"
+    ],
+    [
+     "Veri tipleri",
+     "titanic.dtypes"
+    ]
+   ]
+  }
  }
 ]
