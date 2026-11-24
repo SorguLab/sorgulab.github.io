@@ -773,6 +773,7 @@ const ORNEKLER = {
 };
 function serbestCiz() {
   const ana = $('#ana'), d = S.serbestDil, vs = VS[S.veriSeti];
+  const gecmisBu = S.gecmis.filter(g => g.dil === d && g.vs === S.veriSeti);
   const ilkTablo = Object.keys(vs.tablolar)[0];
   if (!S.serbestKod) S.serbestKod = varsayilanKod(S.veriSeti);
   const ornek = ORNEKLER[S.veriSeti] ? ORNEKLER[S.veriSeti][d] : (d === 'sql' ? [['İlk 20 satır', `SELECT *\nFROM "${ilkTablo}"\nLIMIT 20;`], ['Satır sayısı', `SELECT COUNT(*) FROM "${ilkTablo}";`]] : [['İlk 10 satır', `${ilkTablo}.head(10)`], ['Özet', `${ilkTablo}.describe()`], ['Eksik değerler', `${ilkTablo}.isnull().sum()`]]);
@@ -787,7 +788,7 @@ function serbestCiz() {
         <div class="arac-cubugu"><button class="btn birincil" id="sCalistir">Çalıştır <kbd>Ctrl</kbd><kbd>Enter</kbd></button>
         ${d === 'sql' ? '<button class="btn hafif" id="sSifirla" title="CREATE/UPDATE/DELETE ile yaptığın değişiklikleri geri alır">Veriyi sıfırla</button>' : '<span class="kucuk">Her çalıştırmada tablolar orijinal haliyle gelir. Değişken saklamak için hepsini aynı hücrede yaz.</span>'}</div></div>
       <div class="cikti" id="cikti"><div class="cikti-bos">Serbest alan: istediğin sorguyu yaz, sonucu gör. Burada kontrol yok, sadece keşif.</div></div>
-      ${S.gecmis.filter(g => g.dil === d).length ? `<div class="gecmis"><div class="ek-baslik">Son çalıştırdıkların</div><ul>${S.gecmis.filter(g => g.dil === d).slice(0, 8).map((g, i) => `<li><button class="gecmis-btn" data-g="${S.gecmis.indexOf(g)}"><code>${esc(g.kod.replace(/\s+/g, ' ').slice(0, 90))}</code></button></li>`).join('')}</ul></div>` : ''}
+      ${gecmisBu.length ? `<div class="gecmis"><div class="ek-baslik">Son çalıştırdıkların</div><ul>${gecmisBu.slice(0, 8).map(g => `<li><button class="gecmis-btn" data-g="${S.gecmis.indexOf(g)}"><code>${esc(g.kod.replace(/\s+/g, ' ').slice(0, 90))}</code></button></li>`).join('')}</ul></div>` : ''}
     </section>
     <aside class="sema" id="sema">${semaHTML(d)}</aside>
   </div>`;
@@ -797,7 +798,7 @@ function serbestCiz() {
     await bekle(16);
     try {
       const r = await calistir(d, ed.get(), false); c.innerHTML = ciktiHTML(r);
-      const k = ed.get().trim(); if (k) { S.gecmis = [{ dil: d, kod: k }, ...S.gecmis.filter(g => !(g.dil === d && g.kod === k))].slice(0, 30); }
+      const k = ed.get().trim(); if (k) { S.gecmis = [{ dil: d, vs: S.veriSeti, kod: k }, ...S.gecmis.filter(g => !(g.dil === d && g.vs === S.veriSeti && g.kod === k))].slice(0, 60); }
       if (d === 'python') { const s = $('#sema'); if (s) s.innerHTML = semaHTML('python'); }
     } catch (e) { c.innerHTML = hataHTML(e); }
   }
@@ -907,6 +908,7 @@ async function dosyaYukle(f) {
     delete dbCache.yuklenen; Object.keys(beklenenCache).filter(k => k.startsWith('yuklenen:')).forEach(k => delete beklenenCache[k]);
     if (pyYukluVS === 'yuklenen') pyYukluVS = null;
     S.aktifId.yuklenen = null;
+    S.gecmis = S.gecmis.filter(g => g.vs !== 'yuklenen');
     await sqlHazir; dbAl('yuklenen');
     S.veriSeti = 'yuklenen';
     S.serbestKod = varsayilanKod('yuklenen');

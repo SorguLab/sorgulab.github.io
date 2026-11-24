@@ -132,7 +132,15 @@ blockquote.odev { margin: 2px 0 10px; padding: 8px 12px; border-left: 3px solid 
 .bos-not { padding: 10px; }
 
 /* Çalışma alanı */
-.calisma { display: grid; gap: 14px; min-width: 0; }
+.calisma { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; }
+/* Izgara öğeleri varsayılan olarak içeriği kadar genişler (min-width: auto). Geniş bir sonuç tablosu
+   böylece kolonu ve sayfayı genişletiyordu. Tablolar kendi kutusunda kaydırılsın diye öğeler küçülebilir. */
+.calisma > *, .uc-kolon > *, .iki-kolon > *, .veri-sayfa > *, .veri-kartlar > *, .onizleme > *,
+.karne > *, .karne-liste > *, .mulakat-giris > *, .mod-kartlar > *, .teorik > *, .karne-detay > * { min-width: 0; }
+.tablo-kap { max-width: 100%; }
+.soru-kart { grid-template-columns: minmax(0, 1fr); }
+.soru-kart > *, .beklenen-ic, .ek-kutu, .karar > div { min-width: 0; }
+.soru-metni code, .aciklama code, .ek-kutu code { overflow-wrap: anywhere; }
 .soru-kart { background: var(--yuzey); border: 1px solid var(--cizgi); border-radius: var(--r); padding: 18px 20px; box-shadow: var(--golge); display: grid; gap: 10px; }
 .soru-metni { max-width: 75ch; font-size: 15.5px; }
 .rozetler { display: flex; gap: 6px; flex-wrap: wrap; }
