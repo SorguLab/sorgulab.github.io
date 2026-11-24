@@ -221,6 +221,75 @@ function aiYokHTML(metinStr) {
 }
 document.addEventListener('click', e => { if (e.target.closest('[data-ai-ac]')) aiPanelAc(); });
 
+// ─── İletişim formu (Web3Forms: mesaj SorguLab'in e-postasına gider, adres sayfada görünmez) ───
+const ILETISIM_ANAHTAR = 'daa2aa56-c531-4782-aff6-135fa24c0142';
+const ILETISIM_POSTA = 'sorgulab@hotmail.com';
+function iletisimAc() {
+  let d = $('#iletisimDialog');
+  if (!d) { d = document.createElement('dialog'); d.id = 'iletisimDialog'; d.className = 'ai-dialog'; document.body.appendChild(d); d.addEventListener('click', e => { if (e.target === d) d.close(); }); }
+  iletisimCiz(d);
+  if (d.showModal) d.showModal(); else d.setAttribute('open', '');
+  setTimeout(() => { const t = $('#iltMesaj', d); if (t) t.focus(); }, 50);
+}
+function iletisimBaglam() {
+  const parca = [S.lab === 'konu' ? `KonuLab · ${S.konuId || '-'}` : `SorguLab · ${S.view}`];
+  if (S.lab !== 'konu') {
+    parca.push(`veri: ${VS[S.veriSeti] ? VS[S.veriSeti].ad : S.veriSeti}`);
+    if (S.view === 'alistirma' && S.aktifId[S.veriSeti]) parca.push(`soru: ${S.aktifId[S.veriSeti]}`);
+  }
+  return parca.join(' · ');
+}
+function iletisimCiz(d) {
+  d.innerHTML = `<form class="ai-panel ilt-form" id="iltForm" novalidate>
+    <div class="ai-ust"><h2>Bize yaz</h2><button class="btn kucuk-btn" type="button" id="iltKapat" aria-label="Kapat">✕</button></div>
+    <p>Öneri, hata bildirimi ya da şikâyet: mesajın doğrudan SorguLab ekibine ulaşır.</p>
+    <label>Konu<select id="iltKonu"><option>Öneri</option><option>Hata bildirimi</option><option>Şikâyet</option><option>Diğer</option></select></label>
+    <label>Mesajın<textarea id="iltMesaj" maxlength="5000" placeholder="Ne düşündüğünü, neyin işe yaramadığını ya da ne eklenmesini istediğini yaz."></textarea><span class="ilt-hata" id="iltMesajHata"></span></label>
+    <label>E-postan <span class="kucuk" style="font-weight:400;color:var(--soluk)">(isteğe bağlı, sana dönmemizi istersen)</span><input type="email" id="iltPosta" autocomplete="email" placeholder="ad@ornek.com"><span class="ilt-hata" id="iltPostaHata"></span></label>
+    <label class="gizli" aria-hidden="true">Boş bırak<input type="checkbox" id="iltBot" tabindex="-1" autocomplete="off"></label>
+    <div class="ai-satir"><button class="btn birincil" type="submit" id="iltGonder">Gönder</button></div>
+    <div id="iltSonuc"></div>
+    <p class="kucuk">Hata bildirimlerinde hangi sayfada olduğun (${esc(iletisimBaglam())}) mesaja otomatik eklenir. Form çalışmazsa <a href="mailto:${ILETISIM_POSTA}">${ILETISIM_POSTA}</a> adresine de yazabilirsin.</p>
+  </form>`;
+  $('#iltKapat', d).onclick = () => d.close();
+  const mesaj = $('#iltMesaj', d), posta = $('#iltPosta', d);
+  mesaj.oninput = () => { $('#iltMesajHata', d).textContent = ''; };
+  posta.oninput = () => { $('#iltPostaHata', d).textContent = ''; };
+  $('#iltForm', d).onsubmit = async e => {
+    e.preventDefault();
+    const m = mesaj.value.trim(), p = posta.value.trim();
+    let tamam = true;
+    if (m.length < 5) { $('#iltMesajHata', d).textContent = 'Önce mesajını yaz.'; tamam = false; }
+    if (p && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p)) { $('#iltPostaHata', d).textContent = 'E-posta adresi geçerli görünmüyor.'; tamam = false; }
+    if (!tamam) return;
+    if ($('#iltBot', d).checked) return;
+    const btn = $('#iltGonder', d), sonuc = $('#iltSonuc', d);
+    btn.disabled = true; btn.textContent = 'Gönderiliyor…'; sonuc.innerHTML = '';
+    const konu = $('#iltKonu', d).value;
+    const f = new FormData();
+    f.append('access_key', ILETISIM_ANAHTAR);
+    f.append('subject', `SorguLab · ${konu}`);
+    f.append('from_name', 'SorguLab iletişim formu');
+    f.append('Konu', konu);
+    f.append('Mesaj', m);
+    if (p) f.append('email', p);
+    f.append('Sayfa', iletisimBaglam());
+    f.append('Adres', location.href);
+    const kontrol = new AbortController(), t = setTimeout(() => kontrol.abort(), 20000);
+    try {
+      const r = await fetch('https://api.web3forms.com/submit', { method: 'POST', body: f, signal: kontrol.signal });
+      let j = {}; try { j = await r.json(); } catch (x) { }
+      if (!r.ok || !j.success) throw new Error((j.body && j.body.message) || j.message || ('HTTP ' + r.status));
+      $('#iltForm', d).innerHTML = `<div class="ai-ust"><h2>Teşekkürler</h2><button class="btn kucuk-btn" type="button" id="iltKapat2" aria-label="Kapat">✕</button></div>
+        <div class="karar dogru"><span class="karar-ikon">✓</span><div>Mesajın ulaştı.${p ? ' Gerekirse sana yazdığın adresten döneceğiz.' : ''}</div></div>`;
+      $('#iltKapat2', d).onclick = () => d.close();
+    } catch (x) {
+      btn.disabled = false; btn.textContent = 'Gönder';
+      sonuc.innerHTML = `<div class="hata-kutu">Mesaj gönderilemedi${kontrol.signal.aborted ? ' (yanıt gelmedi)' : navigator.onLine === false ? ' (internet bağlantısı yok)' : ''}. Biraz sonra tekrar dene ya da <a href="mailto:${ILETISIM_POSTA}?subject=${encodeURIComponent('SorguLab · ' + konu)}">${ILETISIM_POSTA}</a> adresine yaz.</div>`;
+    } finally { clearTimeout(t); }
+  };
+}
+
 // Ayar penceresi
 // Anahtar değişince sayfayı baştan çizme (kontrol sonucu, yazılan cevap kaybolmasın): sadece etiketleri güncelle
 function aiGuncelle() {
@@ -558,6 +627,7 @@ $('#vsSec').addEventListener('change', e => { veriSetiDegistir(e.target.value); 
 function veriSetiDegistir(k) { S.veriSeti = k; S.mulakat = null; S.filtre.kategori = ''; S.filtre.kaynak = ''; S.serbestKod = varsayilanKod(k); veriHazirla(k).catch(() => { }); yenidenCiz(); }
 $$('.nav-btn').forEach(b => b.addEventListener('click', () => git(b.dataset.view)));
 $('#aiBtn').addEventListener('click', aiPanelAc);
+$('#iletisimBtn').addEventListener('click', iletisimAc);
 $$('#konuDil .seg-btn').forEach(b => b.addEventListener('click', () => { S.konuDil = b.dataset.kdil; const k = KONU_OZET.find(x => x.dil === S.konuDil); konuGit(k ? k.id : 'yakinda'); }));
 const VIEWLER = ['alistirma', 'tahmin', 'mulakat', 'serbest', 'veri'];
 function git(v) { if (location.hash !== '#' + v) location.hash = v; else { S.lab = 'sorgu'; S.view = v; yenidenCiz(); } }

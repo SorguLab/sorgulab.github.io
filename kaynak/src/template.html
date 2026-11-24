@@ -404,6 +404,12 @@ body:not([data-lab="konu"]) .konu-ozel, body[data-lab="konu"] .sorgu-ozel { disp
 .konu-acilir { display: none; }
 @media (max-width: 1180px) { .konu-sayfa { grid-template-columns: 260px minmax(0, 1fr); } .konu-sag { display: none; } }
 @media (max-width: 820px) { .konu-sayfa { grid-template-columns: minmax(0, 1fr); gap: 16px; } .konu-yan { position: static; max-height: none; } .konu-yan.kapali > :not(.konu-acilir) { display: none; } .konu-acilir { display: flex; } .konu-yazi h1 { font-size: 28px; } }
+.ilt-form { display: grid; gap: 12px; }
+.ilt-form label { display: grid; gap: 4px; font-weight: 600; font-size: 14px; }
+.ilt-form select, .ilt-form textarea, .ilt-form input[type=email] { font: inherit; font-weight: 400; font-size: 15px; padding: 8px 10px; border: 1px solid var(--cizgi); border-radius: 8px; background: var(--yuzey-2); color: var(--murekkep); }
+.ilt-form textarea { min-height: 130px; resize: vertical; font-family: var(--f-govde); }
+.ilt-form .gizli { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.ilt-hata { color: var(--kotu); font-size: 13px; font-weight: 400; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-asm.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -423,6 +429,7 @@ body:not([data-lab="konu"]) .konu-ozel, body[data-lab="konu"] .sorgu-ozel { disp
     <select id="vsSec" class="sorgu-ozel"></select>
     <span class="hap sorgu-ozel" id="pyDurum" data-durum="yok">Python: kapalı</span>
     <button class="hap ai-hap sorgu-ozel" id="aiBtn" type="button" data-durum="yok">Yapay zekâ: kapalı</button>
+    <button class="hap ai-hap" id="iletisimBtn" type="button">İletişim</button>
     <div class="seg konu-ozel" id="konuDil" role="tablist" aria-label="Konu dili"><button role="tab" class="seg-btn dil-sql" data-kdil="sql">SQL</button><button role="tab" class="seg-btn dil-python" data-kdil="python">Python</button></div>
   </div>
 </header>
