@@ -2,7 +2,7 @@
  {
   "key": "hr",
   "ad": "İK Attrition",
-  "etiket": "Hazır veri · senin yüklediğin",
+  "etiket": "Hazır veri",
   "dosyalar": [
    "hr_bank.js",
    "np_bank.js",
@@ -65,7 +65,7 @@
  {
   "key": "ornek",
   "ad": "Örnek Mağaza",
-  "etiket": "Hazır veri · sentetik",
+  "etiket": "Hazır veri",
   "dosyalar": [],
   "bankalar": [
    "SORULAR"
@@ -114,7 +114,7 @@
  {
   "key": "northwind",
   "ad": "Northwind",
-  "etiket": "Hazır veri · Microsoft örnek veritabanı",
+  "etiket": "Hazır veri",
   "dosyalar": [
    "nw_bank.js"
   ],
@@ -169,7 +169,7 @@
  {
   "key": "titanic",
   "ad": "Titanic",
-  "etiket": "Hazır veri · Kaggle eğitim seti",
+  "etiket": "Hazır veri",
   "dosyalar": [
    "tt_bank.js"
   ],
@@ -216,7 +216,7 @@
  {
   "key": "flo",
   "ad": "FLO Müşteri",
-  "etiket": "Hazır veri · Miuul FLO vakası",
+  "etiket": "Hazır veri",
   "dosyalar": [
    "flo_bank.js"
   ],
