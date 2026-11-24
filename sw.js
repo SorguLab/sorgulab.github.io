@@ -1,5 +1,5 @@
 // SorguLab service worker: tüm dosyaları cihaza kaydeder, sonra internetsiz çalışır.
-const SURUM = 'sa-24d18e37ab';
+const SURUM = 'sa-e5f4d87fe4';
 const DOSYALAR = [
  "./",
  "index.html",

@@ -38,8 +38,13 @@ Python blokları aynı konu içinde aynı ortamı paylaşır (defter gibi). Ek s
   hata          bu blok bilerek hata verir; hata mesajı çıktı olarak gösterilir
   yeni          Python ortamını sıfırla
 Çalışması gereken bir blok hata verirse derleme durur.
+
+Sürüm: çıktılar uygulamadaki Python ile aynı olsun diye Pyodide 0.26.4'ün sürümleriyle çalıştır
+(Python 3.12, pandas 2.2.0, numpy 1.26.4). build.py bunun için KONU_PYTHON ortam değişkenine ya da
+/home/claude/konu-venv'e bakar. Kurulum: uv venv -p 3.12 ~/konu-venv && uv pip install -p ~/konu-venv/bin/python pandas==2.2.0 numpy==1.26.4
 """
-import ast, contextlib, glob, html, io, json, os, re, sqlite3, sys
+import ast, contextlib, glob, html, io, json, os, re, sqlite3, sys, warnings
+warnings.filterwarnings('ignore', category=DeprecationWarning)
 
 KOK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KONU_DIZIN = os.path.join(KOK, 'kaynak', 'konular')
@@ -291,6 +296,9 @@ def derle():
 
 
 if __name__ == '__main__':
+    import pandas, numpy
+    if (pandas.__version__, numpy.__version__) != ('2.2.0', '1.26.4'):
+        print(f'UYARI: pandas {pandas.__version__} / numpy {numpy.__version__} ile derleniyor; uygulama pandas 2.2.0 / numpy 1.26.4 kullanıyor, çıktılar farklı olabilir.')
     try:
         r = derle()
     except KonuHatasi as e:

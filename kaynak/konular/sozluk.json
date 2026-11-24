@@ -1,0 +1,560 @@
+[
+ {
+  "ad": "SELECT … FROM",
+  "dil": "sql",
+  "tanim": "Hangi tablodan hangi sütunların okunacağını belirtir.",
+  "ornek": "SELECT Name, Age FROM titanic;",
+  "konu": "sql-baslarken",
+  "karsilik": "df[[\"Name\", \"Age\"]]"
+ },
+ {
+  "ad": "DISTINCT",
+  "dil": "sql",
+  "tanim": "Tekrar eden satırları bir kez gösterir.",
+  "ornek": "SELECT DISTINCT Embarked FROM titanic;",
+  "konu": "sql-baslarken",
+  "karsilik": "df[\"Embarked\"].unique()"
+ },
+ {
+  "ad": "LIMIT",
+  "dil": "sql",
+  "tanim": "Sonuçtaki satır sayısını sınırlar. SQL Server'da TOP.",
+  "ornek": "SELECT * FROM titanic LIMIT 10;",
+  "konu": "sql-baslarken",
+  "karsilik": "df.head(10)"
+ },
+ {
+  "ad": "WHERE",
+  "dil": "sql",
+  "tanim": "Satırları bir koşula göre filtreler; gruplamadan önce çalışır.",
+  "ornek": "SELECT * FROM titanic WHERE Fare > 100;",
+  "konu": "sql-filtreleme",
+  "karsilik": "df[df[\"Fare\"] > 100]"
+ },
+ {
+  "ad": "IN",
+  "dil": "sql",
+  "tanim": "Değerin bir listedeki değerlerden biri olup olmadığına bakar.",
+  "ornek": "WHERE Embarked IN ('C', 'Q')",
+  "konu": "sql-filtreleme",
+  "karsilik": "df[\"Embarked\"].isin([\"C\", \"Q\"])"
+ },
+ {
+  "ad": "BETWEEN",
+  "dil": "sql",
+  "tanim": "Bir aralıkta olup olmadığına bakar; iki uç da dahildir.",
+  "ornek": "WHERE Age BETWEEN 20 AND 30",
+  "konu": "sql-filtreleme",
+  "karsilik": "df[\"Age\"].between(20, 30)"
+ },
+ {
+  "ad": "LIKE",
+  "dil": "sql",
+  "tanim": "Metinde desen arar. % herhangi sayıda, _ tek karakter.",
+  "ornek": "WHERE Name LIKE '%Mrs.%'",
+  "konu": "sql-filtreleme",
+  "karsilik": "df[\"Name\"].str.contains(\"Mrs.\", regex=False)"
+ },
+ {
+  "ad": "IS NULL",
+  "dil": "sql",
+  "tanim": "Eksik değeri bulur. = NULL hiçbir zaman doğru olmaz.",
+  "ornek": "WHERE Age IS NULL",
+  "konu": "sql-null",
+  "karsilik": "df[\"Age\"].isnull()"
+ },
+ {
+  "ad": "COALESCE",
+  "dil": "sql",
+  "tanim": "İlk NULL olmayan değeri döner; eksik değere varsayılan koymak için.",
+  "ornek": "COALESCE(Cabin, 'Bilinmiyor')",
+  "konu": "sql-null",
+  "karsilik": "df[\"Cabin\"].fillna(\"Bilinmiyor\")"
+ },
+ {
+  "ad": "ORDER BY",
+  "dil": "sql",
+  "tanim": "Sonucu sıralar. DESC azalan. Eşitlikte ikinci kriter ekle.",
+  "ornek": "ORDER BY Fare DESC, PassengerId",
+  "konu": "sql-siralama",
+  "karsilik": "df.sort_values([\"Fare\", \"PassengerId\"], ascending=[False, True])"
+ },
+ {
+  "ad": "COUNT",
+  "dil": "sql",
+  "tanim": "Satır sayar. COUNT(*) tüm satırları, COUNT(sütun) NULL olmayanları.",
+  "ornek": "SELECT COUNT(*), COUNT(Age) FROM titanic;",
+  "konu": "sql-gruplama",
+  "karsilik": "len(df), df[\"Age\"].count()"
+ },
+ {
+  "ad": "GROUP BY",
+  "dil": "sql",
+  "tanim": "Satırları gruplara ayırır, toplama fonksiyonları her grup için ayrı çalışır.",
+  "ornek": "SELECT Pclass, AVG(Fare) FROM titanic GROUP BY Pclass;",
+  "konu": "sql-gruplama",
+  "karsilik": "df.groupby(\"Pclass\")[\"Fare\"].mean()"
+ },
+ {
+  "ad": "HAVING",
+  "dil": "sql",
+  "tanim": "Gruplamadan sonra grupları filtreler.",
+  "ornek": "GROUP BY JobRole HAVING COUNT(*) > 50",
+  "konu": "sql-gruplama",
+  "karsilik": "g = df.groupby(\"JobRole\").size(); g[g > 50]"
+ },
+ {
+  "ad": "CASE WHEN",
+  "dil": "sql",
+  "tanim": "Koşula göre değer üretir; ilk doğru koşulun değeri alınır.",
+  "ornek": "CASE WHEN Age < 18 THEN 'Çocuk' ELSE 'Yetişkin' END",
+  "konu": "sql-case-when",
+  "karsilik": "np.select([df[\"Age\"] < 18], [\"Çocuk\"], default=\"Yetişkin\")"
+ },
+ {
+  "ad": "INNER JOIN",
+  "dil": "sql",
+  "tanim": "İki tabloda da eşleşen satırları birleştirir.",
+  "ornek": "FROM Orders o JOIN Customers c ON c.CustomerID = o.CustomerID",
+  "konu": "sql-join",
+  "karsilik": "Orders.merge(Customers, on=\"CustomerID\")"
+ },
+ {
+  "ad": "LEFT JOIN",
+  "dil": "sql",
+  "tanim": "Soldaki tablonun tüm satırlarını tutar; eşleşme yoksa sağ taraf NULL.",
+  "ornek": "FROM Customers c LEFT JOIN Orders o ON o.CustomerID = c.CustomerID",
+  "konu": "sql-join",
+  "karsilik": "Customers.merge(Orders, on=\"CustomerID\", how=\"left\")"
+ },
+ {
+  "ad": "EXISTS",
+  "dil": "sql",
+  "tanim": "Alt sorgu en az bir satır döndürüyorsa doğrudur. NOT EXISTS: eşleşmeyenler.",
+  "ornek": "WHERE NOT EXISTS (SELECT 1 FROM Orders o WHERE o.CustomerID = c.CustomerID)",
+  "konu": "sql-alt-sorgu-cte",
+  "karsilik": "merge(..., how=\"left\", indicator=True) + _merge == \"left_only\""
+ },
+ {
+  "ad": "WITH (CTE)",
+  "dil": "sql",
+  "tanim": "Sorguyu adlandırılmış adımlara böler; her adım tablo gibi kullanılır.",
+  "ornek": "WITH t AS (SELECT ...) SELECT * FROM t;",
+  "konu": "sql-alt-sorgu-cte"
+ },
+ {
+  "ad": "ROW_NUMBER",
+  "dil": "sql",
+  "tanim": "Her satıra (grup içinde) sıra numarası verir. \"Her grubun en …\" kalıbı.",
+  "ornek": "ROW_NUMBER() OVER (PARTITION BY Pclass ORDER BY Age DESC)",
+  "konu": "sql-window",
+  "karsilik": "df.groupby(\"Pclass\")[\"Age\"].rank(method=\"first\", ascending=False)"
+ },
+ {
+  "ad": "RANK / DENSE_RANK",
+  "dil": "sql",
+  "tanim": "Eşitlere aynı sırayı verir. RANK sonrakini atlar (1,1,3), DENSE_RANK atlamaz (1,1,2).",
+  "ornek": "RANK() OVER (ORDER BY UnitPrice DESC)",
+  "konu": "sql-window",
+  "karsilik": "df[\"UnitPrice\"].rank(method=\"min\", ascending=False)"
+ },
+ {
+  "ad": "NTILE",
+  "dil": "sql",
+  "tanim": "Satırları sıraya göre n eşit gruba böler.",
+  "ornek": "NTILE(4) OVER (ORDER BY Fare)",
+  "konu": "sql-window",
+  "karsilik": "pd.qcut(df[\"Fare\"].rank(method=\"first\"), 4, labels=False) + 1"
+ },
+ {
+  "ad": "LAG / LEAD",
+  "dil": "sql",
+  "tanim": "Önceki / sonraki satırın değerini getirir.",
+  "ornek": "LAG(ciro) OVER (ORDER BY ay)",
+  "konu": "sql-window",
+  "karsilik": "df[\"ciro\"].shift(1)"
+ },
+ {
+  "ad": "SUM() OVER",
+  "dil": "sql",
+  "tanim": "Satırları koruyarak grup toplamı ya da (ORDER BY ile) kümülatif toplam ekler.",
+  "ornek": "SUM(adet) OVER (ORDER BY ay)",
+  "konu": "sql-window",
+  "karsilik": "df[\"adet\"].cumsum()"
+ },
+ {
+  "ad": "SUBSTR / INSTR",
+  "dil": "sql",
+  "tanim": "Metinden parça alır / bir karakterin konumunu bulur. SQL Server: SUBSTRING / CHARINDEX.",
+  "ornek": "SUBSTR(Name, 1, INSTR(Name, ',') - 1)",
+  "konu": "sql-metin",
+  "karsilik": "df[\"Name\"].str.split(\",\").str[0]"
+ },
+ {
+  "ad": "REPLACE",
+  "dil": "sql",
+  "tanim": "Metindeki bir parçayı başka bir parçayla değiştirir.",
+  "ornek": "REPLACE(liste, '[', '')",
+  "konu": "sql-metin",
+  "karsilik": "df[\"liste\"].str.replace(\"[\", \"\", regex=False)"
+ },
+ {
+  "ad": "strftime",
+  "dil": "sql",
+  "tanim": "SQLite'ta tarihten parça çıkarır: %Y yıl, %m ay, %Y-%m yıl-ay.",
+  "ornek": "strftime('%Y-%m', OrderDate)",
+  "konu": "sql-tarih",
+  "karsilik": "df[\"OrderDate\"].dt.to_period(\"M\")"
+ },
+ {
+  "ad": "julianday",
+  "dil": "sql",
+  "tanim": "Tarihi gün sayısına çevirir; iki tarih farkı = gün. SQL Server: DATEDIFF.",
+  "ornek": "julianday(ShippedDate) - julianday(OrderDate)",
+  "konu": "sql-tarih",
+  "karsilik": "(df[\"ShippedDate\"] - df[\"OrderDate\"]).dt.days"
+ },
+ {
+  "ad": "WITH RECURSIVE",
+  "dil": "sql",
+  "tanim": "Kendini çağıran CTE; hiyerarşiler ve diziler üretmek için.",
+  "ornek": "WITH RECURSIVE s(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM s WHERE n < 5) SELECT n FROM s;",
+  "konu": "sql-recursive-cte"
+ },
+ {
+  "ad": "len",
+  "dil": "python",
+  "tanim": "Bir metnin, listenin ya da sözlüğün eleman sayısını verir.",
+  "ornek": "len([3, 1, 4])  # 3",
+  "konu": "temel-metinler"
+ },
+ {
+  "ad": "type / int / float / str",
+  "dil": "python",
+  "tanim": "type tipi söyler; int, float, str tip dönüştürür.",
+  "ornek": "int(\"3\") + float(\"2.5\")  # 5.5",
+  "konu": "temel-degiskenler-tipler"
+ },
+ {
+  "ad": "f-string",
+  "dil": "python",
+  "tanim": "Metin içine değişken ve biçim yerleştirir.",
+  "ornek": "f\"Oran: %{oran * 100:.2f}\"",
+  "konu": "temel-degiskenler-tipler"
+ },
+ {
+  "ad": "split / join",
+  "dil": "python",
+  "tanim": "split metni listeye böler, join listeyi metinde birleştirir.",
+  "ornek": "\"a, b\".split(\", \")  # ['a', 'b']",
+  "konu": "temel-metinler"
+ },
+ {
+  "ad": "append / insert / pop",
+  "dil": "python",
+  "tanim": "Listeye sona ekler / konuma ekler / eleman çıkarıp döner.",
+  "ornek": "l.append(5); l.insert(0, 1); son = l.pop()",
+  "konu": "temel-listeler"
+ },
+ {
+  "ad": "sorted / sort",
+  "dil": "python",
+  "tanim": "sorted yeni sıralı liste döner; .sort() listenin kendisini sıralar ve None döner.",
+  "ornek": "sorted(l, reverse=True)",
+  "konu": "temel-listeler"
+ },
+ {
+  "ad": "dict.get",
+  "dil": "python",
+  "tanim": "Anahtar yoksa hata vermek yerine varsayılan değer döner.",
+  "ornek": "d.get(\"telefon\", \"yok\")",
+  "konu": "temel-dictionary-tuple-set"
+ },
+ {
+  "ad": "set",
+  "dil": "python",
+  "tanim": "Tekrarsız küme; & kesişim, | birleşim, - fark.",
+  "ornek": "set([1, 1, 2])  # {1, 2}",
+  "konu": "temel-dictionary-tuple-set"
+ },
+ {
+  "ad": "if / elif / else",
+  "dil": "python",
+  "tanim": "Koşula göre farklı blok çalıştırır; ilk doğru koşul kazanır.",
+  "ornek": "if x > 0:\n    ...\nelif x == 0:\n    ...\nelse:\n    ...",
+  "konu": "temel-kosullar"
+ },
+ {
+  "ad": "for / while",
+  "dil": "python",
+  "tanim": "for bir koleksiyonun üzerinden geçer; while koşul doğru olduğu sürece tekrarlar.",
+  "ornek": "for i, x in enumerate(liste):\n    print(i, x)",
+  "konu": "temel-donguler"
+ },
+ {
+  "ad": "break / continue",
+  "dil": "python",
+  "tanim": "break döngüyü bitirir; continue o adımı atlayıp devam eder.",
+  "ornek": "for x in l:\n    if x < 0:\n        continue",
+  "konu": "temel-donguler"
+ },
+ {
+  "ad": "def / return",
+  "dil": "python",
+  "tanim": "Fonksiyon tanımlar; return sonucu geri verir (yoksa None).",
+  "ornek": "def kare(x):\n    return x ** 2",
+  "konu": "temel-fonksiyonlar"
+ },
+ {
+  "ad": "lambda",
+  "dil": "python",
+  "tanim": "Tek satırlık isimsiz fonksiyon; genelde başka fonksiyona argüman olarak.",
+  "ornek": "sorted(l, key=lambda c: c[1])",
+  "konu": "temel-fonksiyonel-araclar"
+ },
+ {
+  "ad": "map / filter",
+  "dil": "python",
+  "tanim": "map her elemana fonksiyon uygular, filter koşula uyanları tutar.",
+  "ornek": "list(filter(lambda s: s > 100, satislar))",
+  "konu": "temel-fonksiyonel-araclar",
+  "karsilik": "df[\"x\"].map(f), df[df[\"x\"] > 100]"
+ },
+ {
+  "ad": "list comprehension",
+  "dil": "python",
+  "tanim": "Liste üreten döngünün tek satırlık hali. Tek if sağa, if-else sola.",
+  "ornek": "[x * 2 for x in l if x > 0]",
+  "konu": "temel-comprehension"
+ },
+ {
+  "ad": "try / except",
+  "dil": "python",
+  "tanim": "Hata verebilecek kodu çalıştırır, hata olursa except bloğuna geçer.",
+  "ornek": "try:\n    float(x)\nexcept ValueError:\n    ...",
+  "konu": "temel-hata-yakalama"
+ },
+ {
+  "ad": "head / shape / info",
+  "dil": "pandas",
+  "tanim": "İlk satırlar / satır-sütun sayısı / tipler ve eksik olmayan sayıları.",
+  "ornek": "df.head(); df.shape; df.info()",
+  "konu": "pandas-dataframe-giris",
+  "karsilik": "SELECT * … LIMIT 5"
+ },
+ {
+  "ad": "describe",
+  "dil": "pandas",
+  "tanim": "Sayısal sütunların özet istatistikleri.",
+  "ornek": "df[[\"Age\", \"Fare\"]].describe()",
+  "konu": "pandas-dataframe-giris"
+ },
+ {
+  "ad": "loc / iloc",
+  "dil": "pandas",
+  "tanim": "loc etiket ve koşulla, iloc konumla satır-sütun seçer.",
+  "ornek": "df.loc[df[\"Pclass\"] == 1, [\"Name\", \"Age\"]]",
+  "konu": "pandas-filtreleme",
+  "karsilik": "SELECT Name, Age … WHERE Pclass = 1"
+ },
+ {
+  "ad": "query",
+  "dil": "pandas",
+  "tanim": "Filtreyi metin olarak yazar.",
+  "ornek": "df.query(\"Pclass == 1 and Age < 18\")",
+  "konu": "pandas-filtreleme",
+  "karsilik": "WHERE Pclass = 1 AND Age < 18"
+ },
+ {
+  "ad": "isnull / fillna / dropna",
+  "dil": "pandas",
+  "tanim": "Eksikleri bul / doldur / at.",
+  "ornek": "df[\"Age\"].fillna(df[\"Age\"].median())",
+  "konu": "pandas-eksik-veri",
+  "karsilik": "COALESCE(Age, …)"
+ },
+ {
+  "ad": "value_counts",
+  "dil": "pandas",
+  "tanim": "Değerlerin frekansı, çoktan aza. normalize=True oran verir.",
+  "ornek": "df[\"Embarked\"].value_counts(normalize=True)",
+  "konu": "pandas-siralama-sayma",
+  "karsilik": "GROUP BY Embarked + COUNT(*)"
+ },
+ {
+  "ad": "sort_values",
+  "dil": "pandas",
+  "tanim": "Sütun(lar)a göre sıralar.",
+  "ornek": "df.sort_values(\"Fare\", ascending=False)",
+  "konu": "pandas-siralama-sayma",
+  "karsilik": "ORDER BY Fare DESC"
+ },
+ {
+  "ad": "groupby + agg",
+  "dil": "pandas",
+  "tanim": "Grup bazlı özet; named aggregation ile sütunlara ad verilir.",
+  "ornek": "df.groupby(\"Pclass\").agg(yolcu=(\"Name\", \"count\"), ort=(\"Fare\", \"mean\"))",
+  "konu": "pandas-gruplama",
+  "karsilik": "GROUP BY Pclass"
+ },
+ {
+  "ad": "transform",
+  "dil": "pandas",
+  "tanim": "Grup sonucunu her satıra yayar; satır sayısı değişmez.",
+  "ornek": "df.groupby(\"Pclass\")[\"Fare\"].transform(\"mean\")",
+  "konu": "pandas-gruplama",
+  "karsilik": "AVG(Fare) OVER (PARTITION BY Pclass)"
+ },
+ {
+  "ad": "np.where / np.select",
+  "dil": "pandas",
+  "tanim": "Koşullu yeni sütun: iki seçenek / çok seçenek.",
+  "ornek": "np.where(df[\"Age\"] < 18, \"Çocuk\", \"Yetişkin\")",
+  "konu": "pandas-yeni-sutun",
+  "karsilik": "CASE WHEN"
+ },
+ {
+  "ad": "map / apply",
+  "dil": "pandas",
+  "tanim": "map sözlükle değer eşler; apply her değere/satıra fonksiyon uygular.",
+  "ornek": "df[\"Embarked\"].map({\"S\": \"Southampton\"})",
+  "konu": "pandas-yeni-sutun"
+ },
+ {
+  "ad": "pd.cut / pd.qcut",
+  "dil": "pandas",
+  "tanim": "cut kendi sınırlarınla, qcut eşit frekansla gruplara böler.",
+  "ornek": "pd.cut(df[\"Age\"], bins=[0, 18, 60, 120], right=False)",
+  "konu": "pandas-yeni-sutun",
+  "karsilik": "CASE WHEN / NTILE"
+ },
+ {
+  "ad": "merge",
+  "dil": "pandas",
+  "tanim": "Tabloları ortak anahtarla birleştirir; how ile tür seçilir.",
+  "ornek": "Orders.merge(Customers, on=\"CustomerID\", how=\"left\")",
+  "konu": "pandas-birlestirme",
+  "karsilik": "LEFT JOIN"
+ },
+ {
+  "ad": "concat",
+  "dil": "pandas",
+  "tanim": "Tabloları alt alta (ya da yan yana) ekler.",
+  "ornek": "pd.concat([ocak, subat], ignore_index=True)",
+  "konu": "pandas-birlestirme",
+  "karsilik": "UNION ALL"
+ },
+ {
+  "ad": "pivot_table / crosstab",
+  "dil": "pandas",
+  "tanim": "Uzun tabloyu geniş tabloya çevirir / çapraz frekans tablosu.",
+  "ornek": "pd.pivot_table(df, index=\"Pclass\", columns=\"Sex\", values=\"Survived\")",
+  "konu": "pandas-pivot",
+  "karsilik": "CASE WHEN ile pivot"
+ },
+ {
+  "ad": "melt",
+  "dil": "pandas",
+  "tanim": "Geniş tabloyu uzun biçime çevirir.",
+  "ornek": "genis.melt(id_vars=\"Pclass\")",
+  "konu": "pandas-pivot"
+ },
+ {
+  "ad": "str.contains / str.extract",
+  "dil": "pandas",
+  "tanim": "Sütunda metin arar / regex ile parça çıkarır.",
+  "ornek": "df[\"Name\"].str.extract(r\",\\s*([^\\.]+)\\.\")",
+  "konu": "pandas-metin",
+  "karsilik": "LIKE / SUBSTR + INSTR"
+ },
+ {
+  "ad": "explode",
+  "dil": "pandas",
+  "tanim": "Liste içeren hücreleri her öğe için ayrı satıra açar.",
+  "ornek": "df[\"liste\"].str.split(\", \").explode()",
+  "konu": "pandas-metin",
+  "karsilik": "STRING_SPLIT / UNNEST"
+ },
+ {
+  "ad": "to_datetime / .dt",
+  "dil": "pandas",
+  "tanim": "Metni tarihe çevirir / tarihten parça çıkarır.",
+  "ornek": "pd.to_datetime(df[\"t\"]).dt.year",
+  "konu": "pandas-tarih",
+  "karsilik": "strftime('%Y', t)"
+ },
+ {
+  "ad": "resample",
+  "dil": "pandas",
+  "tanim": "Zaman serisini dönemlere (ay, hafta) toplar.",
+  "ornek": "df.set_index(\"OrderDate\").resample(\"ME\").size()",
+  "konu": "pandas-tarih",
+  "karsilik": "GROUP BY strftime('%Y-%m', …)"
+ },
+ {
+  "ad": "get_dummies",
+  "dil": "pandas",
+  "tanim": "Kategorik sütunları 0/1 sütunlara çevirir (one-hot encoding).",
+  "ornek": "pd.get_dummies(df[[\"Sex\"]], drop_first=True, dtype=int)",
+  "konu": "pandas-analiz-kaliplari"
+ },
+ {
+  "ad": "np.array",
+  "dil": "numpy",
+  "tanim": "NumPy dizisi oluşturur; tüm elemanlar aynı tipte.",
+  "ornek": "np.array([1, 2, 3]) * 2  # array([2, 4, 6])",
+  "konu": "numpy-diziler"
+ },
+ {
+  "ad": "shape / dtype",
+  "dil": "numpy",
+  "tanim": "Dizinin boyutları / eleman tipi.",
+  "ornek": "m.shape  # (2, 3)",
+  "konu": "numpy-diziler"
+ },
+ {
+  "ad": "boolean maske",
+  "dil": "numpy",
+  "tanim": "Koşulla eleman seçmek.",
+  "ornek": "a[a > 5]",
+  "konu": "numpy-indeksleme",
+  "karsilik": "df[df[\"x\"] > 5]"
+ },
+ {
+  "ad": "argsort / argmax",
+  "dil": "numpy",
+  "tanim": "Sıralayan konumlar / en büyüğün konumu.",
+  "ornek": "np.argsort(a)[::-1]",
+  "konu": "numpy-indeksleme"
+ },
+ {
+  "ad": "mean / median / std / percentile",
+  "dil": "numpy",
+  "tanim": "Özet istatistikler. axis=0 sütun, axis=1 satır bazında.",
+  "ornek": "np.percentile(a, [25, 50, 75])",
+  "konu": "numpy-istatistik"
+ },
+ {
+  "ad": "np.nanmean",
+  "dil": "numpy",
+  "tanim": "NaN'ları atlayarak ortalama alır (np.mean atlamaz).",
+  "ornek": "np.nanmean(a)",
+  "konu": "numpy-istatistik",
+  "karsilik": "df[\"x\"].mean()"
+ },
+ {
+  "ad": "np.clip",
+  "dil": "numpy",
+  "tanim": "Değerleri alt-üst sınır arasına çeker.",
+  "ornek": "np.clip(a, None, 10000)",
+  "konu": "numpy-kosullu-islemler",
+  "karsilik": "df[\"x\"].clip(upper=10000)"
+ },
+ {
+  "ad": "broadcasting",
+  "dil": "numpy",
+  "tanim": "Farklı şekildeki dizilerle işlemde küçük dizinin büyüğe yayılması.",
+  "ornek": "(X - X.mean(axis=0)) / X.std(axis=0)",
+  "konu": "numpy-broadcasting"
+ }
+]

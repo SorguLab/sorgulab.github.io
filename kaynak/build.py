@@ -9,7 +9,7 @@ Kullanım (repo kökünden):
 
 Python motoru, kütüphaneler, fontlar ve ikonlar repo kökünde düz (klasörsüz) durur.
 """
-import json, re, os, glob, hashlib, shutil, sys
+import json, re, os, glob, hashlib, shutil, subprocess, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import konu_derle
 
@@ -133,10 +133,14 @@ def pwa(t):
 def main():
     katalog = katalog_oku()
     metalar = veri_dosyalari_yaz(katalog)
-    try:
-        konu = konu_derle.derle()
-    except konu_derle.KonuHatasi as e:
-        sys.exit('KONU HATASI: ' + str(e))
+    # Konular, uygulamadaki Pyodide ile aynı pandas/numpy sürümüyle derlenir (bkz. konu_derle.py başı)
+    py = os.environ.get('KONU_PYTHON') or next((p for p in [os.path.expanduser('~/konu-venv/bin/python'), '/home/claude/konu-venv/bin/python'] if os.path.exists(p)), sys.executable)
+    r = subprocess.run([py, os.path.join(KOK, 'kaynak', 'konu_derle.py')], capture_output=True, text=True)
+    print(r.stdout.strip())
+    if r.returncode != 0:
+        sys.exit(r.stdout + r.stderr)
+    kj = json.load(open(os.path.join(KOK, 'konular.json'), encoding='utf-8'))
+    konu = {'adet': len(kj['konular']), 'ozet': [{k: x[k] for k in ('id', 'grup', 'baslik')} | ({'alistirma': x['alistirma']} if 'alistirma' in x else {}) for x in kj['konular']]}
     t = birlestir(katalog, metalar, konu['ozet'])
     os.makedirs(CIKTI, exist_ok=True)
     open(os.path.join(CIKTI, 'claude-ai.html'), 'w', encoding='utf-8').write(t)

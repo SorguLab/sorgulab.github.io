@@ -1247,7 +1247,7 @@ function konuCiz() {
         ${K.sozluk && K.sozluk.length ? `<a class="konu-link" href="#konu/sozluk" ${S.konuId === 'sozluk' ? 'aria-current="page"' : ''}><span class="no">Aa</span>Sözlük</a>` : ''}</div>
     </nav>
     <article class="konu-yazi" id="konuYazi">${k ? konuYaziHTML(K, k) : S.konuId === 'yakinda' ? '<h1>Python konuları hazırlanıyor</h1><p class="konu-giris">Python Temelleri, pandas ve NumPy konuları yakında burada olacak. Şimdilik SQL konularına göz atabilirsin.</p>' : sozlukHTML(K)}</article>
-    <aside class="konu-sag" aria-label="Bu sayfada">${k && k.basliklar.length ? '<div class="konu-grup-ad" style="padding:0">Bu sayfada</div>' + k.basliklar.map(b => `<a href="#" data-b="${esc(b.id)}">${esc(b.ad)}</a>`).join('') : ''}</aside>
+    <aside class="konu-sag" aria-label="Bu sayfada">${(() => { const bl = k ? k.basliklar : S.konuId === 'sozluk' ? [['sql', 'SQL'], ['python', 'Python'], ['pandas', 'pandas'], ['numpy', 'NumPy']].map(([id, ad]) => ({ id, ad })) : []; return bl.length ? '<div class="konu-grup-ad" style="padding:0">Bu sayfada</div>' + bl.map(b => `<a href="#" data-b="${esc(b.id)}">${esc(b.ad)}</a>`).join('') : ''; })()}</aside>
   </div>`;
   konuListeCiz(K, k);
   const ara = $('#konuAra');
@@ -1318,11 +1318,14 @@ function konuAlistirmayaGit(k) {
 }
 function sozlukHTML(K) {
   const ara = trKucuk(S.konuAra).trim();
-  const liste = (K.sozluk || []).filter(x => !ara || trKucuk(x.ad + ' ' + x.tanim + ' ' + (x.karsilik || '')).includes(ara));
+  const liste = (K.sozluk || []).filter(x => !ara || trKucuk(x.ad + ' ' + x.tanim + ' ' + (x.karsilik || '') + ' ' + (x.ornek || '')).includes(ara));
+  const bolumler = [['sql', 'SQL'], ['python', 'Python'], ['pandas', 'pandas'], ['numpy', 'NumPy']];
+  if (S.konuDil === 'python') bolumler.push(bolumler.shift());
+  const madde = x => `<div class="konu-kutu"><code style="font-size:15px">${esc(x.ad)}</code>
+      <p>${esc(x.tanim)}</p>${x.ornek ? kodBlok(x.ornek, x.dil === 'sql' ? 'sql' : 'python') : ''}${x.karsilik ? `<p class="kucuk">${x.dil === 'sql' ? 'pandas karşılığı' : x.dil === 'python' ? 'Karşılığı' : 'SQL / pandas karşılığı'}: <code>${esc(x.karsilik)}</code></p>` : ''}${x.konu ? `<a class="konu-oku" href="#konu/${encodeURIComponent(x.konu)}">Konuyu oku →</a>` : ''}</div>`;
   return `<div class="konu-ust">Sözlük · ${K.sozluk.length} madde</div><h1>Sözlük</h1>
-    <p class="konu-giris">Fonksiyonlar ve kavramlar, kısa tanım ve örnekle. Soldaki arama kutusu sözlükte de arar.</p>
-    ${liste.map(x => `<div class="konu-kutu"><div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap"><code style="font-size:15px">${esc(x.ad)}</code><span class="rozet dil-${x.dil === 'sql' ? 'sql' : 'python'}">${esc(x.dil === 'sql' ? 'SQL' : x.dil === 'numpy' ? 'NumPy' : x.dil === 'pandas' ? 'pandas' : 'Python')}</span></div>
-      <p>${esc(x.tanim)}</p>${x.ornek ? kodBlok(x.ornek, x.dil === 'sql' ? 'sql' : 'python') : ''}${x.karsilik ? `<p class="kucuk">Karşılığı: <code>${esc(x.karsilik)}</code></p>` : ''}${x.konu ? `<a class="konu-oku" href="#konu/${encodeURIComponent(x.konu)}">Konuyu oku →</a>` : ''}</div>`).join('') || '<div class="konu-bul">Bu kelimeyle madde bulunamadı.</div>'}`;
+    <p class="konu-giris">Fonksiyonlar ve kavramlar, kısa tanım, örnek ve karşılığıyla. Soldaki arama kutusu sözlükte de arar.</p>
+    ${liste.length ? bolumler.map(([d, ad]) => { const l = liste.filter(x => x.dil === d); return l.length ? `<h2 id="b-${d}">${ad}</h2>` + l.map(madde).join('') : ''; }).join('') : '<div class="konu-bul">Bu kelimeyle madde bulunamadı.</div>'}`;
 }
 
 // ─── Başlat ───
