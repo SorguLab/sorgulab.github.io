@@ -334,6 +334,19 @@ legend { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
 .th-tip { display: block; font-size: 10.5px; font-weight: 400; color: var(--h-yorum); }
 .bos-durum { max-width: 620px; margin: 40px auto; background: var(--yuzey); border: 1px solid var(--cizgi); border-radius: 14px; padding: 28px; display: grid; gap: 10px; text-align: left; }
 .bos-durum p { color: var(--soluk); }
+.ai-hap { cursor: pointer; font: inherit; font-size: 12.5px; }
+.ai-hap:hover { border-color: var(--soluk); color: var(--murekkep); }
+.ai-hap[data-durum="hazir"] { color: var(--vurgu); border-color: color-mix(in srgb, var(--vurgu) 40%, transparent); }
+.ai-dialog { border: 1px solid var(--cizgi); border-radius: 14px; padding: 0; background: var(--yuzey); color: var(--murekkep); width: min(560px, calc(100vw - 24px)); max-height: calc(100vh - 40px); }
+.ai-dialog::backdrop { background: rgb(0 0 0 / .35); }
+.ai-panel { padding: 20px 22px; display: grid; gap: 12px; }
+.ai-panel p { margin: 0; }
+.ai-ust { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.ai-ust h2 { margin: 0; font-size: 19px; }
+.ai-adim { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.ai-etiket { font-weight: 600; font-size: 14px; }
+.ai-satir { display: flex; gap: 8px; flex-wrap: wrap; }
+.ai-satir input { flex: 1; min-width: 0; font: inherit; font-family: var(--f-kod); padding: 8px 10px; border: 1px solid var(--cizgi); border-radius: 8px; background: var(--yuzey-2); color: var(--murekkep); }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-asm.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -353,6 +366,7 @@ legend { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
     <select id="vsSec"></select>
     <span class="hap" id="ilerleme" title="Çözülen sorular"></span>
     <span class="hap" id="pyDurum" data-durum="yok">Python: kapalı</span>
+    <button class="hap ai-hap" id="aiBtn" type="button" data-durum="yok">Yapay zekâ: kapalı</button>
   </div>
 </header>
 <main id="ana"></main>

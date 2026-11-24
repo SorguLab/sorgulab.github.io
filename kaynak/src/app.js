@@ -54,7 +54,7 @@ const S = {
   gecmis: [], mulakat: null, teorik: null, claude: null, uretiliyor: false
 };
 
-// ─── Claude (sayfa içinden) ───
+// ─── Yapay zekâ: claude.ai içinde Claude, başka yerde kullanıcının kendi Gemini anahtarı ───
 (async () => {
   try {
     if (window.claude && typeof window.claude.use === 'function') {
@@ -63,21 +63,162 @@ const S = {
     }
   } catch (e) { }
 })();
-async function claudeSor(input, opts = {}) {
-  if (!S.claude) throw { code: 'yok', message: 'Claude bu görünümde kullanılamıyor.' };
-  try { return await S.claude(input, { modelTier: 'default', cache: false, ...opts }); }
-  catch (e) { if (e && e.code === 'not_granted') { S.claude = null; } throw e; }
+const GEMINI_KEY = 'sorgulab-gemini-anahtar';
+// İlk çalışan model oturum boyunca kullanılır. "latest" takma adı Google güncel Flash modeline yönlendirir; yoksa sıradakiler denenir.
+const GEMINI_MODELLER = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-2.5-flash'];
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/';
+let geminiModel = null;
+function geminiAnahtar() { try { return localStorage.getItem(GEMINI_KEY) || ''; } catch (e) { return ''; } }
+function geminiAnahtarYaz(k) { try { if (k) localStorage.setItem(GEMINI_KEY, k); else localStorage.removeItem(GEMINI_KEY); } catch (e) { } geminiModel = null; }
+function aiTur() { return S.claude ? 'claude' : geminiAnahtar() ? 'gemini' : null; }
+function aiAd() { return { claude: 'Claude', gemini: 'Gemini' }[aiTur()] || 'Yapay zekâ'; }
+function aiIyelik() { return { claude: 'Claude\'un', gemini: 'Gemini\'nin' }[aiTur()] || 'Yapay zekânın'; }
+function geminiMetin(d) {
+  const c = d && d.candidates && d.candidates[0];
+  return c && c.content && c.content.parts ? c.content.parts.filter(p => !p.thought).map(p => p.text || '').join('') : '';
 }
-async function claudeJson(input, opts = {}) {
-  if (!S.claude) throw { code: 'yok', message: 'Claude bu görünümde kullanılamıyor.' };
-  try { return await S.claude.json(input, { modelTier: 'default', ...opts }); }
-  catch (e) { if (e && e.code === 'not_granted') { S.claude = null; } throw e; }
+async function geminiHata(r) {
+  let e = {}; try { e = (await r.json()).error || {}; } catch (x) { }
+  const m = String(e.message || ''), neden = JSON.stringify(e.details || '');
+  if (r.status === 429) return { code: 'kota' };
+  if (r.status >= 500) return { code: 'yogun' };
+  if (/API_KEY_INVALID|API key not valid|API key expired/i.test(neden + m)) return { code: 'anahtar_gecersiz' };
+  if (/location is not supported/i.test(m)) return { code: 'bolge' };
+  if (r.status === 403 || r.status === 401) return { code: 'yetki' };
+  return { code: 'gemini', message: `Gemini hata verdi (${r.status}): ${m || r.statusText}` };
 }
-function claudeHata(e) {
+async function geminiIstek(prompt, { json = false, onText } = {}) {
+  const key = geminiAnahtar(); if (!key) throw { code: 'yok' };
+  if (navigator.onLine === false) throw { code: 'internet' };
+  const govde = JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: json ? { responseMimeType: 'application/json' } : {} });
+  const akis = !!onText && !json && !!(window.ReadableStream && window.TextDecoder);
+  let sonHata = { code: 'model_yok' };
+  for (const m of geminiModel ? [geminiModel] : GEMINI_MODELLER) {
+    let r;
+    try { r = await fetch(GEMINI_URL + m + (akis ? ':streamGenerateContent?alt=sse' : ':generateContent'), { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: govde }); }
+    catch (e) { throw { code: 'internet' }; }
+    if (r.status === 404) { sonHata = { code: 'model_yok' }; continue; }
+    if (!r.ok) throw await geminiHata(r);
+    geminiModel = m;
+    let text = '';
+    if (akis) {
+      const okuyucu = r.body.getReader(), dec = new TextDecoder(); let tampon = '';
+      for (;;) {
+        const { done, value } = await okuyucu.read(); if (done) break;
+        tampon += dec.decode(value, { stream: true });
+        let i;
+        while ((i = tampon.indexOf('\n')) >= 0) {
+          const satir = tampon.slice(0, i).trim(); tampon = tampon.slice(i + 1);
+          if (!satir.startsWith('data:')) continue;
+          try { const parca = geminiMetin(JSON.parse(satir.slice(5))); if (parca) { text += parca; onText({ text }); } } catch (e) { }
+        }
+      }
+    } else text = geminiMetin(await r.json());
+    if (!text.trim()) throw { code: 'bos' };
+    return { text };
+  }
+  throw sonHata;
+}
+function jsonCoz(t) {
+  const s = String(t).trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
+  try { return JSON.parse(s); } catch (e) { }
+  const a = s.indexOf('{'), b = s.lastIndexOf('}');
+  if (a >= 0 && b > a) { try { return JSON.parse(s.slice(a, b + 1)); } catch (e) { } }
+  throw { code: 'bos', message: 'Yapay zekânın cevabı okunamadı. Tekrar dene.' };
+}
+async function aiSor(input, opts = {}) {
+  if (S.claude) {
+    try { return await S.claude(input, { modelTier: 'default', cache: false, ...opts }); }
+    catch (e) { if (e && e.code === 'not_granted') { S.claude = null; } throw e; }
+  }
+  if (geminiAnahtar()) return geminiIstek(input, { onText: opts.onText });
+  throw { code: 'yok' };
+}
+async function aiJson(input, opts = {}) {
+  if (S.claude) {
+    try { return await S.claude.json(input, { modelTier: 'default', ...opts }); }
+    catch (e) { if (e && e.code === 'not_granted') { S.claude = null; } throw e; }
+  }
+  if (geminiAnahtar()) return jsonCoz((await geminiIstek(input, { json: true })).text);
+  throw { code: 'yok' };
+}
+function aiHata(e) {
   if (!e) return 'Bilinmeyen bir hata oluştu.';
-  if (e.code === 'rate_limited') return 'Claude şu an çok yoğun. Birkaç dakika sonra tekrar dene.';
-  if (e.code === 'not_granted') return 'Claude\'a erişim izni verilmedi. Bu özelliği kullanmak için izin istendiğinde onay vermen gerekiyor.';
-  return e.message || String(e);
+  const m = {
+    yok: 'Bu özellik için yapay zekâ bağlantısı gerekiyor. Üstteki "Yapay zekâ" düğmesinden ücretsiz Gemini anahtarını ekleyebilirsin.',
+    rate_limited: 'Claude şu an çok yoğun. Birkaç dakika sonra tekrar dene.',
+    not_granted: 'Claude\'a erişim izni verilmedi. Bu özelliği kullanmak için izin istendiğinde onay vermen gerekiyor.',
+    anahtar_gecersiz: 'Gemini anahtarı geçersiz. AI Studio\'dan anahtarı tekrar kopyalayıp "Yapay zekâ" ayarına yapıştır.',
+    yetki: 'Bu anahtarın Gemini API\'ye erişim izni yok. AI Studio\'dan yeni bir anahtar oluşturmayı dene.',
+    kota: 'Gemini\'nin ücretsiz kotası şimdilik doldu. Bir dakika sonra tekrar dene. Günlük kota dolduysa ertesi gün Türkiye saatiyle 10-11 civarında yenilenir.',
+    yogun: 'Gemini şu an çok yoğun. Biraz sonra tekrar dene.',
+    internet: 'İnternet bağlantısı yok ya da Google\'a ulaşılamıyor. Yapay zekâ özellikleri internet ister, uygulamanın geri kalanı çevrimdışı da çalışır.',
+    bolge: 'Gemini API bulunduğun bölgede kullanılamıyor.',
+    model_yok: 'Uygun bir Gemini modeli bulunamadı. Uygulamanın güncellenmesi gerekebilir.',
+    bos: 'Yapay zekâ boş ya da okunamayan bir cevap döndürdü. Tekrar dene.'
+  };
+  return e.message && !['rate_limited', 'not_granted'].includes(e.code) && e.code !== 'yok' ? e.message : (m[e.code] || e.message || String(e));
+}
+function aiYokHTML(metinStr) {
+  return `<div class="bilgi">${metinStr || aiHata({ code: 'yok' })} <button class="btn kucuk-btn" data-ai-ac>Anahtar ekle</button></div>`;
+}
+document.addEventListener('click', e => { if (e.target.closest('[data-ai-ac]')) aiPanelAc(); });
+
+// Ayar penceresi
+// Anahtar değişince sayfayı baştan çizme (kontrol sonucu, yazılan cevap kaybolmasın): sadece etiketleri güncelle
+function aiGuncelle() {
+  ustCiz();
+  const h = $('#btnHata'); if (h) h.textContent = aiAd() + ' hatamı açıklasın';
+  const d = $('#degerlendir'); if (d) d.textContent = aiAd() + ' değerlendirsin';
+  if (S.view === 'veri') veriCiz();
+}
+function aiDurumMetni() { return aiTur() ? aiAd() : 'kapalı'; }
+function aiPanelAc() {
+  let d = $('#aiDialog');
+  if (!d) { d = document.createElement('dialog'); d.id = 'aiDialog'; d.className = 'ai-dialog'; document.body.appendChild(d); d.addEventListener('click', e => { if (e.target === d) d.close(); }); }
+  aiPanelCiz(d);
+  if (d.showModal) d.showModal(); else d.setAttribute('open', '');
+}
+function aiPanelCiz(d) {
+  const k = geminiAnahtar();
+  d.innerHTML = `<form method="dialog" class="ai-panel">
+    <div class="ai-ust"><h2>Yapay zekâ desteği</h2><button class="btn kucuk-btn" value="kapat" aria-label="Kapat">✕</button></div>
+    <p>Soru üretme, yanlış cevaba yorum ve mülakatta açık uçlu cevap değerlendirme yapay zekâ ile çalışır. Uygulamanın geri kalanı bunlar olmadan da tamamen çalışır.</p>
+    ${S.claude ? '<div class="bilgi">Bu sayfayı claude.ai üzerinden açtığın için <b>Claude</b> kullanılıyor. Ek ayar gerekmez.</div>' : `
+    <ol class="ai-adim">
+      <li>Google hesabınla <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> adresini aç.</li>
+      <li><b>Create API key</b> (API anahtarı oluştur) düğmesine bas. Kart bilgisi istenmez.</li>
+      <li>Çıkan <code>AIza…</code> ile başlayan anahtarı kopyalayıp aşağıya yapıştır.</li>
+    </ol>
+    <label class="ai-etiket" for="aiAnahtar">Gemini API anahtarı</label>
+    <div class="ai-satir"><input id="aiAnahtar" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…" value="${esc(k)}">
+      <button class="btn kucuk-btn" type="button" id="aiGoster">Göster</button></div>
+    <div class="ai-satir"><button class="btn birincil" type="button" id="aiKaydet">Kaydet ve dene</button>${k ? '<button class="btn" type="button" id="aiSil">Anahtarı sil</button>' : ''}</div>
+    <div id="aiSonuc">${k ? '<div class="bilgi">Anahtar kayıtlı. Yapay zekâ özellikleri <b>Gemini</b> ile çalışıyor.</div>' : ''}</div>
+    <p class="kucuk">Anahtar sadece bu cihazdaki tarayıcıda saklanır, başka bir yere gönderilmez (sadece Google\'a, isteklerle birlikte). iPad ve bilgisayarda ayrı ayrı girmen gerekir. Anahtarı şifre gibi sakla. Paylaştıysan AI Studio\'dan silip yenisini oluştur.</p>
+    <p class="kucuk">Ücretsiz katmanda Google, gönderilen içeriği ürünlerini geliştirmek için kullanabilir. Gönderilen içerik: soru, kodun ve tabloların yapısı ile ilk birkaç satırı. Kendi yüklediğin veride gizli bilgi varsa bu özellikleri o veriyle kullanma.</p>`}
+  </form>`;
+  const inp = $('#aiAnahtar', d); if (!inp) return;
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#aiKaydet', d).click(); } });
+  $('#aiGoster', d).onclick = e => { const g = inp.type === 'password'; inp.type = g ? 'text' : 'password'; e.target.textContent = g ? 'Gizle' : 'Göster'; };
+  const sil = $('#aiSil', d); if (sil) sil.onclick = () => { geminiAnahtarYaz(''); aiPanelCiz(d); aiGuncelle(); };
+  $('#aiKaydet', d).onclick = async e => {
+    const deger = inp.value.trim().replace(/\s+/g, '');
+    const sonuc = $('#aiSonuc', d);
+    if (!deger) { sonuc.innerHTML = '<div class="bilgi">Önce anahtarı yapıştır.</div>'; return; }
+    e.target.disabled = true; sonuc.innerHTML = '<div class="yukleniyor">Anahtar deneniyor…</div>';
+    const eski = geminiAnahtar(); geminiAnahtarYaz(deger);
+    try {
+      await geminiIstek('Sadece "tamam" yaz.');
+      sonuc.innerHTML = '<div class="karar dogru"><span class="karar-ikon">✓</span><div>Bağlantı çalışıyor. Yapay zekâ özellikleri artık <b>Gemini</b> ile çalışacak.</div></div>';
+      aiGuncelle(); aiPanelCiz(d); $('#aiSonuc', d).innerHTML = sonuc.innerHTML;
+    } catch (x) {
+      if (['anahtar_gecersiz', 'yetki', 'bolge'].includes(x && x.code)) geminiAnahtarYaz(eski);
+      sonuc.innerHTML = `<div class="hata-kutu">${esc(aiHata(x))}${['anahtar_gecersiz', 'yetki', 'bolge'].includes(x && x.code) ? '' : ' Anahtar kaydedildi.'}</div>`;
+      aiGuncelle();
+    }
+    e.target.disabled = false;
+  };
 }
 
 // ═══════════════ SQL motoru ═══════════════
@@ -350,10 +491,12 @@ function ustCiz() {
   sel.value = S.veriSeti;
   $('#ilerleme').textContent = ilerlemeMetni();
   pyDurumAyarla(pyDurum);
+  const ai = $('#aiBtn'); if (ai) { ai.textContent = 'Yapay zekâ: ' + aiDurumMetni(); ai.dataset.durum = aiTur() ? 'hazir' : 'yok'; }
 }
 $('#vsSec').addEventListener('change', e => { veriSetiDegistir(e.target.value); });
 function veriSetiDegistir(k) { S.veriSeti = k; S.mulakat = null; S.filtre.kategori = ''; S.filtre.kaynak = ''; S.serbestKod = varsayilanKod(k); veriHazirla(k).catch(() => { }); yenidenCiz(); }
 $$('.nav-btn').forEach(b => b.addEventListener('click', () => git(b.dataset.view)));
+$('#aiBtn').addEventListener('click', aiPanelAc);
 const VIEWLER = ['alistirma', 'tahmin', 'mulakat', 'serbest', 'veri'];
 function git(v) { if (location.hash !== '#' + v) location.hash = v; else { S.view = v; yenidenCiz(); } }
 window.addEventListener('hashchange', () => { const v = location.hash.slice(1); if (VIEWLER.includes(v)) { S.view = v; yenidenCiz(); } });
@@ -501,7 +644,7 @@ function soruCalismaCiz(host, q, { mod, liste, onKontrol }) {
     else sonuc = karsilastir(bek.table, gel.table, q.sirali);
     if (sonuc.dogru && !mulakat) { depo.cozuldu[q.id] = true; kaydet(); ustCiz(); const li = $(`.soru-satir[data-id="${q.id}"] .no`); if (li) li.innerHTML = '<span class="tik" aria-label="çözüldü">✓</span>'; }
     k.innerHTML = `<div class="karar ${sonuc.dogru ? 'dogru' : 'yanlis'}" role="status"><span class="karar-ikon" aria-hidden="true">${sonuc.dogru ? '✓' : '✕'}</span><div>${sonuc.mesaj}
-      ${!sonuc.dogru && !mulakat && S.claude ? '<div><button class="btn kucuk-btn" id="btnHata">Claude hatamı açıklasın</button></div>' : ''}</div></div>`;
+      ${!sonuc.dogru && !mulakat ? `<div><button class="btn kucuk-btn" id="btnHata">${aiAd()} hatamı açıklasın</button></div>` : ''}</div></div>`;
     const hb = $('#btnHata', host); if (hb) hb.onclick = () => hataAcikla(q, ed.get(), gel, bek, sonuc);
     onKontrol && onKontrol(sonuc.dogru);
   }
@@ -541,7 +684,8 @@ function semaOzet() {
 async function hataAcikla(q, kod, gel, bek, sonuc) {
   const el = document.createElement('div');
   el.className = 'ek-kutu kClaude';
-  el.innerHTML = '<div class="ek-baslik">Claude\'un yorumu</div><div class="claude-metin"><div class="yukleniyor">Kodun inceleniyor…</div></div>';
+  if (!aiTur()) { aiPanelAc(); return; }
+  el.innerHTML = '<div class="ek-baslik">' + aiIyelik() + ' yorumu</div><div class="claude-metin"><div class="yukleniyor">Kodun inceleniyor…</div></div>';
   const ek = $('#ekKutular'); const eski = $('.kClaude', ek); if (eski) eski.remove(); ek.prepend(el);
   const hedef = $('.claude-metin', el);
   const prompt = `Sen sabırlı bir veri analizi eğitmenisin. Öğrencin bir ${q.dil === 'sql' ? 'SQL (SQLite)' : 'Python (pandas)'} alıştırmasında yanlış cevap verdi. Türkçe, kısa ve öğretici bir geri bildirim ver:
@@ -567,8 +711,8 @@ ${kod}
 ${gel && gel.ok ? tabloOzet(gel.table) : 'HATA: ' + (gel ? gel.error : '-')}
 
 Otomatik kontrolün mesajı: ${metin(sonuc.mesaj)}`;
-  try { const r = await claudeSor(prompt, { onText: ({ text }) => { hedef.innerHTML = mdLite(text); } }); hedef.innerHTML = mdLite(r.text); }
-  catch (e) { hedef.innerHTML = `<div class="hata-kutu">${esc(claudeHata(e))}</div>`; }
+  try { const r = await aiSor(prompt, { onText: ({ text }) => { hedef.innerHTML = mdLite(text); } }); hedef.innerHTML = mdLite(r.text); }
+  catch (e) { hedef.innerHTML = `<div class="hata-kutu">${esc(aiHata(e))}</div>`; }
 }
 
 // ═══════════════ TAHMİN ET ═══════════════
@@ -648,7 +792,7 @@ function mulakatCiz() {
         ${sorular.length ? '' : '<p class="kucuk">Bu veri seti için henüz soru yok. Veri sekmesinden soru üretebilirsin.</p>'}
       </form>
       <form class="mod-kart" id="teoForm">
-        <div class="mod-ust"><span class="mod-etiket">Mod 2</span><h2>Teorik mülakat</h2><p>Kavram soruları: test soruları anında puanlanır. Açık uçlu sorularda cevabını yazarsın, ${S.claude ? 'Claude değerlendirir' : 'anahtar noktalarla karşılaştırırsın'}.</p></div>
+        <div class="mod-ust"><span class="mod-etiket">Mod 2</span><h2>Teorik mülakat</h2><p>Kavram soruları: test soruları anında puanlanır. Açık uçlu sorularda cevabını yazarsın, ${aiTur() ? aiAd() + ' değerlendirir' : 'anahtar noktalarla karşılaştırırsın (yapay zekâ bağlarsan değerlendirme de alırsın)'}.</p></div>
         <fieldset><legend>Alan</legend><div class="radyo">${[['karisik', 'Karışık'], ['sql', 'SQL'], ['python', 'Python'], ['genel', 'Analitik']].map(([v, l], i) => `<label><input type="radio" name="alan" value="${v}" ${i === 0 ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></fieldset>
         <fieldset><legend>İçerik</legend><div class="radyo">${[['ikisi', 'Test + açık uçlu'], ['test', 'Sadece test'], ['acik', 'Sadece açık uçlu']].map(([v, l], i) => `<label><input type="radio" name="tur" value="${v}" ${i === 0 ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></fieldset>
         <button class="btn birincil genis" type="submit">Teorik mülakatı başlat</button>
@@ -744,7 +888,7 @@ function teorikCiz() {
       ${q.tip === 'test' ? `<div class="secenekler dikey">${q.secenekler.map((s, i) => `<button class="secenek ${c ? (i === q.dogru ? 'dogru' : i === c.sec ? 'yanlis' : '') : ''}" data-i="${i}" ${c ? 'disabled' : ''}><span class="harf">${'ABCD'[i]}</span>${esc(s)}</button>`).join('')}</div>
         ${c ? `<div class="karar ${c.dogru ? 'dogru' : 'yanlis'}"><span class="karar-ikon">${c.dogru ? '✓' : '✕'}</span><div>${c.dogru ? 'Doğru.' : 'Yanlış.'} ${esc(q.aciklama)}</div></div>` : ''}`
       : `<label class="gizli" for="acikCevap">Cevabın</label><textarea id="acikCevap" class="acik-cevap" placeholder="Cevabını mülakattaymış gibi yaz. Madde madde de yazabilirsin.">${esc(c ? c.metin : '')}</textarea>
-        <div class="arac-cubugu">${S.claude ? '<button class="btn birincil" id="degerlendir">Claude değerlendirsin</button>' : ''}<button class="btn hafif" id="anahtar">Anahtar noktaları göster</button></div>
+        <div class="arac-cubugu"><button class="btn birincil" id="degerlendir">${aiAd()} değerlendirsin</button><button class="btn hafif" id="anahtar">Anahtar noktaları göster</button></div>
         <div id="degerSonuc">${c && c.puan !== undefined ? degerHTML(c) : ''}</div>
         <div id="anahtarKutu">${c && c.anahtarAcik ? anahtarHTML(q) : ''}</div>`}
     </div>
@@ -760,11 +904,12 @@ function teorikCiz() {
     $('#anahtar').onclick = () => { acikKaydet(); T.cevap[q.id].anahtarAcik = true; $('#anahtarKutu').innerHTML = anahtarHTML(q); };
     const d = $('#degerlendir');
     if (d) d.onclick = async () => {
+      if (!aiTur()) { aiPanelAc(); return; }
       acikKaydet(); const cevap = T.cevap[q.id].metin.trim();
       if (cevap.length < 15) { $('#degerSonuc').innerHTML = '<div class="bilgi">Değerlendirme için biraz daha uzun bir cevap yaz.</div>'; return; }
-      d.disabled = true; $('#degerSonuc').innerHTML = '<div class="yukleniyor">Claude cevabını değerlendiriyor…</div>';
+      d.disabled = true; $('#degerSonuc').innerHTML = `<div class="yukleniyor">${aiAd()} cevabını değerlendiriyor…</div>`;
       try {
-        const r = await claudeJson(`Bir veri analisti mülakatında adayın cevabını değerlendiren deneyimli bir mülakatçısın. Türkçe yanıt ver.
+        const r = await aiJson(`Bir veri analisti mülakatında adayın cevabını değerlendiren deneyimli bir mülakatçısın. Türkçe yanıt ver.
 Soru: ${q.soru}
 Değerlendirme için anahtar noktalar (rubrik): ${q.anahtar.map(a => '- ' + a).join('\n')}
 Adayın cevabı:
@@ -775,7 +920,7 @@ Sadece şu JSON\'u döndür: {"puan": sayı, "ozet": "1-2 cümle genel değerlen
         T.cevap[q.id] = Object.assign(T.cevap[q.id], { puan: Math.max(0, Math.min(10, +r.puan || 0)), ozet: r.ozet, guclu: r.guclu || [], eksik: r.eksik || [], ornek: r.ornek_cumle });
         $('#degerSonuc').innerHTML = degerHTML(T.cevap[q.id]);
         const n = $(`.nokta[data-k="${T.i}"]`); if (n) n.classList.add(T.cevap[q.id].puan >= 6 ? 'ok' : 'hayir');
-      } catch (e) { $('#degerSonuc').innerHTML = `<div class="hata-kutu">${esc(claudeHata(e))}</div>`; }
+      } catch (e) { $('#degerSonuc').innerHTML = `<div class="hata-kutu">${esc(aiHata(e))}</div>`; }
       d.disabled = false;
     };
   }
@@ -853,7 +998,7 @@ function serbestCiz() {
 // ═══════════════ VERİ ═══════════════
 function bosSoruHTML() {
   return `<div class="bos-durum"><h2>${esc(VS[S.veriSeti].ad)} için henüz soru yok</h2>
-    <p>Yüklediğin veriyle Serbest Alan\'da hemen sorgu yazabilirsin. Alıştırma ve mülakat soruları için Claude bu veriye özel, kolaydan zora sorular üretebilir.</p>
+    <p>Yüklediğin veriyle Serbest Alan\'da hemen sorgu yazabilirsin. Alıştırma ve mülakat soruları için yapay zekâ (claude.ai'de Claude, diğer yerlerde Gemini) bu veriye özel, kolaydan zora sorular üretebilir.</p>
     <div class="arac-cubugu"><button class="btn birincil" data-git="veri">Soru üret</button><button class="btn hafif" data-git="serbest">Serbest Alan\'a git</button></div></div>`;
 }
 function bosSoruBagla() { $$('[data-git]').forEach(b => b.onclick = () => git(b.dataset.git)); }
@@ -921,12 +1066,12 @@ function uretPanelHTML() {
   const sql = Y.sorular.filter(q => q.dil === 'sql').length, py = Y.sorular.filter(q => q.dil === 'python').length;
   return `<section class="uret-panel">
     <div><h2>Bu veriye özel sorular</h2>
-    <p>${Y.sorular.length ? `Şu an <b>${sql} SQL</b> ve <b>${py} Python</b> sorusu var. Yeni ürettiklerin listeye eklenir.` : 'Claude tablolarının yapısına ve örnek satırlarına bakıp kolaydan zora sorular hazırlar. Her sorunun çözümü veride çalıştırılarak doğrulanır, çalışmayanlar elenir.'}</p></div>
-    ${S.claude ? `<form id="uretForm" class="uret-form">
+    <p>${Y.sorular.length ? `Şu an <b>${sql} SQL</b> ve <b>${py} Python</b> sorusu var. Yeni ürettiklerin listeye eklenir.` : `${aiAd()} tablolarının yapısına ve örnek satırlarına bakıp kolaydan zora sorular hazırlar. Her sorunun çözümü veride çalıştırılarak doğrulanır, çalışmayanlar elenir.`}</p></div>
+    ${aiTur() ? `<form id="uretForm" class="uret-form">
       <fieldset><legend>Dil</legend><div class="radyo">${[['ikisi', 'SQL + Python'], ['sql', 'SQL'], ['python', 'Python']].map(([v, l], i) => `<label><input type="radio" name="dil" value="${v}" ${i === 0 ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></fieldset>
       <fieldset><legend>Adet</legend><div class="radyo">${[6, 10, 14].map(n => `<label><input type="radio" name="adet" value="${n}" ${n === 10 ? 'checked' : ''}><span>${n}</span></label>`).join('')}</div></fieldset>
       <button class="btn birincil" type="submit" ${S.uretiliyor ? 'disabled' : ''}>${S.uretiliyor ? 'Üretiliyor…' : 'Soruları üret'}</button>
-    </form><div id="uretDurum"></div>` : '<div class="bilgi">Soru üretmek için Claude erişimi gerekiyor. Bu görünümde kullanılamıyor. Sayfayı claude.ai üzerinden açtığında ve izin verdiğinde bu bölüm etkinleşir. O zamana kadar Serbest Alan\'da bu veriyle sorgu yazabilirsin.</div>'}
+    </form><div id="uretDurum"></div>` : aiYokHTML('Soru üretmek için yapay zekâ bağlantısı gerekiyor. Ücretsiz bir Gemini API anahtarı ekleyerek açabilirsin. O zamana kadar Serbest Alan\'da bu veriyle sorgu yazabilirsin.')}
   </section>`;
 }
 const trHarf = { 'ç': 'c', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ş': 's', 'ü': 'u', 'Ç': 'c', 'Ğ': 'g', 'İ': 'i', 'Ö': 'o', 'Ş': 's', 'Ü': 'u' };
@@ -990,7 +1135,7 @@ async function soruUret(dil, adet) {
   const Y = VS.yuklenen; if (!Y || S.uretiliyor) return;
   S.uretiliyor = true; const durum = () => $('#uretDurum');
   const btn = $('#uretForm button[type=submit]'); if (btn) { btn.disabled = true; btn.textContent = 'Üretiliyor…'; }
-  durum().innerHTML = '<div class="yukleniyor">Claude veriyi inceleyip soruları hazırlıyor. Bu 30-60 saniye sürebilir…</div>';
+  durum().innerHTML = `<div class="yukleniyor">${aiAd()} veriyi inceleyip soruları hazırlıyor. Bu 30-60 saniye sürebilir…</div>`;
   const dilMetni = dil === 'ikisi' ? `yaklaşık yarısı SQL, yarısı Python (pandas)` : dil === 'sql' ? 'hepsi SQL' : 'hepsi Python (pandas)';
   const mevcut = Y.sorular.map(q => `- ${q.baslik}`).join('\n');
   const prompt = `Bir veri analistinin SQL ve Python pratiği yapması için alıştırma soruları hazırlıyorsun. Tüm metinler Türkçe olsun.
@@ -1012,9 +1157,9 @@ ${mevcut ? `- Şu sorular zaten var, bunları tekrar etme:\n${mevcut}` : ''}
 Sadece şu JSON'u döndür:
 {"sorular":[{"dil":"sql"|"python","seviye":1|2|3,"kategori":"kısa kategori adı","baslik":"kısa başlık","soru":"soru metni (HTML: <code> kullanılabilir)","ipucu":"tek cümlelik ipucu","cozum":"çalışan çözüm kodu","aciklama":"HTML açıklama","sirali":true|false}]}`;
   try {
-    const r = await claudeJson(prompt, { modelTier: 'complex' });
+    const r = await aiJson(prompt, { modelTier: 'complex' });
     const gelen = (r && r.sorular) || (Array.isArray(r) ? r : []);
-    if (!gelen.length) throw new Error('Claude geçerli bir soru listesi döndürmedi. Tekrar dene.');
+    if (!gelen.length) throw new Error(aiAd() + ' geçerli bir soru listesi döndürmedi. Tekrar dene.');
     durum().innerHTML = `<div class="yukleniyor">${gelen.length} soru geldi. Çözümler veride çalıştırılarak doğrulanıyor…</div>`;
     const onceki = S.veriSeti; S.veriSeti = 'yuklenen';
     const tag = Date.now().toString(36);
@@ -1040,7 +1185,7 @@ Sadece şu JSON'u döndür:
   } catch (e) {
     S.uretiliyor = false;
     if (S.view === 'veri') veriCiz();
-    const d = durum(); if (d) d.innerHTML = `<div class="hata-kutu">${esc(claudeHata(e))}</div>`;
+    const d = durum(); if (d) d.innerHTML = `<div class="hata-kutu">${esc(aiHata(e))}</div>`;
   }
 }
 
