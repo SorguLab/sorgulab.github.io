@@ -15,3 +15,8 @@ Esra'nın sonraya bıraktığı istekler. Bir madde bitince buradan sil ve commi
   - Hiç `kaynak` sorusu kalmayınca "Uygulama soruları / Miuul Bitirme" seçimi kendiliğinden kaybolur; kod tarafında başka değişiklik gerekmez. Mülakat havuzu da bu soruları otomatik içerir.
   - Kaynak filtresi ("Uygulama soruları / Miuul Bitirme") kalkınca **yerine soru sayacı** koy: SQL ve Python için ayrı ayrı çözülen/toplam (örn. "SQL 12/52", "Python 3/26"). Esra üstteki sayaç rozetini kaldırttı; `ilerlemeMetni()` fonksiyonu duruyor, oradan yararlan.
   - `dogrula.py` → `build.py` → push → claude.ai sürümünü yayınla.
+
+- [ ] **Para kazanma / abonelik** — *Esra "beklesin" dedi; LinkedIn duyurusundan sonra GoatCounter verilerine (sorgulab.goatcounter.com) bakıp birlikte karar verilecek.*
+  - Konuşulan sıra: (1) ilgi ölçümü: "Pro yakında, haberdar ol" kutusu + kısa anket (Web3Forms ile), (2) talep varsa hafif başlangıç: tek seferlik ürün (mülakat paketi / 1 yıllık Pro) Shopier/Gumroad gibi bir hizmetle, (3) ödeme yapan varsa tam abonelik: hesap (Supabase vb.), Pro içeriği sunucuda, ödeme sağlayıcı (iyzico/PayTR ya da Paddle/Lemon Squeezy, Türkiye'den satıcı kabulü kontrol edilecek) + webhook.
+  - Pro adayları: anahtarsız yapay zekâ (maliyet hesaba katılmalı), cihazlar arası senkron, ek içerik paketleri, ilerleme raporu, sertifika. Ücretsiz kısım olduğu gibi kalır.
+  - Ücretli ürüne geçmeden önce: Miuul soruları ve FLO verisi için Miuul'den izin (ya da ücretsiz kısımda tut), IBM HR verisinin lisansı, vergi kaydı (mali müşavir), mesafeli satış sözleşmesi, KVKK metni.
