@@ -1140,7 +1140,7 @@ function uretPanelHTML() {
     <p>${Y.sorular.length ? `Şu an <b>${sql} SQL</b> ve <b>${py} Python</b> sorusu var. Yeni ürettiklerin listeye eklenir.` : `${aiAd()} tablolarının yapısına ve örnek satırlarına bakıp kolaydan zora sorular hazırlar. Her sorunun çözümü veride çalıştırılarak doğrulanır, çalışmayanlar elenir.`}</p></div>
     ${aiTur() ? `<form id="uretForm" class="uret-form">
       <fieldset><legend>Dil</legend><div class="radyo">${[['ikisi', 'SQL + Python'], ['sql', 'SQL'], ['python', 'Python']].map(([v, l], i) => `<label><input type="radio" name="dil" value="${v}" ${i === 0 ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></fieldset>
-      <fieldset><legend>Adet</legend><div class="radyo">${[6, 10, 14].map(n => `<label><input type="radio" name="adet" value="${n}" ${n === 10 ? 'checked' : ''}><span>${n}</span></label>`).join('')}</div></fieldset>
+      <fieldset><legend>Adet <span class="kucuk" style="font-weight:400;color:var(--soluk)">(SQL + Python seçiliyse her dil için)</span></legend><div class="radyo">${[6, 10, 14].map(n => `<label><input type="radio" name="adet" value="${n}" ${n === 10 ? 'checked' : ''}><span>${n}</span></label>`).join('')}</div></fieldset>
       <button class="btn birincil" type="submit" ${S.uretiliyor ? 'disabled' : ''}>${S.uretiliyor ? 'Üretiliyor…' : 'Soruları üret'}</button>
     </form><div id="uretDurum"></div>` : aiYokHTML('Soru üretmek için yapay zekâ bağlantısı gerekiyor. Ücretsiz bir Gemini API anahtarı ekleyerek açabilirsin. O zamana kadar Serbest Alan\'da bu veriyle sorgu yazabilirsin.')}
   </section>`;
@@ -1203,14 +1203,10 @@ function veriOzetiPrompt(tablolar) {
     return `Tablo: ${ad} (${t.rows.length} satır)\n${sut}\nİlk 4 satır:\n${t.rows.slice(0, 4).map(r => '  ' + JSON.stringify(r)).join('\n')}`;
   }).join('\n\n');
 }
-async function soruUret(dil, adet) {
-  const Y = VS.yuklenen; if (!Y || S.uretiliyor) return;
-  S.uretiliyor = true; const durum = () => $('#uretDurum');
-  const btn = $('#uretForm button[type=submit]'); if (btn) { btn.disabled = true; btn.textContent = 'Üretiliyor…'; }
-  durum().innerHTML = `<div class="yukleniyor">${aiAd()} veriyi inceleyip soruları hazırlıyor. Bu 30-60 saniye sürebilir…</div>`;
-  const dilMetni = dil === 'ikisi' ? `yaklaşık yarısı SQL, yarısı Python (pandas)` : dil === 'sql' ? 'hepsi SQL' : 'hepsi Python (pandas)';
+function soruPrompt(Y, dil, adet) {
+  const dilMetni = dil === 'sql' ? 'hepsi SQL' : 'hepsi Python (pandas)';
   const mevcut = Y.sorular.map(q => `- ${q.baslik}`).join('\n');
-  const prompt = `Bir veri analistinin SQL ve Python pratiği yapması için alıştırma soruları hazırlıyorsun. Tüm metinler Türkçe olsun.
+  return `Bir veri analistinin SQL ve Python pratiği yapması için alıştırma soruları hazırlıyorsun. Tüm metinler Türkçe olsun.
 
 VERİ:
 ${veriOzetiPrompt(Y.tablolar)}
@@ -1228,38 +1224,48 @@ ${mevcut ? `- Şu sorular zaten var, bunları tekrar etme:\n${mevcut}` : ''}
 
 Sadece şu JSON'u döndür:
 {"sorular":[{"dil":"sql"|"python","seviye":1|2|3,"kategori":"kısa kategori adı","baslik":"kısa başlık","soru":"soru metni (HTML: <code> kullanılabilir)","ipucu":"tek cümlelik ipucu","cozum":"çalışan çözüm kodu","aciklama":"HTML açıklama","sirali":true|false}]}`;
-  try {
-    const r = await aiJson(prompt, { modelTier: 'complex' });
-    const gelen = (r && r.sorular) || (Array.isArray(r) ? r : []);
-    if (!gelen.length) throw new Error(aiAd() + ' geçerli bir soru listesi döndürmedi. Tekrar dene.');
-    durum().innerHTML = `<div class="yukleniyor">${gelen.length} soru geldi. Çözümler veride çalıştırılarak doğrulanıyor…</div>`;
-    const onceki = S.veriSeti; S.veriSeti = 'yuklenen';
-    const tag = Date.now().toString(36);
-    const gecen = [], elenen = [];
-    for (const [i, q0] of gelen.entries()) {
-      const q = { id: `u${tag}_${i}`, dil: q0.dil === 'python' ? 'python' : 'sql', seviye: [1, 2, 3].includes(+q0.seviye) ? +q0.seviye : 2, kategori: String(q0.kategori || 'Genel'), baslik: String(q0.baslik || `Soru ${i + 1}`), soru: String(q0.soru || ''), ipucu: String(q0.ipucu || ''), cozum: String(q0.cozum || ''), aciklama: String(q0.aciklama || ''), sirali: !!q0.sirali };
-      if (!q.cozum || !q.soru) { elenen.push(q.baslik); continue; }
-      try {
-        if (q.dil === 'python') durum().innerHTML = `<div class="yukleniyor">Python soruları doğrulanıyor${pyDurum !== 'hazir' ? ' (Python ortamı hazırlanıyor)' : ''}…</div>`;
-        await bekle(10);
-        const sonuc = await calistir(q.dil, q.cozum, true);
-        if (sonuc.ok && sonuc.table && sonuc.table.rows.length) { beklenenCache['yuklenen:' + q.id] = sonuc; gecen.push(q); } else elenen.push(q.baslik);
-      } catch (e) { elenen.push(q.baslik); }
-    }
-    S.veriSeti = onceki;
-    Y.sorular.push(...gecen);
-    yukleneniKaydet();
-    S.uretiliyor = false;
-    if (S.view === 'veri') veriCiz();
-    ustCiz();
-    const d = durum();
-    if (d) d.innerHTML = `<div class="karar ${gecen.length ? 'dogru' : 'yanlis'}"><span class="karar-ikon">${gecen.length ? '✓' : '✕'}</span><div>${gecen.length} soru eklendi.${elenen.length ? ` ${elenen.length} tanesinin çözümü veride çalışmadığı için elendi.` : ''} ${gecen.length ? '<button class="btn kucuk-btn" data-git="alistirma">Alıştırmalara git</button>' : ''}</div></div>`;
-    $$('[data-git]').forEach(b => b.onclick = () => { if (S.veriSeti !== 'yuklenen') S.veriSeti = 'yuklenen'; S.filtre = { dil: gecen[0] ? gecen[0].dil : 'sql', seviye: 0, kategori: '' }; git(b.dataset.git); });
-  } catch (e) {
-    S.uretiliyor = false;
-    if (S.view === 'veri') veriCiz();
-    const d = durum(); if (d) d.innerHTML = `<div class="hata-kutu">${esc(aiHata(e))}</div>`;
+}
+// "SQL + Python" seçilince iki ayrı istek: her dil için seçilen adet kadar soru (14 → 14 SQL + 14 Python)
+async function soruUret(dil, adet) {
+  const Y = VS.yuklenen; if (!Y || S.uretiliyor) return;
+  S.uretiliyor = true; const durum = () => $('#uretDurum');
+  const btn = $('#uretForm button[type=submit]'); if (btn) { btn.disabled = true; btn.textContent = 'Üretiliyor…'; }
+  const diller = dil === 'ikisi' ? ['sql', 'python'] : [dil];
+  const gecen = [], elenen = [], hatalar = [];
+  const yaz = h => { const d = durum(); if (d) d.innerHTML = h; };
+  const onceki = S.veriSeti;
+  for (const [k, d] of diller.entries()) {
+    const adim = diller.length > 1 ? ` (${k + 1}/${diller.length})` : '';
+    yaz(`<div class="yukleniyor">${aiAd()} veriyi inceleyip ${adet} ${DIL[d]} sorusu hazırlıyor${adim}. Bu 30-60 saniye sürebilir…</div>`);
+    try {
+      const r = await aiJson(soruPrompt(Y, d, adet), { modelTier: 'complex' });
+      const gelen = (r && r.sorular) || (Array.isArray(r) ? r : []);
+      if (!gelen.length) throw new Error(aiAd() + ' geçerli bir soru listesi döndürmedi. Tekrar dene.');
+      yaz(`<div class="yukleniyor">${gelen.length} ${DIL[d]} sorusu geldi${adim}. Çözümler veride çalıştırılarak doğrulanıyor…</div>`);
+      S.veriSeti = 'yuklenen';
+      const tag = Date.now().toString(36), bu = [];
+      for (const [i, q0] of gelen.entries()) {
+        const q = { id: `u${tag}_${i}`, dil: d, seviye: [1, 2, 3].includes(+q0.seviye) ? +q0.seviye : 2, kategori: String(q0.kategori || 'Genel'), baslik: String(q0.baslik || `Soru ${i + 1}`), soru: String(q0.soru || ''), ipucu: String(q0.ipucu || ''), cozum: String(q0.cozum || ''), aciklama: String(q0.aciklama || ''), sirali: !!q0.sirali };
+        if (!q.cozum || !q.soru) { elenen.push(q.baslik); continue; }
+        try {
+          if (q.dil === 'python' && pyDurum !== 'hazir') yaz(`<div class="yukleniyor">Python soruları doğrulanıyor (Python ortamı hazırlanıyor)…</div>`);
+          await bekle(10);
+          const sonuc = await calistir(q.dil, q.cozum, true);
+          if (sonuc.ok && sonuc.table && sonuc.table.rows.length) { beklenenCache['yuklenen:' + q.id] = sonuc; bu.push(q); } else elenen.push(q.baslik);
+        } catch (e) { elenen.push(q.baslik); }
+      }
+      S.veriSeti = onceki;
+      Y.sorular.push(...bu); gecen.push(...bu);
+      yukleneniKaydet();
+    } catch (e) { S.veriSeti = onceki; hatalar.push(`${DIL[d]}: ${aiHata(e)}`); }
   }
+  S.uretiliyor = false;
+  if (S.view === 'veri') veriCiz();
+  ustCiz();
+  const sayim = diller.length > 1 ? ` (${gecen.filter(q => q.dil === 'sql').length} SQL, ${gecen.filter(q => q.dil === 'python').length} Python)` : '';
+  if (!gecen.length && hatalar.length) { yaz(`<div class="hata-kutu">${hatalar.map(esc).join('<br>')}</div>`); return; }
+  yaz(`<div class="karar ${gecen.length ? 'dogru' : 'yanlis'}"><span class="karar-ikon">${gecen.length ? '✓' : '✕'}</span><div>${gecen.length} soru eklendi${sayim}.${elenen.length ? ` ${elenen.length} tanesinin çözümü veride çalışmadığı için elendi.` : ''}${hatalar.length ? ` Bir kısmı üretilemedi: ${esc(hatalar.join(' · '))}` : ''} ${gecen.length ? '<button class="btn kucuk-btn" data-git="alistirma">Alıştırmalara git</button>' : ''}</div></div>`);
+  $$('[data-git]').forEach(b => b.onclick = () => { if (S.veriSeti !== 'yuklenen') S.veriSeti = 'yuklenen'; S.filtre = { dil: gecen[0] ? gecen[0].dil : 'sql', seviye: 0, kategori: '' }; git(b.dataset.git); });
 }
 
 
