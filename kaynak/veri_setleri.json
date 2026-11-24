@@ -212,5 +212,52 @@
     ]
    ]
   }
+ },
+ {
+  "key": "flo",
+  "ad": "FLO Müşteri",
+  "etiket": "Hazır veri · Miuul FLO vakası",
+  "dosyalar": [
+   "flo_bank.js"
+  ],
+  "bankalar": [
+   "FLO_SORULAR"
+  ],
+  "ilk_soru": "fl01",
+  "aciklama": "Ayakkabı perakendecisi FLO'nun 2020-2021'de hem online hem mağazadan (OmniChannel) alışveriş yapmış 19.945 müşterisi. Her satır bir müşteri: ilk/son alışveriş tarihleri, kanal, online ve offline sipariş sayısı ve harcama, son 12 aydaki ilgi alanı kategorileri. RFM segmentasyonu, tarih farkları ve metin içinde arama alıştırmaları için ideal.",
+  "varsayilan": {
+   "sql": "SELECT master_id, order_channel, last_order_date,\n       order_num_total_ever_online, order_num_total_ever_offline,\n       customer_value_total_ever_online, customer_value_total_ever_offline,\n       interested_in_categories_12\nFROM flo\nLIMIT 20;",
+   "python": "# DataFrame hazır: flo (tarih sütunları datetime)\nflo.head(10)"
+  },
+  "ornekler": {
+   "sql": [
+    [
+     "İlk 20 müşteri",
+     "SELECT * FROM flo LIMIT 20;"
+    ],
+    [
+     "Kanallar",
+     "SELECT order_channel, COUNT(*) AS musteri\nFROM flo\nGROUP BY order_channel;"
+    ],
+    [
+     "Tarih aralığı",
+     "SELECT MIN(first_order_date), MAX(last_order_date) FROM flo;"
+    ]
+   ],
+   "python": [
+    [
+     "İlk 10 müşteri",
+     "flo.head(10)"
+    ],
+    [
+     "Veri tipleri",
+     "flo.dtypes"
+    ],
+    [
+     "Özet",
+     "flo.describe().T"
+    ]
+   ]
+  }
  }
 ]
