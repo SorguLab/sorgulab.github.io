@@ -20,6 +20,8 @@ Esra'nın sonraya bıraktığı istekler. Bir madde bitince buradan sil ve commi
   - Her veri seti için **30-40 soru** (SQL + pandas/NumPy). Sayıyı doldurmak için soru üretme: her soru farklı bir beceri ya da gerçek bir iş sorusu olmalı, tekrar eden kalıplar olmamalı. Kolaydan zora dağıt.
   - Mevcut kurallar geçerli: her çözüm veride doğrulanır, açıklamalardaki sayısal yorumlar gerçek sonuçla karşılaştırılır.
   - Veri setinin içeriğine göre, veride olmayan bir ilişki için JOIN sorusu uydurma; gerekirse resmi veri sözlüğünden kod tablosu ekle (HR'deki egitim_kod gibi).
+  - **Northwind** listede: Esra özel bir sürüm göndermezse resmi sürümü Claude kendisi indirecek (Microsoft `sql-server-samples` reposu, MIT lisansı; `instnwnd.sql`). Çok tablolu JOIN, self-join (Employees.ReportsTo), tarih analizi soruları için ideal.
+  - Esra veri setlerini tek Excel'de her tablo ayrı sayfa olarak (ya da zip içinde CSV) gönderecek.
 
 - [ ] **Veri setlerini ayrı dosyalara taşı, ihtiyaç olunca yükle** — *yeni veri setleriyle birlikte yap.*
   - Şu an veri setleri `index.html` içine gömülü. Sayıları artınca ilk açılış yavaşlar.
