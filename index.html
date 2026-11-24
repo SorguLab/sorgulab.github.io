@@ -1832,8 +1832,8 @@ const S = {
   } catch (e) { }
 })();
 const GEMINI_KEY = 'sorgulab-gemini-anahtar';
-// İlk çalışan model oturum boyunca kullanılır. "latest" takma adı Google güncel Flash modeline yönlendirir; yoksa sıradakiler denenir.
-const GEMINI_MODELLER = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-2.5-flash'];
+// Sırayla denenir; ilk çalışan oturum boyunca kullanılır. Yoğunluk (5xx), modele özel kota (429) ya da model yok (404) olursa sıradakine geçilir.
+const GEMINI_MODELLER = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-flash-latest', 'gemini-3.5-flash-lite', 'gemini-2.5-flash'];
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/';
 let geminiModel = null;
 function geminiAnahtar() { try { return localStorage.getItem(GEMINI_KEY) || ''; } catch (e) { return ''; } }
@@ -1848,11 +1848,12 @@ function geminiMetin(d) {
 async function geminiHata(r) {
   let e = {}; try { e = (await r.json()).error || {}; } catch (x) { }
   const m = String(e.message || ''), neden = JSON.stringify(e.details || '');
-  if (r.status === 429) return { code: 'kota' };
-  if (r.status >= 500) return { code: 'yogun' };
+  const detay = `${r.status}${e.status ? ' ' + e.status : ''}${m ? ': ' + m.slice(0, 200) : ''}`;
+  if (r.status === 429) return { code: 'kota', detay };
+  if (r.status >= 500) return { code: 'yogun', detay };
   if (/API_KEY_INVALID|API key not valid|API key expired/i.test(neden + m)) return { code: 'anahtar_gecersiz' };
   if (/location is not supported/i.test(m)) return { code: 'bolge' };
-  if (r.status === 403 || r.status === 401) return { code: 'yetki' };
+  if (r.status === 403 || r.status === 401) return { code: 'yetki', detay };
   return { code: 'gemini', message: `Gemini hata verdi (${r.status}): ${m || r.statusText}` };
 }
 async function geminiIstek(prompt, { json = false, onText } = {}) {
@@ -1866,7 +1867,13 @@ async function geminiIstek(prompt, { json = false, onText } = {}) {
     try { r = await fetch(GEMINI_URL + m + (akis ? ':streamGenerateContent?alt=sse' : ':generateContent'), { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: govde }); }
     catch (e) { throw { code: 'internet' }; }
     if (r.status === 404) { sonHata = { code: 'model_yok' }; continue; }
-    if (!r.ok) throw await geminiHata(r);
+    if (r.status >= 500) { await bekle(1500); try { r = await fetch(r.url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: govde }); } catch (e) { throw { code: 'internet' }; } }
+    if (!r.ok) {
+      const h = await geminiHata(r);
+      if ((h.code === 'yogun' || h.code === 'kota') && !geminiModel) { sonHata = h; continue; }
+      if (h.code === 'yogun' || h.code === 'kota') { geminiModel = null; }
+      throw h;
+    }
     geminiModel = m;
     let text = '';
     if (akis) {
@@ -1918,14 +1925,15 @@ function aiHata(e) {
     not_granted: 'Claude\'a erişim izni verilmedi. Bu özelliği kullanmak için izin istendiğinde onay vermen gerekiyor.',
     anahtar_gecersiz: 'Gemini anahtarı geçersiz. AI Studio\'dan anahtarı tekrar kopyalayıp "Yapay zekâ" ayarına yapıştır.',
     yetki: 'Bu anahtarın Gemini API\'ye erişim izni yok. AI Studio\'dan yeni bir anahtar oluşturmayı dene.',
-    kota: 'Gemini\'nin ücretsiz kotası şimdilik doldu. Bir dakika sonra tekrar dene. Günlük kota dolduysa ertesi gün Türkiye saatiyle 10-11 civarında yenilenir.',
-    yogun: 'Gemini şu an çok yoğun. Biraz sonra tekrar dene.',
+    kota: 'Gemini\'nin ücretsiz kotası şimdilik doldu (denenen tüm modellerde). Bir dakika sonra tekrar dene. Günlük kota dolduysa ertesi gün Türkiye saatiyle 10-11 civarında yenilenir.',
+    yogun: 'Google\'ın Gemini sunucuları şu an cevap veremedi (geçici bir sorun, anahtarınla ilgili değil). Birkaç dakika sonra tekrar dene.',
     internet: 'İnternet bağlantısı yok ya da Google\'a ulaşılamıyor. Yapay zekâ özellikleri internet ister, uygulamanın geri kalanı çevrimdışı da çalışır.',
     bolge: 'Gemini API bulunduğun bölgede kullanılamıyor.',
     model_yok: 'Uygun bir Gemini modeli bulunamadı. Uygulamanın güncellenmesi gerekebilir.',
     bos: 'Yapay zekâ boş ya da okunamayan bir cevap döndürdü. Tekrar dene.'
   };
-  return e.message && !['rate_limited', 'not_granted'].includes(e.code) && e.code !== 'yok' ? e.message : (m[e.code] || e.message || String(e));
+  const ana = e.message && !['rate_limited', 'not_granted'].includes(e.code) && e.code !== 'yok' ? e.message : (m[e.code] || e.message || String(e));
+  return e.detay ? `${ana} (Google: ${e.detay})` : ana;
 }
 function aiYokHTML(metinStr) {
   return `<div class="bilgi">${metinStr || aiHata({ code: 'yok' })} <button class="btn kucuk-btn" data-ai-ac>Anahtar ekle</button></div>`;
