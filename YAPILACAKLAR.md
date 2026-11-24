@@ -21,6 +21,7 @@ Esra'nın sonraya bıraktığı istekler. Bir madde bitince buradan sil ve commi
   - Mevcut kurallar geçerli: her çözüm veride doğrulanır, açıklamalardaki sayısal yorumlar gerçek sonuçla karşılaştırılır.
   - Veri setinin içeriğine göre, veride olmayan bir ilişki için JOIN sorusu uydurma; gerekirse resmi veri sözlüğünden kod tablosu ekle (HR'deki egitim_kod gibi).
   - **Northwind** listede: Esra özel bir sürüm göndermezse resmi sürümü Claude kendisi indirecek (Microsoft `sql-server-samples` reposu, MIT lisansı; `instnwnd.sql`). Çok tablolu JOIN, self-join (Employees.ReportsTo), tarih analizi soruları için ideal.
+  - **Titanic** listede: Claude kendisi indirecek — `mwaskom/seaborn-data` reposundaki `raw/titanic.csv` (Kaggle train ile aynı 891 yolcu; name, ticket, cabin dahil). `PassengerId` sıra numarası olarak eklenecek. Metin işleme (isimden unvan çıkarma), eksik veri (age, cabin, embarked) ve CASE soruları için uygun.
   - Esra veri setlerini tek Excel'de her tablo ayrı sayfa olarak (ya da zip içinde CSV) gönderecek.
 
 - [ ] **Veri setlerini ayrı dosyalara taşı, ihtiyaç olunca yükle** — *yeni veri setleriyle birlikte yap.*
