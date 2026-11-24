@@ -847,7 +847,7 @@ function veriCiz() {
       </article>
     </div>
     ${Y ? uretPanelHTML() : ''}
-    ${Y ? `<section class="onizleme"><h2>Yüklenen tablolar</h2>${Object.entries(Y.tablolar).map(([a, t]) => `<details ${Object.keys(Y.tablolar).length === 1 ? 'open' : ''}><summary><code>${esc(a)}</code> <span class="kucuk">${t.columns.map((c, i) => `${esc(c)}:${t.types[i].toLowerCase()}`).join(', ')}</span></summary>${tabloHTML({ columns: t.columns, rows: t.rows.slice(0, 6), total: t.rows.length }, 6)}</details>`).join('')}</section>` : ''}
+    ${Y ? `<section class="onizleme"><h2>Yüklenen tablolar</h2>${Object.entries(Y.tablolar).map(([a, t], i) => onizlemeHTML(a, t, i === 0)).join('')}</section>` : ''}
   </div>`;
   $$('[data-vs]', ana).forEach(b => b.onclick = () => veriSetiDegistir(b.dataset.vs));
   const inp = $('#dosya'), bir = $('#birak');
@@ -857,6 +857,18 @@ function veriCiz() {
   bir.addEventListener('dragleave', () => bir.classList.remove('ustunde'));
   bir.addEventListener('drop', e => { e.preventDefault(); bir.classList.remove('ustunde'); const f = e.dataTransfer.files[0]; if (f) dosyaYukle(f); });
   const u = $('#uretForm'); if (u) u.onsubmit = e => { e.preventDefault(); const f = new FormData(u); soruUret(f.get('dil'), +f.get('adet')); };
+}
+const ONIZLEME_SATIR = 200;
+function onizlemeHTML(ad, t, acik) {
+  const n = Math.min(t.rows.length, ONIZLEME_SATIR);
+  return `<details class="onizleme-tablo" ${acik ? 'open' : ''}>
+    <summary><code>${esc(ad)}</code><span class="kucuk">${t.rows.length} satır × ${t.columns.length} sütun</span></summary>
+    <div class="onizleme-kap" tabindex="0" aria-label="${esc(ad)} tablosu önizlemesi">
+      <table class="sonuc"><thead><tr>${t.columns.map((c, i) => `<th>${esc(c)}<span class="th-tip">${esc(t.types[i].toLowerCase())}</span></th>`).join('')}</tr></thead>
+      <tbody>${t.rows.slice(0, n).map(r => `<tr>${r.map(hucre).join('')}</tr>`).join('')}</tbody></table>
+    </div>
+    <div class="tablo-alt">${t.rows.length > n ? `İlk ${n} satır gösteriliyor. Tamamı için Serbest Alan\'da sorgu yazabilirsin.` : 'Tüm satırlar gösteriliyor.'} Tablo kutusunun içinde yana ve aşağı kaydırabilirsin.</div>
+  </details>`;
 }
 function uretPanelHTML() {
   const Y = VS.yuklenen;

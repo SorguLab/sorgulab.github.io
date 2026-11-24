@@ -67,15 +67,21 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('sa-') && k !== SURUM).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
+// Sayfanın kendisi (index.html): önce ağ (en güncel sürüm), 4 sn'de yanıt yoksa ya da çevrimdışıysa önbellek.
+// Diğer dosyalar (Python motoru, fontlar...): önce önbellek.
+const agdanSayfa = (req, c) => Promise.race([
+  fetch(req, { cache: 'no-cache' }).then(r => { if (r.ok) c.put('./index.html', r.clone()); return r; }),
+  new Promise((_, red) => setTimeout(() => red(new Error('zaman aşımı')), 4000))
+]);
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
   if (url.origin !== location.origin) return;
-  e.respondWith(caches.open(SURUM).then(c => c.match(e.request, { ignoreSearch: true }).then(r => {
-    if (r) return r;
-    if (e.request.mode === 'navigate') return c.match('./index.html');
-    return fetch(e.request);
-  })));
+  const sayfa = e.request.mode === 'navigate' || url.pathname.endsWith('/index.html');
+  e.respondWith(caches.open(SURUM).then(c => {
+    if (sayfa) return agdanSayfa(e.request, c).catch(() => c.match('./index.html'));
+    return c.match(e.request, { ignoreSearch: true }).then(r => r || fetch(e.request));
+  }));
 });
 """
 

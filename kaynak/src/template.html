@@ -325,9 +325,13 @@ legend { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
 .uret-form { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; }
 @media (max-width: 820px) { .uret-panel { grid-template-columns: 1fr; } }
 .onizleme { display: grid; gap: 10px; }
-.onizleme details { background: var(--yuzey); border: 1px solid var(--cizgi); border-radius: var(--r); padding: 10px 14px; }
+.onizleme details { background: var(--yuzey); border: 1px solid var(--cizgi); border-radius: 14px; padding: 14px 16px; box-shadow: var(--golge); min-width: 0; }
 .onizleme summary { cursor: pointer; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
-.onizleme .tablo-kap { margin-top: 10px; }
+/* Önizleme kutusu: kartlarla aynı genişlik, sabit yükseklik, iki yönde de kaydırma çubuğu. Sayfa asla genişlemez. */
+.onizleme-kap { margin-top: 12px; width: 100%; max-width: 100%; height: 360px; overflow: scroll; border: 1px solid var(--cizgi); border-radius: 8px; background: var(--yuzey); }
+.onizleme-kap:focus-visible { outline: 2px solid var(--vurgu); outline-offset: 2px; }
+.onizleme-kap table.sonuc th { z-index: 1; }
+.th-tip { display: block; font-size: 10.5px; font-weight: 400; color: var(--h-yorum); }
 .bos-durum { max-width: 620px; margin: 40px auto; background: var(--yuzey); border: 1px solid var(--cizgi); border-radius: 14px; padding: 28px; display: grid; gap: 10px; text-align: left; }
 .bos-durum p { color: var(--soluk); }
 </style>
