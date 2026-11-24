@@ -20,6 +20,44 @@ function kaydet() { try { localStorage.setItem(DEPO_KEY, JSON.stringify(depo)); 
 // Hazır veri setleri VERI_KATALOG'dan gelir (kaynak/veri_setleri.json → build.py). Satırlar ayrı dosyada
 // (veri-<key>.json) durur ve sadece veri seti kullanılınca yüklenir; şema ve kartlar için `meta` yeterli.
 const VS = { yuklenen: null };
+// ─── Yüklenen veriyi bu tarayıcıda sakla (IndexedDB): yenileyince/kapatıp açınca geri gelir, hiçbir yere gönderilmez ───
+const IDB_AD = 'sorgulab', IDB_DEPO = 'veri';
+function idbAc() {
+  return new Promise((ok, red) => {
+    if (!window.indexedDB) return red(new Error('IndexedDB yok'));
+    const r = indexedDB.open(IDB_AD, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(IDB_DEPO);
+    r.onsuccess = () => ok(r.result); r.onerror = () => red(r.error);
+  });
+}
+async function idbIslem(mod, fn) {
+  const db = await idbAc();
+  return new Promise((ok, red) => {
+    const tx = db.transaction(IDB_DEPO, mod); const istek = fn(tx.objectStore(IDB_DEPO));
+    tx.oncomplete = () => { db.close(); ok(istek && istek.result); }; tx.onerror = tx.onabort = () => { db.close(); red(tx.error); };
+  });
+}
+function yukleneniKaydet() {
+  const Y = VS.yuklenen;
+  if (!Y) return idbIslem('readwrite', d => d.delete('yuklenen')).catch(() => { });
+  return idbIslem('readwrite', d => d.put({ ad: Y.ad, tablolar: Y.tablolar, sorular: Y.sorular, kayit: Date.now() }, 'yuklenen'))
+    .then(() => { Y.kayitli = true; }).catch(e => { Y.kayitli = false; console.warn('Veri kaydedilemedi', e); });
+}
+function yukleneniGeriYukle() {
+  return idbIslem('readonly', d => d.get('yuklenen')).then(k => {
+    if (!k || !k.tablolar || VS.yuklenen) return;
+    VS.yuklenen = { ad: k.ad, tablolar: k.tablolar, sorular: k.sorular || [], meta: metaHesapla(k.tablolar), kayitli: true };
+    yenidenCiz();
+  }).catch(() => { });
+}
+function yukleneniSil() {
+  VS.yuklenen = null; delete dbCache.yuklenen;
+  Object.keys(beklenenCache).filter(k => k.startsWith('yuklenen:')).forEach(k => delete beklenenCache[k]);
+  if (typeof pyYukluVS !== 'undefined' && pyYukluVS === 'yuklenen') pyYukluVS = null;
+  S.gecmis = S.gecmis.filter(g => g.vs !== 'yuklenen');
+  if (S.veriSeti === 'yuklenen') { S.veriSeti = HAZIR[0]; S.serbestKod = varsayilanKod(HAZIR[0]); veriHazirla(HAZIR[0]).catch(() => { }); }
+  yukleneniKaydet(); yenidenCiz();
+}
 for (const k of VERI_KATALOG) VS[k.key] = { ...k, tablolar: null, hazir: true };
 const HAZIR = VERI_KATALOG.map(k => k.key);
 function metaHesapla(tablolar) {
@@ -1041,18 +1079,19 @@ function veriCiz() {
       ${HAZIR.map(hazirKartHTML).join('')}
       <article class="veri-kart ${S.veriSeti === 'yuklenen' ? 'secili' : ''}">
         <div class="mod-ust"><span class="mod-etiket">Kendi verin</span><h2>${Y ? esc(Y.ad) : 'Excel ya da CSV yükle'}</h2>
-        <p>${Y ? `${Object.keys(Y.tablolar).length} tablo yüklendi. Her sayfa ayrı bir tablo oldu.` : 'Excel\'deki her sayfa ayrı bir tabloya dönüşür. İlk satır sütun adı olarak okunur. Veri sadece bu tarayıcı sekmesinde işlenir, sayfayı yenileyince tekrar yüklemen gerekir.'}</p></div>
+        <p>${Y ? `${Object.keys(Y.tablolar).length} tablo yüklendi. Her sayfa ayrı bir tablo oldu.${Y.kayitli ? ' Veri bu cihazda kayıtlı: sayfayı yenilesen ya da uygulamayı kapatıp açsan da burada olacak.' : Y.kayitli === false ? ' Veri bu tarayıcıya kaydedilemedi (gizli sekme ya da yer yetersiz olabilir), sayfayı yenileyince tekrar yüklemen gerekir.' : ''}` : 'Excel\'deki her sayfa ayrı bir tabloya dönüşür. İlk satır sütun adı olarak okunur. Veri sadece bu cihazda, tarayıcının içinde saklanır, hiçbir yere gönderilmez. Sayfayı yenilesen de kalır.'}</p></div>
         <label class="birak" id="birak" tabindex="0"><input type="file" id="dosya" accept=".xlsx,.xls,.csv,.xlsm" hidden>
           <span class="birak-ic"><b>${Y ? 'Başka bir dosya yükle' : 'Dosyayı buraya bırak'}</b><span class="kucuk">ya da tıklayıp seç · .xlsx, .xls, .csv</span></span></label>
         <div id="yukDurum"></div>
         ${Y ? `<ul class="tablo-ozet">${Object.entries(Y.tablolar).map(([a, t]) => `<li><code>${esc(a)}</code><span>${t.columns.length} sütun · ${t.rows.length} satır</span></li>`).join('')}</ul>
-          ${S.veriSeti === 'yuklenen' ? '<span class="aktif-etiket">Şu an bu veriyle çalışıyorsun</span>' : '<button class="btn" data-vs="yuklenen">Bu veriyle çalış</button>'}` : ''}
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${S.veriSeti === 'yuklenen' ? '<span class="aktif-etiket">Şu an bu veriyle çalışıyorsun</span>' : '<button class="btn" data-vs="yuklenen">Bu veriyle çalış</button>'}<button class="btn hafif" id="veriSil" type="button">Veriyi sil</button></div>` : ''}
       </article>
     </div>
     ${Y ? uretPanelHTML() : ''}
     ${Y ? `<section class="onizleme"><h2>Yüklenen tablolar</h2>${Object.entries(Y.tablolar).map(([a, t], i) => onizlemeHTML(a, t, i === 0)).join('')}</section>` : ''}
   </div>`;
   $$('[data-vs]', ana).forEach(b => b.onclick = () => veriSetiDegistir(b.dataset.vs));
+  const sil = $('#veriSil'); if (sil) sil.onclick = () => { if (confirm('Yüklediğin veri ve ona özel ürettiğin sorular bu cihazdan silinsin mi?')) yukleneniSil(); };
   const inp = $('#dosya'), bir = $('#birak');
   inp.onchange = () => inp.files[0] && dosyaYukle(inp.files[0]);
   bir.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inp.click(); } });
@@ -1146,6 +1185,7 @@ async function dosyaYukle(f) {
     await sqlHazir; dbAl('yuklenen');
     S.veriSeti = 'yuklenen';
     S.serbestKod = varsayilanKod('yuklenen');
+    await yukleneniKaydet();
     yenidenCiz();
     if (uyarilar.length) $('#yukDurum').innerHTML = `<div class="bilgi">${uyarilar.map(esc).join('<br>')}</div>`;
   } catch (e) { d.innerHTML = `<div class="hata-kutu">Dosya okunamadı: ${esc(e.message || e)}</div>`; }
@@ -1207,6 +1247,7 @@ Sadece şu JSON'u döndür:
     }
     S.veriSeti = onceki;
     Y.sorular.push(...gecen);
+    yukleneniKaydet();
     S.uretiliyor = false;
     if (S.view === 'veri') veriCiz();
     ustCiz();
@@ -1342,6 +1383,7 @@ function sozlukHTML(K) {
 (function baslat() {
   hashOku();
   veriHazirla(S.veriSeti).catch(() => { });
+  yukleneniGeriYukle();
   yenidenCiz();
   sqlHazir.then(() => { if (!SQLlib) { $('#ana').insertAdjacentHTML('afterbegin', '<div class="hata-kutu">SQL motoru yüklenemedi. Sayfayı yenilemeyi dene.</div>'); } });
 })();
