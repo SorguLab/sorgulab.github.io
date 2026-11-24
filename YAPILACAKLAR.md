@@ -23,6 +23,7 @@ Esra'nın sonraya bıraktığı istekler. Bir madde bitince buradan sil ve commi
   - **Northwind** listede: Esra özel bir sürüm göndermezse resmi sürümü Claude kendisi indirecek (Microsoft `sql-server-samples` reposu, MIT lisansı; `instnwnd.sql`). Çok tablolu JOIN, self-join (Employees.ReportsTo), tarih analizi soruları için ideal.
   - **Titanic** listede: Claude kendisi indirecek — `mwaskom/seaborn-data` reposundaki `raw/titanic.csv` (Kaggle train ile aynı 891 yolcu; name, ticket, cabin dahil). `PassengerId` sıra numarası olarak eklenecek. Metin işleme (isimden unvan çıkarma), eksik veri (age, cabin, embarked) ve CASE soruları için uygun.
   - Esra veri setlerini tek Excel'de her tablo ayrı sayfa olarak (ya da zip içinde CSV) gönderecek.
+  - **FLO** listede: ham veri `kaynak/ham/flo.csv` (Esra'nın gönderdiği flo_dataset.xlsx; 19.945 müşteri, 13 sütun, eksik değer yok; Esra herkese açık bir veri seti olduğunu belirtti). Uygun konular: RFM, segmentasyon, online/offline kanal karşılaştırması, tarih farkları (recency, müşteri yaşı), `interested_in_categories_12` liste metni üzerinde LIKE / pandas `str` ve `explode`. Tek tablo: JOIN sorusu uydurma.
 
 - [ ] **Veri setlerini ayrı dosyalara taşı, ihtiyaç olunca yükle** — *yeni veri setleriyle birlikte yap.*
   - Şu an veri setleri `index.html` içine gömülü. Sayıları artınca ilk açılış yavaşlar.
