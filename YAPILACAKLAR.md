@@ -33,3 +33,8 @@ Esra'nın sonraya bıraktığı istekler. Bir madde bitince buradan sil ve commi
   - Şu an veri setleri `index.html` içine gömülü. Sayıları artınca ilk açılış yavaşlar.
   - Her veri setini kökte ayrı bir dosya yap (örn. `veri-hr.json`), uygulama sadece seçilen veri setini yüklesin.
   - Service worker önbellek listesine eklensin ki iPad'de çevrimdışı çalışma bozulmasın. claude.ai sürümünde de dosyalar artifact'e ayrı dosya olarak yüklenmeli (izin verilen uzantıyı kontrol et; .json çalışıyor).
+
+- [ ] **Alıştırmalar: soru seçince sayfa en üste kayıyor** — *Esra bildirdi.*
+  Listede aşağı kaydırıp örneğin 15. soruya tıklayınca hem sayfa hem soru listesi en başa dönüyor.
+  Sebep: `alistirmaCiz()` soru seçiminde `#ana`'nın tamamını yeniden çiziyor; liste (`.soru-liste`, kendi kaydırması var) ve pencere kaydırması sıfırlanıyor.
+  Çözüm: soru seçilince sadece çalışma alanını (`#calisma`) ve listedeki aktif işaretini güncelle; tam yeniden çizim gereken durumlarda (filtre değişimi vb.) listenin `scrollTop`'unu koru. Seçilen soru görünür kalsın; dar ekranda (liste üstte, çalışma alanı altta) çalışma alanına yumuşak kaydır. Aynı davranışı Tahmin Et listesinde de kontrol et.
