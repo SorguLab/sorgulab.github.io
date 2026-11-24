@@ -17,22 +17,38 @@ try { const d = JSON.parse(localStorage.getItem(DEPO_KEY)); if (d) depo = Object
 function kaydet() { try { localStorage.setItem(DEPO_KEY, JSON.stringify(depo)); } catch (e) { } }
 
 // ─── Veri setleri ───
-const VS = {
-  hr: { ad: 'İK Attrition', tablolar: HR_VERI, sorular: HR_SORULAR.concat(NP_SORULAR, MIUUL_SORULAR), hazir: true },
-  ornek: { ad: 'Örnek Mağaza', tablolar: ornekVeriUret(), sorular: SORULAR, hazir: true },
-  yuklenen: null
-};
-const HAZIR = ['hr', 'ornek'];
+// Hazır veri setleri VERI_KATALOG'dan gelir (kaynak/veri_setleri.json → build.py). Satırlar ayrı dosyada
+// (veri-<key>.json) durur ve sadece veri seti kullanılınca yüklenir; şema ve kartlar için `meta` yeterli.
+const VS = { yuklenen: null };
+for (const k of VERI_KATALOG) VS[k.key] = { ...k, tablolar: null, hazir: true };
+const HAZIR = VERI_KATALOG.map(k => k.key);
+function metaHesapla(tablolar) {
+  const m = {};
+  for (const [ad, t] of Object.entries(tablolar)) m[ad] = { columns: t.columns, types: t.types, n: t.rows.length };
+  return m;
+}
+const metaAl = key => VS[key].meta || metaHesapla(VS[key].tablolar);
+const veriYukleniyor = {};
+function veriHazirla(key) {
+  const v = VS[key];
+  if (!v || v.tablolar) return Promise.resolve();
+  if (!veriYukleniyor[key]) {
+    veriYukleniyor[key] = fetch(v.dosya)
+      .then(r => { if (!r.ok) throw new Error(`${v.ad} verisi indirilemedi (${r.status})`); return r.json(); })
+      .then(j => { v.tablolar = j; })
+      .catch(e => { delete veriYukleniyor[key]; throw new Error((e && e.message) || `${v.ad} verisi yüklenemedi`); });
+  }
+  return veriYukleniyor[key];
+}
 function varsayilanKod(key) {
-  const t = Object.keys(VS[key].tablolar)[0];
-  if (key === 'ornek') return { sql: "SELECT *\nFROM siparisler\nLIMIT 20;", python: "# DataFrame'ler hazır: musteriler, urunler, siparisler\nsiparisler.head(10)" };
-  if (key === 'hr') return { sql: "SELECT EmployeeNumber, Age, Department, JobRole, MonthlyIncome, Attrition\nFROM hr\nLIMIT 20;", python: "# DataFrame'ler hazır: hr, egitim_kod, memnuniyet_kod\nhr.head(10)" };
+  if (VS[key].varsayilan) return { ...VS[key].varsayilan };
+  const t = Object.keys(metaAl(key))[0];
   return { sql: `SELECT *\nFROM "${t}"\nLIMIT 20;`, python: `${t}.head(10)` };
 }
 const S = {
   view: 'alistirma', veriSeti: 'hr',
   filtre: { dil: 'sql', seviye: 0, kategori: '', kaynak: '' },
-  aktifId: { hr: 'h01', ornek: 's01', yuklenen: null },
+  aktifId: Object.fromEntries([...VERI_KATALOG.map(k => [k.key, k.ilk_soru]), ['yuklenen', null]]),
   tahminId: 't01', tahminDil: 'sql',
   serbestDil: 'sql', serbestKod: null,
   gecmis: [], mulakat: null, teorik: null, claude: null, uretiliyor: false
@@ -169,6 +185,7 @@ async function pyExec(kod) {
 
 // Ortak çalıştırıcı. temiz=true: soru kontrolünde, oyun alanındaki değişikliklerden etkilenmeyen taze veri.
 async function calistir(dil, kod, temiz = false) {
+  await veriHazirla(S.veriSeti);
   if (dil === 'sql') {
     await sqlHazir;
     if (temiz) { const db = new SQLlib.Database(dbAl(S.veriSeti).bytes); try { return sqlExec(db, kod); } finally { db.close(); } }
@@ -313,7 +330,7 @@ function semaHTML(dil) {
   const vs = VS[S.veriSeti];
   const pyTip = dil === 'python' && pyYukluVS === S.veriSeti;
   return `<div class="sema-baslik"><span>Tablolar</span><span class="kucuk">${dil === 'python' ? 'DataFrame olarak hazır' : 'SQLite'}</span></div>` +
-    Object.entries(vs.tablolar).map(([ad, t]) => `<details class="sema-tablo" open><summary><button class="ekle-btn tablo-ad" data-ekle="${esc(ad)}" title="Editöre ekle">${esc(ad)}</button><span class="kucuk">${t.rows.length} satır</span></summary><ul>${t.columns.map((c, i) => {
+    Object.entries(metaAl(S.veriSeti)).map(([ad, t]) => `<details class="sema-tablo" open><summary><button class="ekle-btn tablo-ad" data-ekle="${esc(ad)}" title="Editöre ekle">${esc(ad)}</button><span class="kucuk">${t.n} satır</span></summary><ul>${t.columns.map((c, i) => {
       const tip = pyTip ? ((pyTipler[ad] || []).find(x => x[0] === c) || [, ''])[1] : t.types[i];
       return `<li><button class="ekle-btn" data-ekle="${esc(c)}" title="Editöre ekle">${esc(c)}</button><span class="tip">${esc(String(tip || '').toLowerCase())}</span></li>`;
     }).join('')}</ul></details>`).join('') + `<p class="kucuk sema-not">İsme tıklayınca imlecin olduğu yere eklenir.${dil === 'python' ? ' Tarih sütunları datetime tipinde gelir.' : ''}</p>`;
@@ -335,7 +352,7 @@ function ustCiz() {
   pyDurumAyarla(pyDurum);
 }
 $('#vsSec').addEventListener('change', e => { veriSetiDegistir(e.target.value); });
-function veriSetiDegistir(k) { S.veriSeti = k; S.mulakat = null; S.filtre.kategori = ''; S.serbestKod = varsayilanKod(k); yenidenCiz(); }
+function veriSetiDegistir(k) { S.veriSeti = k; S.mulakat = null; S.filtre.kategori = ''; S.filtre.kaynak = ''; S.serbestKod = varsayilanKod(k); veriHazirla(k).catch(() => { }); yenidenCiz(); }
 $$('.nav-btn').forEach(b => b.addEventListener('click', () => git(b.dataset.view)));
 const VIEWLER = ['alistirma', 'tahmin', 'mulakat', 'serbest', 'veri'];
 function git(v) { if (location.hash !== '#' + v) location.hash = v; else { S.view = v; yenidenCiz(); } }
@@ -385,12 +402,38 @@ function alistirmaCiz() {
     <section class="calisma" id="calisma"></section>
     <aside class="sema" id="sema">${semaHTML(S.filtre.dil)}</aside>
   </div>`;
-  $$('.seg-btn', ana).forEach(b => b.onclick = () => { S.filtre.dil = b.dataset.dil; S.filtre.kategori = ''; if (b.dataset.dil === 'python') pyHazirla().then(() => { pyVeriYukle(S.veriSeti); const s = $('#sema'); if (s && S.view === 'alistirma') s.innerHTML = semaHTML('python'); }).catch(() => { }); alistirmaCiz(); });
+  $$('.seg-btn', ana).forEach(b => b.onclick = () => { S.filtre.dil = b.dataset.dil; S.filtre.kategori = ''; if (b.dataset.dil === 'python') pyHazirla().then(() => veriHazirla(S.veriSeti)).then(() => { pyVeriYukle(S.veriSeti); const s = $('#sema'); if (s && S.view === 'alistirma') s.innerHTML = semaHTML('python'); }).catch(() => { }); alistirmaCiz(); });
   $$('.chip[data-seviye]', ana).forEach(b => b.onclick = () => { S.filtre.seviye = +b.dataset.seviye; alistirmaCiz(); });
   $$('.kaynak-btn', ana).forEach(b => b.onclick = () => { S.filtre.kaynak = b.dataset.kaynak; S.filtre.kategori = ''; S.filtre.seviye = 0; alistirmaCiz(); });
   $('#katSec').onchange = e => { S.filtre.kategori = e.target.value; alistirmaCiz(); };
-  $$('.soru-satir', ana).forEach(b => b.onclick = () => { S.aktifId[S.veriSeti] = b.dataset.id; alistirmaCiz(); });
+  $$('.soru-satir', ana).forEach(b => b.onclick = () => soruSec(b.dataset.id));
   if (aktif) soruCalismaCiz($('#calisma'), aktif, { mod: 'alistirma', liste });
+}
+// Soru seçimi: sayfanın tamamını yeniden çizmeden sadece çalışma alanını günceller,
+// böylece listenin ve sayfanın kaydırma konumu korunur.
+const azHareket = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function listedeGoster(kap, el) {
+  if (!kap || !el) return;
+  const k = kap.getBoundingClientRect(), r = el.getBoundingClientRect();
+  if (r.top < k.top) kap.scrollTop -= (k.top - r.top) + 8;
+  else if (r.bottom > k.bottom) kap.scrollTop += (r.bottom - k.bottom) + 8;
+}
+function calismaAlaninaGit(c) {
+  if (!c) return;
+  const dar = window.matchMedia('(max-width: 820px)').matches;
+  const top = c.getBoundingClientRect().top;
+  if (dar || top < 0) window.scrollTo({ top: Math.max(0, window.scrollY + top - 80), behavior: azHareket() ? 'auto' : 'smooth' });
+}
+function soruSec(id) {
+  const liste = filtreliSorular();
+  const q = liste.find(x => x.id === id);
+  const c = $('#calisma');
+  if (!q || !c) { S.aktifId[S.veriSeti] = id; return alistirmaCiz(); }
+  S.aktifId[S.veriSeti] = id;
+  $$('.soru-satir').forEach(b => b.classList.toggle('aktif', b.dataset.id === id));
+  soruCalismaCiz(c, q, { mod: 'alistirma', liste });
+  listedeGoster($('.soru-liste'), $(`.soru-satir[data-id="${id}"]`));
+  calismaAlaninaGit(c);
 }
 
 // Tek bir sorunun çalışma alanı (alıştırma + mülakat ortak)
@@ -480,8 +523,8 @@ function soruCalismaCiz(host, q, { mod, liste, onKontrol }) {
     $('#btnCevap', host).onclick = cevapGoster;
     $('#btnNeden', host).onclick = () => { cevapGoster(); kutu('kNeden', 'Neden böyle yazıldı?', `<div class="aciklama">${q.aciklama || '<p>Açıklama yok.</p>'}</div>`); };
     const o = $('#onceki', host), s = $('#sonraki', host);
-    if (o) o.onclick = () => { S.aktifId[S.veriSeti] = liste[idx - 1].id; alistirmaCiz(); };
-    if (s) s.onclick = () => { S.aktifId[S.veriSeti] = liste[idx + 1].id; alistirmaCiz(); };
+    if (o) o.onclick = () => soruSec(liste[idx - 1].id);
+    if (s) s.onclick = () => soruSec(liste[idx + 1].id);
   }
   return { ed };
 }
@@ -493,7 +536,7 @@ function tabloOzet(t, n = 8) {
   return [t.columns.join(' | '), ...t.rows.slice(0, n).map(r => r.map(v => v === null ? 'NULL' : typeof v === 'number' && !Number.isInteger(v) ? +v.toFixed(4) : v).join(' | '))].join('\n') + `\n(${t.total ?? t.rows.length} satır × ${t.columns.length} sütun)`;
 }
 function semaOzet() {
-  return Object.entries(VS[S.veriSeti].tablolar).map(([ad, t]) => `${ad}(${t.columns.map((c, i) => `${c} ${t.types[i]}`).join(', ')}) — ${t.rows.length} satır`).join('\n');
+  return Object.entries(metaAl(S.veriSeti)).map(([ad, t]) => `${ad}(${t.columns.map((c, i) => `${c} ${t.types[i]}`).join(', ')}) — ${t.n} satır`).join('\n');
 }
 async function hataAcikla(q, kod, gel, bek, sonuc) {
   const el = document.createElement('div');
@@ -557,10 +600,18 @@ function tahminCiz() {
     </section>
   </div>`;
   $$('.seg-btn', ana).forEach(b => b.onclick = () => { S.tahminDil = b.dataset.dil; S.tahminId = null; tahminCiz(); });
-  $$('.soru-satir', ana).forEach(b => b.onclick = () => { S.tahminId = b.dataset.id; tahminCiz(); });
+  const tahminSec = id => {
+    const ls = $('.soru-liste'), y = ls ? ls.scrollTop : 0, sy = window.scrollY;
+    S.tahminId = id; tahminCiz();
+    const ls2 = $('.soru-liste'); if (ls2) ls2.scrollTop = y;
+    window.scrollTo(0, sy);
+    listedeGoster(ls2, $(`.soru-satir[data-id="${id}"]`));
+    calismaAlaninaGit($('#ana .calisma'));
+  };
+  $$('.soru-satir', ana).forEach(b => b.onclick = () => tahminSec(b.dataset.id));
   const i = liste.indexOf(t);
-  $('#tOnceki').onclick = () => { S.tahminId = liste[i - 1].id; tahminCiz(); };
-  $('#tSonraki').onclick = () => { S.tahminId = liste[i + 1].id; tahminCiz(); };
+  $('#tOnceki').onclick = () => tahminSec(liste[i - 1].id);
+  $('#tSonraki').onclick = () => tahminSec(liste[i + 1].id);
   $$('.secenek', ana).forEach(b => b.onclick = async () => {
     const sec = +b.dataset.i, dogru = sec === t.dogru;
     if (depo.tahmin[t.id] === undefined) { depo.tahmin[t.id] = dogru; kaydet(); }
@@ -761,22 +812,12 @@ function teorikSonucCiz() {
 }
 
 // ═══════════════ SERBEST ALAN ═══════════════
-const ORNEKLER = {
-  hr: {
-    sql: [['İlk 20 satır', 'SELECT EmployeeNumber, Age, Department, JobRole, MonthlyIncome, Attrition\nFROM hr\nLIMIT 20;'], ['Sütunlar', "SELECT name, type FROM pragma_table_info('hr');"], ['Attrition dağılımı', 'SELECT Attrition, COUNT(*) AS adet\nFROM hr\nGROUP BY Attrition;'], ['Kod tabloları', 'SELECT * FROM egitim_kod;']],
-    python: [['İlk 10 satır', 'hr.head(10)'], ['Özet istatistik', 'hr.describe().T'], ['Veri tipleri', 'hr.dtypes'], ['Farklı değer sayısı', 'hr.nunique().sort_values()'], ['NumPy dizisi', 'gelir = hr["MonthlyIncome"].to_numpy()\nprint(type(gelir), gelir.dtype, gelir.shape)\ngelir[:10]']]
-  },
-  ornek: {
-  sql: [['İlk 20 sipariş', 'SELECT *\nFROM siparisler\nLIMIT 20;'], ['Tablo yapısı', "SELECT name, type FROM pragma_table_info('siparisler');"], ['Durum dağılımı', 'SELECT durum, COUNT(*) AS adet\nFROM siparisler\nGROUP BY durum\nORDER BY adet DESC;']],
-  python: [['İlk 10 satır', 'siparisler.head(10)'], ['Bilgi özeti', 'siparisler.describe()'], ['Veri tipleri', 'siparisler.dtypes'], ['Eksik değerler', 'musteriler.isnull().sum()']]
-  }
-};
 function serbestCiz() {
   const ana = $('#ana'), d = S.serbestDil, vs = VS[S.veriSeti];
   const gecmisBu = S.gecmis.filter(g => g.dil === d && g.vs === S.veriSeti);
-  const ilkTablo = Object.keys(vs.tablolar)[0];
+  const ilkTablo = Object.keys(metaAl(S.veriSeti))[0];
   if (!S.serbestKod) S.serbestKod = varsayilanKod(S.veriSeti);
-  const ornek = ORNEKLER[S.veriSeti] ? ORNEKLER[S.veriSeti][d] : (d === 'sql' ? [['İlk 20 satır', `SELECT *\nFROM "${ilkTablo}"\nLIMIT 20;`], ['Satır sayısı', `SELECT COUNT(*) FROM "${ilkTablo}";`]] : [['İlk 10 satır', `${ilkTablo}.head(10)`], ['Özet', `${ilkTablo}.describe()`], ['Eksik değerler', `${ilkTablo}.isnull().sum()`]]);
+  const ornek = vs.ornekler ? vs.ornekler[d] : (d === 'sql' ? [['İlk 20 satır', `SELECT *\nFROM "${ilkTablo}"\nLIMIT 20;`], ['Satır sayısı', `SELECT COUNT(*) FROM "${ilkTablo}";`]] : [['İlk 10 satır', `${ilkTablo}.head(10)`], ['Özet', `${ilkTablo}.describe()`], ['Eksik değerler', `${ilkTablo}.isnull().sum()`]]);
   ana.innerHTML = `
   <div class="iki-kolon serbest">
     <section class="calisma">
@@ -818,24 +859,10 @@ function bosSoruHTML() {
 function bosSoruBagla() { $$('[data-git]').forEach(b => b.onclick = () => git(b.dataset.git)); }
 function veriCiz() {
   const ana = $('#ana'), Y = VS.yuklenen;
-  const ornekT = VS.ornek.tablolar;
   ana.innerHTML = `
   <div class="veri-sayfa">
     <div class="veri-kartlar">
-      <article class="veri-kart ${S.veriSeti === 'hr' ? 'secili' : ''}">
-        <div class="mod-ust"><span class="mod-etiket">Hazır veri · senin yüklediğin</span><h2>İK Attrition</h2>
-        <p>IBM HR Attrition verisi: ${VS.hr.tablolar.hr.rows.length} çalışan, ${VS.hr.tablolar.hr.columns.length} sütun, eksik değer yok. JOIN alıştırmaları için verinin kod sözlüğünden iki küçük tablo eklendi: eğitim seviyeleri (1-5) ve memnuniyet puanları (1-4).</p></div>
-        <ul class="tablo-ozet">${Object.entries(VS.hr.tablolar).map(([a, t]) => `<li><code>${a}</code><span>${t.columns.length} sütun · ${t.rows.length} satır</span></li>`).join('')}</ul>
-        <p class="kucuk">${VS.hr.sorular.filter(q => q.dil === 'sql' && !q.kaynak).length} SQL + ${VS.hr.sorular.filter(q => q.dil === 'python' && q.kategori !== 'NumPy').length} pandas + ${VS.hr.sorular.filter(q => q.kategori === 'NumPy').length} NumPy sorusu hazır. Ayrıca ${VS.hr.sorular.filter(q => q.kaynak === 'miuul').length} Miuul Bitirme sorusu (SQL).</p>
-        ${S.veriSeti === 'hr' ? '<span class="aktif-etiket">Şu an bu veriyle çalışıyorsun</span>' : '<button class="btn" data-vs="hr">Bu veriyle çalış</button>'}
-      </article>
-      <article class="veri-kart ${S.veriSeti === 'ornek' ? 'secili' : ''}">
-        <div class="mod-ust"><span class="mod-etiket">Hazır veri</span><h2>Örnek Mağaza</h2>
-        <p>Bir spor ve giyim perakendecisinin 2023-2024 verisi: ${ornekT.musteriler.rows.length} müşteri, ${ornekT.urunler.rows.length} ürün, ${ornekT.siparisler.rows.length} sipariş. İçinde bilerek bırakılmış eksik değerler ve hiç sipariş vermemiş müşteriler var.</p></div>
-        <ul class="tablo-ozet">${Object.entries(ornekT).map(([a, t]) => `<li><code>${a}</code><span>${t.columns.length} sütun · ${t.rows.length} satır</span></li>`).join('')}</ul>
-        <p class="kucuk">${SORULAR.filter(q => q.dil === 'sql').length} SQL + ${SORULAR.filter(q => q.dil === 'python').length} Python sorusu hazır.</p>
-        ${S.veriSeti === 'ornek' ? '<span class="aktif-etiket">Şu an bu veriyle çalışıyorsun</span>' : '<button class="btn" data-vs="ornek">Bu veriyle çalış</button>'}
-      </article>
+      ${HAZIR.map(hazirKartHTML).join('')}
       <article class="veri-kart ${S.veriSeti === 'yuklenen' ? 'secili' : ''}">
         <div class="mod-ust"><span class="mod-etiket">Kendi verin</span><h2>${Y ? esc(Y.ad) : 'Excel ya da CSV yükle'}</h2>
         <p>${Y ? `${Object.keys(Y.tablolar).length} tablo yüklendi. Her sayfa ayrı bir tablo oldu.` : 'Excel\'deki her sayfa ayrı bir tabloya dönüşür. İlk satır sütun adı olarak okunur. Veri sadece bu tarayıcı sekmesinde işlenir, sayfayı yenileyince tekrar yüklemen gerekir.'}</p></div>
@@ -869,6 +896,25 @@ function onizlemeHTML(ad, t, acik) {
     </div>
     <div class="tablo-alt">${t.rows.length > n ? `İlk ${n} satır gösteriliyor. Tamamı için Serbest Alan\'da sorgu yazabilirsin.` : 'Tüm satırlar gösteriliyor.'} Tablo kutusunun içinde yana ve aşağı kaydırabilirsin.</div>
   </details>`;
+}
+function soruSayisiMetni(sorular) {
+  const sql = sorular.filter(q => q.dil === 'sql' && !q.kaynak).length;
+  const pd = sorular.filter(q => q.dil === 'python' && q.kategori !== 'NumPy').length;
+  const np = sorular.filter(q => q.kategori === 'NumPy').length;
+  const parca = [sql && `${sql} SQL`, pd && `${pd} Python (pandas)`, np && `${np} NumPy`].filter(Boolean);
+  const kay = {};
+  sorular.filter(q => q.kaynak).forEach(q => { kay[q.kaynak] = (kay[q.kaynak] || 0) + 1; });
+  return parca.join(' + ') + ' sorusu hazır.' + Object.entries(kay).map(([k, n]) => ` Ayrıca ${n} ${esc(KAYNAK_AD[k] || k)} sorusu.`).join('');
+}
+function hazirKartHTML(key) {
+  const v = VS[key], m = metaAl(key);
+  return `<article class="veri-kart ${S.veriSeti === key ? 'secili' : ''}">
+        <div class="mod-ust"><span class="mod-etiket">${esc(v.etiket || 'Hazır veri')}</span><h2>${esc(v.ad)}</h2>
+        <p>${esc(v.aciklama || '')}</p></div>
+        <ul class="tablo-ozet">${Object.entries(m).map(([a, t]) => `<li><code>${esc(a)}</code><span>${t.columns.length} sütun · ${t.n} satır</span></li>`).join('')}</ul>
+        <p class="kucuk">${soruSayisiMetni(v.sorular)}</p>
+        ${S.veriSeti === key ? '<span class="aktif-etiket">Şu an bu veriyle çalışıyorsun</span>' : `<button class="btn" data-vs="${key}">Bu veriyle çalış</button>`}
+      </article>`;
 }
 function uretPanelHTML() {
   const Y = VS.yuklenen;
@@ -916,7 +962,7 @@ async function dosyaYukle(f) {
       tablolar[tad] = { columns: baslik, types: tipler, rows: satirlar };
     }
     if (!Object.keys(tablolar).length) throw new Error('Dosyada okunabilir bir tablo bulunamadı. İlk satırın sütun adları olduğundan emin ol.');
-    VS.yuklenen = { ad: f.name.replace(/\.[^.]+$/, ''), tablolar, sorular: [] };
+    VS.yuklenen = { ad: f.name.replace(/\.[^.]+$/, ''), tablolar, sorular: [], meta: metaHesapla(tablolar) };
     delete dbCache.yuklenen; Object.keys(beklenenCache).filter(k => k.startsWith('yuklenen:')).forEach(k => delete beklenenCache[k]);
     if (pyYukluVS === 'yuklenen') pyYukluVS = null;
     S.aktifId.yuklenen = null;
@@ -1002,6 +1048,7 @@ Sadece şu JSON'u döndür:
 (function baslat() {
   const v = location.hash.slice(1);
   if (VIEWLER.includes(v)) S.view = v;
+  veriHazirla(S.veriSeti).catch(() => { });
   yenidenCiz();
   sqlHazir.then(() => { if (!SQLlib) { $('#ana').insertAdjacentHTML('afterbegin', '<div class="hata-kutu">SQL motoru yüklenemedi. Sayfayı yenilemeyi dene.</div>'); } });
 })();

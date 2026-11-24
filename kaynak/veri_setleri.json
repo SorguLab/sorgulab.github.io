@@ -1,0 +1,114 @@
+[
+ {
+  "key": "hr",
+  "ad": "İK Attrition",
+  "etiket": "Hazır veri · senin yüklediğin",
+  "dosyalar": [
+   "hr_bank.js",
+   "np_bank.js",
+   "miuul_bank.js"
+  ],
+  "bankalar": [
+   "HR_SORULAR",
+   "NP_SORULAR",
+   "MIUUL_SORULAR"
+  ],
+  "ilk_soru": "h01",
+  "aciklama": "IBM HR Attrition verisi: 1470 çalışan, 35 sütun, eksik değer yok. JOIN alıştırmaları için verinin kod sözlüğünden iki küçük tablo eklendi: eğitim seviyeleri (1-5) ve memnuniyet puanları (1-4).",
+  "varsayilan": {
+   "sql": "SELECT EmployeeNumber, Age, Department, JobRole, MonthlyIncome, Attrition\nFROM hr\nLIMIT 20;",
+   "python": "# DataFrame'ler hazır: hr, egitim_kod, memnuniyet_kod\nhr.head(10)"
+  },
+  "ornekler": {
+   "sql": [
+    [
+     "İlk 20 satır",
+     "SELECT EmployeeNumber, Age, Department, JobRole, MonthlyIncome, Attrition\nFROM hr\nLIMIT 20;"
+    ],
+    [
+     "Sütunlar",
+     "SELECT name, type FROM pragma_table_info('hr');"
+    ],
+    [
+     "Attrition dağılımı",
+     "SELECT Attrition, COUNT(*) AS adet\nFROM hr\nGROUP BY Attrition;"
+    ],
+    [
+     "Kod tabloları",
+     "SELECT * FROM egitim_kod;"
+    ]
+   ],
+   "python": [
+    [
+     "İlk 10 satır",
+     "hr.head(10)"
+    ],
+    [
+     "Özet istatistik",
+     "hr.describe().T"
+    ],
+    [
+     "Veri tipleri",
+     "hr.dtypes"
+    ],
+    [
+     "Farklı değer sayısı",
+     "hr.nunique().sort_values()"
+    ],
+    [
+     "NumPy dizisi",
+     "gelir = hr[\"MonthlyIncome\"].to_numpy()\nprint(type(gelir), gelir.dtype, gelir.shape)\ngelir[:10]"
+    ]
+   ]
+  }
+ },
+ {
+  "key": "ornek",
+  "ad": "Örnek Mağaza",
+  "etiket": "Hazır veri · sentetik",
+  "dosyalar": [],
+  "bankalar": [
+   "SORULAR"
+  ],
+  "ilk_soru": "s01",
+  "aciklama": "Bir spor ve giyim perakendecisinin 2023-2024 verisi (sentetik): 80 müşteri, 24 ürün, 640 sipariş. İçinde bilerek bırakılmış eksik değerler ve hiç sipariş vermemiş müşteriler var.",
+  "varsayilan": {
+   "sql": "SELECT *\nFROM siparisler\nLIMIT 20;",
+   "python": "# DataFrame'ler hazır: musteriler, urunler, siparisler\nsiparisler.head(10)"
+  },
+  "ornekler": {
+   "sql": [
+    [
+     "İlk 20 sipariş",
+     "SELECT *\nFROM siparisler\nLIMIT 20;"
+    ],
+    [
+     "Tablo yapısı",
+     "SELECT name, type FROM pragma_table_info('siparisler');"
+    ],
+    [
+     "Durum dağılımı",
+     "SELECT durum, COUNT(*) AS adet\nFROM siparisler\nGROUP BY durum\nORDER BY adet DESC;"
+    ]
+   ],
+   "python": [
+    [
+     "İlk 10 satır",
+     "siparisler.head(10)"
+    ],
+    [
+     "Bilgi özeti",
+     "siparisler.describe()"
+    ],
+    [
+     "Veri tipleri",
+     "siparisler.dtypes"
+    ],
+    [
+     "Eksik değerler",
+     "musteriler.isnull().sum()"
+    ]
+   ]
+  }
+ }
+]

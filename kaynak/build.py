@@ -4,6 +4,7 @@ Kullanım (repo kökünden):
     python3 kaynak/build.py
 Üretir:
     index.html, sw.js, manifest.webmanifest   -> repo kökü (iPad / GitHub Pages sürümü)
+    veri-<key>.json                           -> repo kökü, her hazır veri seti ayrı dosya (kaynak/veri/<key>.json'dan)
     kaynak/cikti/claude-ai.html               -> claude.ai artifact sürümü (git'e girmez)
 
 Python motoru, kütüphaneler, fontlar ve ikonlar repo kökünde düz (klasörsüz) durur.
@@ -15,14 +16,41 @@ SRC = os.path.join(KOK, 'kaynak', 'src')
 CIKTI = os.path.join(KOK, 'kaynak', 'cikti')
 
 
-def birlestir():
+def katalog_oku():
+    return json.load(open(os.path.join(KOK, 'kaynak', 'veri_setleri.json'), encoding='utf-8'))
+
+
+def veri_dosyalari_yaz(katalog):
+    """Her hazır veri setini köke ayrı bir dosya olarak yazar (veri-<key>.json) ve küçük bir özet (meta) döner."""
+    metalar = {}
+    for v in katalog:
+        veri = json.load(open(os.path.join(KOK, 'kaynak', 'veri', v['key'] + '.json'), encoding='utf-8'))
+        with open(os.path.join(KOK, 'veri-' + v['key'] + '.json'), 'w', encoding='utf-8') as f:
+            json.dump(veri, f, ensure_ascii=False, separators=(',', ':'))
+        metalar[v['key']] = {t: {'columns': o['columns'], 'types': o['types'], 'n': len(o['rows'])} for t, o in veri.items()}
+    return metalar
+
+
+def birlestir(katalog, metalar):
     t = open(os.path.join(SRC, 'template.html'), encoding='utf-8').read()
-    for k, f in [('/*DATA*/', 'data.js'), ('/*BANK*/', 'bank.js'), ('/*HRDATA*/', 'hr_data.js'),
-                 ('/*HRBANK*/', 'hr_bank.js'), ('/*NPBANK*/', 'np_bank.js'), ('/*MIUULBANK*/', 'miuul_bank.js'), ('/*APP*/', 'app.js')]:
+    dosyalar = ['bank.js'] + [d for v in katalog for d in v['dosyalar']]
+    parcalar = []
+    for f in dosyalar:
         s = open(os.path.join(SRC, f), encoding='utf-8').read()
         s = re.sub(r"\nif \(typeof module !== 'undefined'\).*\n?", "\n", s)
         assert '</script' not in s, f
-        t = t.replace(k, s)
+        parcalar.append(s)
+    ogeler = []
+    for v in katalog:
+        alan = {k: v[k] for k in ('key', 'ad', 'etiket', 'aciklama', 'varsayilan', 'ornekler', 'ilk_soru')}
+        alan['dosya'] = 'veri-' + v['key'] + '.json'
+        alan['meta'] = metalar[v['key']]
+        js = json.dumps(alan, ensure_ascii=False)
+        ogeler.append(js[:-1] + ', "sorular": [].concat(' + ', '.join(v['bankalar']) + ')}')
+    kat = 'const VERI_KATALOG = [\n' + ',\n'.join(ogeler) + '\n];'
+    app = open(os.path.join(SRC, 'app.js'), encoding='utf-8').read()
+    assert '</script' not in app
+    t = t.replace('/*BANKALAR*/', '\n'.join(parcalar)).replace('/*KATALOG*/', kat).replace('/*APP*/', app)
     return t.replace('/*HELPER*/', json.dumps(open(os.path.join(SRC, 'helper.py'), encoding='utf-8').read()))
 
 
@@ -101,7 +129,9 @@ def pwa(t):
 
 
 def main():
-    t = birlestir()
+    katalog = katalog_oku()
+    metalar = veri_dosyalari_yaz(katalog)
+    t = birlestir(katalog, metalar)
     os.makedirs(CIKTI, exist_ok=True)
     open(os.path.join(CIKTI, 'claude-ai.html'), 'w', encoding='utf-8').write(t)
     open(os.path.join(KOK, 'index.html'), 'w', encoding='utf-8').write(pwa(t))
