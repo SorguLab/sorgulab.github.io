@@ -1915,6 +1915,14 @@ async function geminiHata(r) {
   if (r.status === 403 || r.status === 401) return { code: 'yetki', detay };
   return { code: 'gemini', message: `Gemini hata verdi (${r.status}): ${m || r.statusText}` };
 }
+// Cevap gelmezse sonsuza kadar beklememek için süre sınırı (soru üretme uzun sürebildiği için JSON isteklerinde daha uzun)
+async function geminiFetch(url, ayar, ms) {
+  const kontrol = new AbortController();
+  const t = setTimeout(() => kontrol.abort(), ms);
+  try { return await fetch(url, { ...ayar, signal: kontrol.signal }); }
+  catch (e) { throw kontrol.signal.aborted ? { code: 'zaman' } : { code: 'internet' }; }
+  finally { clearTimeout(t); }
+}
 async function geminiIstek(prompt, { json = false, onText } = {}) {
   const key = geminiAnahtar(); if (!key) throw { code: 'yok' };
   if (navigator.onLine === false) throw { code: 'internet' };
@@ -1923,10 +1931,11 @@ async function geminiIstek(prompt, { json = false, onText } = {}) {
   let sonHata = { code: 'model_yok' };
   for (const m of geminiModel ? [geminiModel] : GEMINI_MODELLER) {
     let r;
-    try { r = await fetch(GEMINI_URL + m + (akis ? ':streamGenerateContent?alt=sse' : ':generateContent'), { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: govde }); }
-    catch (e) { throw { code: 'internet' }; }
+    const sure = json ? 120000 : 45000;
+    const ayar = { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: govde };
+    r = await geminiFetch(GEMINI_URL + m + (akis ? ':streamGenerateContent?alt=sse' : ':generateContent'), ayar, sure);
     if (r.status === 404) { sonHata = { code: 'model_yok' }; continue; }
-    if (r.status >= 500) { await bekle(1500); try { r = await fetch(r.url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: govde }); } catch (e) { throw { code: 'internet' }; } }
+    if (r.status >= 500) { await bekle(1500); r = await geminiFetch(r.url, ayar, sure); }
     if (!r.ok) {
       const h = await geminiHata(r);
       if ((h.code === 'yogun' || h.code === 'kota') && !geminiModel) { sonHata = h; continue; }
@@ -1986,7 +1995,8 @@ function aiHata(e) {
     yetki: 'Bu anahtarın Gemini API\'ye erişim izni yok. AI Studio\'dan yeni bir anahtar oluşturmayı dene.',
     kota: 'Gemini\'nin ücretsiz kotası şimdilik doldu (denenen tüm modellerde). Bir dakika sonra tekrar dene. Günlük kota dolduysa ertesi gün Türkiye saatiyle 10-11 civarında yenilenir.',
     yogun: 'Google\'ın Gemini sunucuları şu an cevap veremedi (geçici bir sorun, anahtarınla ilgili değil). Birkaç dakika sonra tekrar dene.',
-    internet: 'İnternet bağlantısı yok ya da Google\'a ulaşılamıyor. Yapay zekâ özellikleri internet ister, uygulamanın geri kalanı çevrimdışı da çalışır.',
+    internet: 'Google\'a ulaşılamadı. İnternet bağlantını kontrol et. Bağlantın varsa bir tarayıcı eklentisi (reklam engelleyici, gizlilik eklentisi, VPN) isteği engelliyor olabilir; gizli sekmede çalışıyorsa sebep büyük ihtimalle budur. Uygulamanın geri kalanı internetsiz de çalışır.',
+    zaman: 'Gemini belirlenen sürede cevap vermedi. Biraz sonra tekrar dene. Gizli sekmede çalışıp burada takılıyorsa bir tarayıcı eklentisi (reklam engelleyici, gizlilik eklentisi, VPN) isteği bekletiyor olabilir; sorgulab.com için eklentiyi kapatmayı dene.',
     bolge: 'Gemini API bulunduğun bölgede kullanılamıyor.',
     model_yok: 'Uygun bir Gemini modeli bulunamadı. Uygulamanın güncellenmesi gerekebilir.',
     bos: 'Yapay zekâ boş ya da okunamayan bir cevap döndürdü. Tekrar dene.'
