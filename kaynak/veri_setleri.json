@@ -110,5 +110,60 @@
     ]
    ]
   }
+ },
+ {
+  "key": "northwind",
+  "ad": "Northwind",
+  "etiket": "Hazır veri · Microsoft örnek veritabanı",
+  "dosyalar": [
+   "nw_bank.js"
+  ],
+  "bankalar": [
+   "NW_SORULAR"
+  ],
+  "ilk_soru": "w01",
+  "aciklama": "Microsoft'un klasik örnek veritabanı (MIT lisansı): gıda ürünleri satan bir şirketin 1996-1998 siparişleri. 11 tablo: müşteri, sipariş, sipariş kalemi, ürün, kategori, tedarikçi, çalışan, taşıyıcı ve bölgeler. Çok tablolu JOIN alıştırmaları için ideal. SQL Server'daki \"Order Details\" tablosu burada OrderDetails adında.",
+  "varsayilan": {
+   "sql": "SELECT o.OrderID, c.CompanyName, o.OrderDate, o.RequiredDate, o.ShippedDate, o.ShipCountry\nFROM Orders o\nJOIN Customers c ON c.CustomerID = o.CustomerID\nLIMIT 20;",
+   "python": "# DataFrame'ler hazır: Orders, OrderDetails, Customers, Products, Categories,\n# Suppliers, Employees, Shippers, Region, Territories, EmployeeTerritories\nOrders.head(10)"
+  },
+  "ornekler": {
+   "sql": [
+    [
+     "Sipariş + müşteri",
+     "SELECT o.OrderID, c.CompanyName, o.OrderDate, o.ShipCountry\nFROM Orders o\nJOIN Customers c ON c.CustomerID = o.CustomerID\nLIMIT 20;"
+    ],
+    [
+     "Sipariş kalemleri",
+     "SELECT od.OrderID, p.ProductName, od.UnitPrice, od.Quantity, od.Discount\nFROM OrderDetails od\nJOIN Products p ON p.ProductID = od.ProductID\nLIMIT 20;"
+    ],
+    [
+     "Tablo listesi",
+     "SELECT name FROM sqlite_master WHERE type = 'table';"
+    ],
+    [
+     "Çalışanlar",
+     "SELECT EmployeeID, FirstName, LastName, Title, ReportsTo FROM Employees;"
+    ]
+   ],
+   "python": [
+    [
+     "İlk 10 sipariş",
+     "Orders.head(10)"
+    ],
+    [
+     "Veri tipleri",
+     "Orders.dtypes"
+    ],
+    [
+     "Sipariş + kalem",
+     "Orders.merge(OrderDetails, on=\"OrderID\").head(10)"
+    ],
+    [
+     "Eksik değerler",
+     "Orders.isnull().sum()"
+    ]
+   ]
+  }
  }
 ]
