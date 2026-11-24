@@ -3219,17 +3219,18 @@ function sozlukHTML(K) {
 <script>
 (function () {
   if (!('serviceWorker' in navigator)) return;
-  // Normalde görünür bir rozet yok; sadece yeni sürüm indiğinde kısa bir uyarı çıkar.
-  var uyar = function (t) {
-    var hap = document.createElement('span'); hap.className = 'hap'; hap.id = 'cevrimdisi';
-    hap.textContent = t; hap.style.color = 'var(--uyari)'; document.querySelector('.ust-sag').appendChild(hap);
-  };
+  // Normalde görünür bir rozet yok. Yeni sürüm hazır olunca (sadece değişen dosyalar iner, birkaç saniye) "Yenile" düğmesi çıkar.
+  var vardi = !!navigator.serviceWorker.controller, gosterildi = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function () {
+    if (!vardi || gosterildi) { vardi = true; return; }
+    gosterildi = true;
+    var b = document.createElement('button'); b.className = 'hap'; b.id = 'cevrimdisi'; b.type = 'button';
+    b.textContent = 'Yeni sürüm hazır · Yenile'; b.style.cssText = 'color:var(--uyari);cursor:pointer;font:inherit;font-size:12.5px';
+    b.onclick = function () { location.reload(); };
+    document.querySelector('.ust-sag').appendChild(b);
+  });
   navigator.serviceWorker.register('./sw.js').then(function (reg) {
-    reg.addEventListener('updatefound', function () {
-      var yeni = reg.installing;
-      if (!yeni || !navigator.serviceWorker.controller) return;
-      yeni.addEventListener('statechange', function () { if (yeni.state === 'activated') uyar('Yeni sürüm indi · uygulamayı kapatıp aç'); });
-    });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) reg.update().catch(function () {}); });
     return navigator.serviceWorker.ready;
   }).then(function () {
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});

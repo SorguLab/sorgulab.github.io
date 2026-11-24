@@ -69,17 +69,18 @@ PWA_BAS = '''<link rel="manifest" href="manifest.webmanifest">
 PWA_KAYIT = '''<script>
 (function () {
   if (!('serviceWorker' in navigator)) return;
-  // Normalde görünür bir rozet yok; sadece yeni sürüm indiğinde kısa bir uyarı çıkar.
-  var uyar = function (t) {
-    var hap = document.createElement('span'); hap.className = 'hap'; hap.id = 'cevrimdisi';
-    hap.textContent = t; hap.style.color = 'var(--uyari)'; document.querySelector('.ust-sag').appendChild(hap);
-  };
+  // Normalde görünür bir rozet yok. Yeni sürüm hazır olunca (sadece değişen dosyalar iner, birkaç saniye) "Yenile" düğmesi çıkar.
+  var vardi = !!navigator.serviceWorker.controller, gosterildi = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function () {
+    if (!vardi || gosterildi) { vardi = true; return; }
+    gosterildi = true;
+    var b = document.createElement('button'); b.className = 'hap'; b.id = 'cevrimdisi'; b.type = 'button';
+    b.textContent = 'Yeni sürüm hazır · Yenile'; b.style.cssText = 'color:var(--uyari);cursor:pointer;font:inherit;font-size:12.5px';
+    b.onclick = function () { location.reload(); };
+    document.querySelector('.ust-sag').appendChild(b);
+  });
   navigator.serviceWorker.register('./sw.js').then(function (reg) {
-    reg.addEventListener('updatefound', function () {
-      var yeni = reg.installing;
-      if (!yeni || !navigator.serviceWorker.controller) return;
-      yeni.addEventListener('statechange', function () { if (yeni.state === 'activated') uyar('Yeni sürüm indi · uygulamayı kapatıp aç'); });
-    });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) reg.update().catch(function () {}); });
     return navigator.serviceWorker.ready;
   }).then(function () {
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});
@@ -88,29 +89,52 @@ PWA_KAYIT = '''<script>
 </script>
 '''
 
-SW = """// SorguLab service worker: tüm dosyaları cihaza kaydeder, sonra internetsiz çalışır.
+SW = """// SorguLab service worker: dosyaları cihaza kaydeder, sonra internetsiz çalışır.
+// Her dosya içeriğinin özetiyle (hash) saklanır: yeni sürümde sadece DEĞİŞEN dosyalar iner (Python motoru tekrar inmez).
 const SURUM = '__SURUM__';
-const DOSYALAR = __DOSYALAR__;
+const DOSYALAR = __DOSYALAR__;   // { yol: hash }
+const DEPO = 'sorgulab-v2';
+const anahtar = yol => new URL(yol + '?h=' + DOSYALAR[yol], self.registration.scope).href;
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(SURUM).then(c => c.addAll(DOSYALAR)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(DEPO).then(async c => {
+    const eksik = [];
+    for (const yol of Object.keys(DOSYALAR)) if (!(await c.match(anahtar(yol)))) eksik.push(yol);
+    for (let i = 0; i < eksik.length; i += 6) {
+      await Promise.all(eksik.slice(i, i + 6).map(yol => fetch(new URL(yol, self.registration.scope).href, { cache: 'no-cache' }).then(r => {
+        if (!r.ok) throw new Error(yol + ' indirilemedi (' + r.status + ')');
+        return c.put(anahtar(yol), r);
+      })));
+    }
+  }).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('sa-') && k !== SURUM).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil((async () => {
+    for (const k of await caches.keys()) if (k.startsWith('sa-')) await caches.delete(k);  // eski biçim
+    const c = await caches.open(DEPO), gecerli = new Set(Object.keys(DOSYALAR).map(anahtar));
+    for (const r of await c.keys()) if (!gecerli.has(r.url)) await c.delete(r);
+    await self.clients.claim();
+  })());
 });
-// Sayfanın kendisi (index.html): önce ağ (en güncel sürüm), 4 sn'de yanıt yoksa ya da çevrimdışıysa önbellek.
-// Diğer dosyalar (Python motoru, fontlar...): önce önbellek.
-const agdanSayfa = (req, c) => Promise.race([
-  fetch(req, { cache: 'no-cache' }).then(r => { if (r.ok) c.put('./index.html', r.clone()); return r; }),
-  new Promise((_, red) => setTimeout(() => red(new Error('zaman aşımı')), 4000))
-]);
+function yolBul(url) {
+  let yol = url.pathname.slice(new URL(self.registration.scope).pathname.length);
+  if (yol === '') yol = 'index.html';
+  return DOSYALAR[yol] ? yol : null;
+}
+// Sayfanın kendisi: önce ağ (en güncel sürüm), 6 sn'de yanıt yoksa ya da çevrimdışıysa önbellek. Diğer dosyalar: önce önbellek.
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
   if (url.origin !== location.origin) return;
-  const sayfa = e.request.mode === 'navigate' || url.pathname.endsWith('/index.html');
-  e.respondWith(caches.open(SURUM).then(c => {
-    if (sayfa) return agdanSayfa(e.request, c).catch(() => c.match('./index.html'));
-    return c.match(e.request, { ignoreSearch: true }).then(r => r || fetch(e.request));
+  const sayfa = e.request.mode === 'navigate';
+  const yol = sayfa ? 'index.html' : yolBul(url);
+  if (!yol) return;
+  e.respondWith(caches.open(DEPO).then(c => {
+    const yedek = () => c.match(anahtar(yol)).then(r => r || fetch(e.request));
+    if (!sayfa) return yedek();
+    return Promise.race([
+      fetch(url.href, { cache: 'no-cache' }).then(r => { if (!r.ok) throw new Error(r.status); return r; }),
+      new Promise((_, red) => setTimeout(() => red(new Error('zaman aşımı')), 6000))
+    ]).catch(yedek);
   }));
 });
 """
@@ -156,12 +180,10 @@ def main():
     haric = ('sw.js', 'index.html', 'manifest.webmanifest', '.md', '.nojekyll', '.gitignore', 'CNAME')
     varlik = sorted(os.path.basename(f) for f in glob.glob(os.path.join(KOK, '*'))
                     if os.path.isfile(f) and not f.endswith(haric))
-    dosyalar = ['./', 'index.html', 'manifest.webmanifest'] + varlik
-    h = hashlib.sha256()
-    for f in dosyalar[1:]:
-        h.update(open(os.path.join(KOK, f), 'rb').read())
-    surum = 'sa-' + h.hexdigest()[:10]
-    sw = SW.replace('__SURUM__', surum).replace('__DOSYALAR__', json.dumps(dosyalar, indent=1))
+    dosyalar = ['index.html', 'manifest.webmanifest'] + varlik
+    ozet = {f: hashlib.sha256(open(os.path.join(KOK, f), 'rb').read()).hexdigest()[:10] for f in dosyalar}
+    surum = 'sa-' + hashlib.sha256(json.dumps(ozet, sort_keys=True).encode()).hexdigest()[:10]
+    sw = SW.replace('__SURUM__', surum).replace('__DOSYALAR__', json.dumps(ozet, indent=1))
     open(os.path.join(KOK, 'sw.js'), 'w', encoding='utf-8').write(sw)
     print('Derlendi:', surum, '-', len(dosyalar), 'dosya önbellekte ·', konu['adet'], 'konu')
 
