@@ -651,11 +651,21 @@ function hashOku() {
 }
 window.addEventListener('hashchange', () => { if (hashOku()) { yenidenCiz(); if (S.lab === 'konu') window.scrollTo(0, 0); } });
 let sayacInterval = null;
+// Ziyaretçi sayacı: sadece sorgulab.com sürümünde yüklenir. Sayfa adı olarak bölüm, veri seti ve KonuLab konusu gönderilir (soru içeriği ya da kişisel bilgi değil).
+let sonSayilan = null;
+window.sayfaSay = function () {
+  if (S.lab === 'konu' && (typeof KONULAR === 'undefined' || !KONULAR)) return;
+  const yol = S.lab === 'konu' ? '/konulab/' + (S.konuId || 'giris') : '/sorgulab/' + S.view + (['alistirma', 'serbest', 'mulakat'].includes(S.view) ? '/' + (S.veriSeti === 'yuklenen' ? 'kendi-verisi' : S.veriSeti) : '');
+  if (yol === sonSayilan || !window.goatcounter || !window.goatcounter.count) return;
+  sonSayilan = yol;
+  try { window.goatcounter.count({ path: yol, title: document.title }); } catch (e) { }
+};
 function yenidenCiz() {
   if (sayacInterval && !(S.view === 'mulakat' && S.mulakat && S.mulakat.durum === 'devam')) { clearInterval(sayacInterval); sayacInterval = null; }
   ustCiz();
   const ana = $('#ana');
   ana.dataset.view = S.lab === 'konu' ? 'konu' : S.view;
+  setTimeout(window.sayfaSay, 0);
   if (S.lab === 'konu') return konuCiz();
   ({ alistirma: alistirmaCiz, tahmin: tahminCiz, mulakat: mulakatCiz, serbest: serbestCiz, veri: veriCiz })[S.view]();
 }
@@ -1395,6 +1405,7 @@ function konuCiz() {
   $('#konuAcKapa').onclick = e => { const y = $('#konuYan'); y.classList.toggle('kapali'); e.currentTarget.setAttribute('aria-expanded', String(!y.classList.contains('kapali'))); };
   $$('[data-b]', ana).forEach(a => a.onclick = e => { e.preventDefault(); const h = document.getElementById('b-' + a.dataset.b); if (h) h.scrollIntoView({ behavior: azHareket() ? 'auto' : 'smooth' }); });
   const al = $('#konuAlistirma'); if (al) al.onclick = () => konuAlistirmayaGit(k);
+  window.sayfaSay();
 }
 function konuLinkler(liste, aktif) {
   return liste.map(x => `<a class="konu-link" href="#konu/${encodeURIComponent(x.id)}" ${aktif && aktif.id === x.id ? 'aria-current="page"' : ''}><span class="no">${x.sira}</span>${esc(x.baslik)}</a>`).join('');

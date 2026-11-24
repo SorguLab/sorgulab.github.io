@@ -150,6 +150,8 @@ def pwa(t):
     t = t.replace(a, "const PY_KAYNAKLAR = [new URL('./', location.href).href];")
     t = t.replace('<title>SorguLab</title>\n', '<title>SorguLab</title>\n' + PWA_BAS, 1)
     t = t.replace('</body>', PWA_KAYIT + '</body>')
+    # Ziyaretçi sayacı (GoatCounter: çerezsiz, kişisel veri yok) — sadece sorgulab.com sürümünde. Sayfa adlarını app.js sayfaSay() gönderir.
+    t = t.replace('</body>', '<script data-goatcounter="https://sorgulab.goatcounter.com/count" data-goatcounter-settings=\'{"no_onload": true}\' async src="https://gc.zgo.at/count.js" onload="window.sayfaSay && window.sayfaSay()"></script>\n</body>')
     assert 'fonts.googleapis' not in t and 'cdnjs' not in t
     return t
 
