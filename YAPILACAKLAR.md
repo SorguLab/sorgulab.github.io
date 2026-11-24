@@ -14,3 +14,14 @@ Esra'nın sonraya bıraktığı istekler. Bir madde bitince buradan sil ve commi
   - Seviyeleri (1-3) gözden geçir; liste seviyeye göre sıralanıyor.
   - Hiç `kaynak` sorusu kalmayınca "Uygulama soruları / Miuul Bitirme" seçimi kendiliğinden kaybolur; kod tarafında başka değişiklik gerekmez. Mülakat havuzu da bu soruları otomatik içerir.
   - `dogrula.py` → `build.py` → push → claude.ai sürümünü yayınla.
+
+- [ ] **Yeni veri setleri ekle** — *Esra veri setlerini gönderecek; diğer isteklerle birlikte tek seferde yapılacak.*
+  - Her veri seti uygulamaya gömülü hazır veri seti olarak eklenecek (herkes erişebilsin). Eklemeden önce lisansın herkese açık paylaşıma uygun olduğunu kontrol et; kurumun kendi hazırladığı veriler (örn. Miuul FLO) için Esra'ya sor.
+  - Her veri seti için **30-40 soru** (SQL + pandas/NumPy). Sayıyı doldurmak için soru üretme: her soru farklı bir beceri ya da gerçek bir iş sorusu olmalı, tekrar eden kalıplar olmamalı. Kolaydan zora dağıt.
+  - Mevcut kurallar geçerli: her çözüm veride doğrulanır, açıklamalardaki sayısal yorumlar gerçek sonuçla karşılaştırılır.
+  - Veri setinin içeriğine göre, veride olmayan bir ilişki için JOIN sorusu uydurma; gerekirse resmi veri sözlüğünden kod tablosu ekle (HR'deki egitim_kod gibi).
+
+- [ ] **Veri setlerini ayrı dosyalara taşı, ihtiyaç olunca yükle** — *yeni veri setleriyle birlikte yap.*
+  - Şu an veri setleri `index.html` içine gömülü. Sayıları artınca ilk açılış yavaşlar.
+  - Her veri setini kökte ayrı bir dosya yap (örn. `veri-hr.json`), uygulama sadece seçilen veri setini yüklesin.
+  - Service worker önbellek listesine eklensin ki iPad'de çevrimdışı çalışma bozulmasın. claude.ai sürümünde de dosyalar artifact'e ayrı dosya olarak yüklenmeli (izin verilen uzantıyı kontrol et; .json çalışıyor).
