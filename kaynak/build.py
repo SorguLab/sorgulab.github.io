@@ -18,7 +18,7 @@ CIKTI = os.path.join(KOK, 'kaynak', 'cikti')
 def birlestir():
     t = open(os.path.join(SRC, 'template.html'), encoding='utf-8').read()
     for k, f in [('/*DATA*/', 'data.js'), ('/*BANK*/', 'bank.js'), ('/*HRDATA*/', 'hr_data.js'),
-                 ('/*HRBANK*/', 'hr_bank.js'), ('/*NPBANK*/', 'np_bank.js'), ('/*APP*/', 'app.js')]:
+                 ('/*HRBANK*/', 'hr_bank.js'), ('/*NPBANK*/', 'np_bank.js'), ('/*MIUULBANK*/', 'miuul_bank.js'), ('/*APP*/', 'app.js')]:
         s = open(os.path.join(SRC, f), encoding='utf-8').read()
         s = re.sub(r"\nif \(typeof module !== 'undefined'\).*\n?", "\n", s)
         assert '</script' not in s, f

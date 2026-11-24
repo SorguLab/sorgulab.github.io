@@ -12,8 +12,8 @@ import helper  # noqa: E402
 
 js = """
 const {ornekVeriUret} = require('./data.js'); const b = require('./bank.js');
-const {HR_VERI} = require('./hr_data.js'); const {HR_SORULAR} = require('./hr_bank.js'); const {NP_SORULAR} = require('./np_bank.js');
-process.stdout.write(JSON.stringify({ornek: {veri: ornekVeriUret(), sorular: b.SORULAR}, hr: {veri: HR_VERI, sorular: HR_SORULAR.concat(NP_SORULAR)}, tahmin: b.TAHMINLER}));
+const {HR_VERI} = require('./hr_data.js'); const {HR_SORULAR} = require('./hr_bank.js'); const {NP_SORULAR} = require('./np_bank.js'); const {MIUUL_SORULAR} = require('./miuul_bank.js');
+process.stdout.write(JSON.stringify({ornek: {veri: ornekVeriUret(), sorular: b.SORULAR}, hr: {veri: HR_VERI, sorular: HR_SORULAR.concat(NP_SORULAR, MIUUL_SORULAR)}, tahmin: b.TAHMINLER}));
 """
 d = json.loads(subprocess.run(['node', '-e', js], cwd=SRC, capture_output=True, text=True, check=True).stdout)
 

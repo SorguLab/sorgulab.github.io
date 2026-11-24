@@ -4,6 +4,7 @@ const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const metin = h => { const d = document.createElement('div'); d.innerHTML = h; return d.textContent; };
 const SEVIYE = { 1: 'Kolay', 2: 'Orta', 3: 'Zor' };
+const KAYNAK_AD = { miuul: 'Miuul Bitirme' };
 const DIL = { sql: 'SQL', python: 'Python' };
 const karistir = a => { const b = [...a]; for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
 function scriptYukle(src) { return new Promise((ok, red) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => red(new Error('Kütüphane indirilemedi: ' + src)); document.head.appendChild(s); }); }
@@ -17,7 +18,7 @@ function kaydet() { try { localStorage.setItem(DEPO_KEY, JSON.stringify(depo)); 
 
 // ─── Veri setleri ───
 const VS = {
-  hr: { ad: 'İK Attrition', tablolar: HR_VERI, sorular: HR_SORULAR.concat(NP_SORULAR), hazir: true },
+  hr: { ad: 'İK Attrition', tablolar: HR_VERI, sorular: HR_SORULAR.concat(NP_SORULAR, MIUUL_SORULAR), hazir: true },
   ornek: { ad: 'Örnek Mağaza', tablolar: ornekVeriUret(), sorular: SORULAR, hazir: true },
   yuklenen: null
 };
@@ -30,7 +31,7 @@ function varsayilanKod(key) {
 }
 const S = {
   view: 'alistirma', veriSeti: 'hr',
-  filtre: { dil: 'sql', seviye: 0, kategori: '' },
+  filtre: { dil: 'sql', seviye: 0, kategori: '', kaynak: '' },
   aktifId: { hr: 'h01', ornek: 's01', yuklenen: null },
   tahminId: 't01', tahminDil: 'sql',
   serbestDil: 'sql', serbestKod: null,
@@ -351,22 +352,26 @@ function yenidenCiz() {
 // ═══════════════ ALIŞTIRMALAR ═══════════════
 function filtreliSorular() {
   const vs = VS[S.veriSeti]; const f = S.filtre;
-  return vs.sorular.filter(q => q.dil === f.dil && (!f.seviye || q.seviye === f.seviye) && (!f.kategori || q.kategori === f.kategori))
-    .sort((a, b) => a.seviye - b.seviye);
+  return vs.sorular.filter(q => q.dil === f.dil && (q.kaynak || '') === (f.kaynak || '') && (!f.seviye || q.seviye === f.seviye) && (!f.kategori || q.kategori === f.kategori))
+    .sort((a, b) => f.kaynak ? (a.sira || 0) - (b.sira || 0) : a.seviye - b.seviye);
 }
 function alistirmaCiz() {
   const vs = VS[S.veriSeti];
   const ana = $('#ana');
   if (!vs.sorular.length) { ana.innerHTML = bosSoruHTML(); bosSoruBagla(); return; }
   if (!vs.sorular.some(q => q.dil === S.filtre.dil)) S.filtre.dil = vs.sorular[0].dil;
+  const kaynaklar = [...new Set(vs.sorular.filter(q => q.dil === S.filtre.dil && q.kaynak).map(q => q.kaynak))];
+  if (S.filtre.kaynak && !kaynaklar.includes(S.filtre.kaynak)) { S.filtre.kaynak = ''; S.filtre.kategori = ''; }
   const liste = filtreliSorular();
-  const kategoriler = [...new Set(vs.sorular.filter(q => q.dil === S.filtre.dil).map(q => q.kategori))];
-  let aktif = vs.sorular.find(q => q.id === S.aktifId[S.veriSeti] && q.dil === S.filtre.dil) || liste[0];
+  const kategoriler = [...new Set(vs.sorular.filter(q => q.dil === S.filtre.dil && (q.kaynak || '') === (S.filtre.kaynak || '')).map(q => q.kategori))];
+  if (S.filtre.kategori && !kategoriler.includes(S.filtre.kategori)) S.filtre.kategori = '';
+  let aktif = liste.find(q => q.id === S.aktifId[S.veriSeti]) || liste[0];
   if (aktif) S.aktifId[S.veriSeti] = aktif.id;
   ana.innerHTML = `
   <div class="uc-kolon">
     <aside class="soru-liste" aria-label="Soru listesi">
       <div class="seg" role="tablist">${['sql', 'python'].map(d => `<button role="tab" class="seg-btn dil-${d}" aria-selected="${S.filtre.dil === d}" data-dil="${d}">${DIL[d]}</button>`).join('')}</div>
+      ${kaynaklar.length ? `<div class="seg kaynak-seg" role="tablist" aria-label="Soru kaynağı">${['', ...kaynaklar].map(k => `<button role="tab" class="seg-btn kaynak-btn" aria-selected="${(S.filtre.kaynak || '') === k}" data-kaynak="${k}">${k ? esc(KAYNAK_AD[k] || k) : 'Uygulama soruları'}</button>`).join('')}</div>` : ''}
       <div class="filtreler">
         <div class="chipler">${[0, 1, 2, 3].map(l => `<button class="chip ${S.filtre.seviye === l ? 'secili' : ''}" data-seviye="${l}">${l ? SEVIYE[l] : 'Tümü'}</button>`).join('')}</div>
         <label class="gizli" for="katSec">Kategori</label>
@@ -382,6 +387,7 @@ function alistirmaCiz() {
   </div>`;
   $$('.seg-btn', ana).forEach(b => b.onclick = () => { S.filtre.dil = b.dataset.dil; S.filtre.kategori = ''; if (b.dataset.dil === 'python') pyHazirla().then(() => { pyVeriYukle(S.veriSeti); const s = $('#sema'); if (s && S.view === 'alistirma') s.innerHTML = semaHTML('python'); }).catch(() => { }); alistirmaCiz(); });
   $$('.chip[data-seviye]', ana).forEach(b => b.onclick = () => { S.filtre.seviye = +b.dataset.seviye; alistirmaCiz(); });
+  $$('.kaynak-btn', ana).forEach(b => b.onclick = () => { S.filtre.kaynak = b.dataset.kaynak; S.filtre.kategori = ''; S.filtre.seviye = 0; alistirmaCiz(); });
   $('#katSec').onchange = e => { S.filtre.kategori = e.target.value; alistirmaCiz(); };
   $$('.soru-satir', ana).forEach(b => b.onclick = () => { S.aktifId[S.veriSeti] = b.dataset.id; alistirmaCiz(); });
   if (aktif) soruCalismaCiz($('#calisma'), aktif, { mod: 'alistirma', liste });
@@ -601,8 +607,9 @@ function mulakatCiz() {
   $('#kodForm').onsubmit = e => {
     e.preventDefault(); const f = new FormData(e.target);
     const dil = f.get('dil'), n = +f.get('n'), dk = +f.get('sure');
-    let havuz = sorular.filter(q => dil === 'karisik' || q.dil === dil);
-    if (!havuz.length) havuz = sorular;
+    const genel = sorular.filter(q => !q.kaynak);
+    let havuz = genel.filter(q => dil === 'karisik' || q.dil === dil);
+    if (!havuz.length) havuz = genel;
     const plan = n <= 3 ? [1, 2, 3] : n <= 5 ? [1, 2, 2, 3, 3] : [1, 1, 2, 2, 2, 3, 3, 3];
     const secilen = [], kul = new Set();
     for (const l of plan) { const c = karistir(havuz.filter(q => q.seviye === l && !kul.has(q.id)))[0] || karistir(havuz.filter(q => !kul.has(q.id)))[0]; if (c) { secilen.push(c); kul.add(c.id); } }
@@ -818,7 +825,7 @@ function veriCiz() {
         <div class="mod-ust"><span class="mod-etiket">Hazır veri · senin yüklediğin</span><h2>İK Attrition</h2>
         <p>IBM HR Attrition verisi: ${VS.hr.tablolar.hr.rows.length} çalışan, ${VS.hr.tablolar.hr.columns.length} sütun, eksik değer yok. JOIN alıştırmaları için verinin kod sözlüğünden iki küçük tablo eklendi: eğitim seviyeleri (1-5) ve memnuniyet puanları (1-4).</p></div>
         <ul class="tablo-ozet">${Object.entries(VS.hr.tablolar).map(([a, t]) => `<li><code>${a}</code><span>${t.columns.length} sütun · ${t.rows.length} satır</span></li>`).join('')}</ul>
-        <p class="kucuk">${VS.hr.sorular.filter(q => q.dil === 'sql').length} SQL + ${VS.hr.sorular.filter(q => q.dil === 'python' && q.kategori !== 'NumPy').length} pandas + ${VS.hr.sorular.filter(q => q.kategori === 'NumPy').length} NumPy sorusu hazır.</p>
+        <p class="kucuk">${VS.hr.sorular.filter(q => q.dil === 'sql' && !q.kaynak).length} SQL + ${VS.hr.sorular.filter(q => q.dil === 'python' && q.kategori !== 'NumPy').length} pandas + ${VS.hr.sorular.filter(q => q.kategori === 'NumPy').length} NumPy sorusu hazır. Ayrıca ${VS.hr.sorular.filter(q => q.kaynak === 'miuul').length} Miuul Bitirme sorusu (SQL).</p>
         ${S.veriSeti === 'hr' ? '<span class="aktif-etiket">Şu an bu veriyle çalışıyorsun</span>' : '<button class="btn" data-vs="hr">Bu veriyle çalış</button>'}
       </article>
       <article class="veri-kart ${S.veriSeti === 'ornek' ? 'secili' : ''}">
