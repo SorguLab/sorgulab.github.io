@@ -153,7 +153,7 @@ def main():
                    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
                    {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}]}
     json.dump(m, open(os.path.join(KOK, 'manifest.webmanifest'), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
-    haric = ('sw.js', 'index.html', 'manifest.webmanifest', '.md', '.nojekyll', '.gitignore')
+    haric = ('sw.js', 'index.html', 'manifest.webmanifest', '.md', '.nojekyll', '.gitignore', 'CNAME')
     varlik = sorted(os.path.basename(f) for f in glob.glob(os.path.join(KOK, '*'))
                     if os.path.isfile(f) and not f.endswith(haric))
     dosyalar = ['./', 'index.html', 'manifest.webmanifest'] + varlik
