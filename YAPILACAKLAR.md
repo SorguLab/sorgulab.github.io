@@ -37,3 +37,4 @@ Esra'nın sonraya bıraktığı istekler. Bir madde bitince buradan sil ve commi
 - 8: Çift tırnaklı metin (WHERE x="Sales") kabul ediliyor; plan: sorgu öncesi tarama, sütun/tablo adı değilse hata + tek tırnak ipucu.
 - 10: input() → anlaşılır mesaj ("input() burada çalışmaz; değeri doğrudan değişkene yaz").
 - Dokunulmayacak: 6 (ilk ziyarette ~29,5 MB indirme), 12, 15, 18.
+- KonuLab araması (Esra, sonra yapılacak): arama sadece SQL ve Python konularında yapılsın; Kavramlar konuları arama sonuçlarına girmesin ("kavram" etiketi de olmasın), Kavramlar bölümü sol listede en altta eskisi gibi dursun.
