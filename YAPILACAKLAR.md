@@ -24,3 +24,4 @@ Esra'nın sonraya bıraktığı istekler. Bir madde bitince buradan sil ve commi
 
 ## Ayarlar menüsü (ileride)
 Üst bar kalabalıklaşırsa bir "Ayarlar" düğmesi açıp bazı şeyleri onun altına toplayacağız (ör. Tanıtımı göster "?", Python/Yapay zekâ durumları, İletişim).
+- **Ayarlar eklenince mutlaka: Açık / Koyu tema seçimi** (Esra istedi). Seçenekler: Sistem (varsayılan) / Açık / Koyu; seçim localStorage'da saklansın, `<html data-theme="light|dark">` ile uygulanır (CSS bunu zaten destekliyor).
