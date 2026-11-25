@@ -362,6 +362,54 @@ function aiPanelCiz(d) {
   };
 }
 
+// ═══════════════ İlk açılış tanıtımı ═══════════════
+const TANITIM_KEY = 'sorgulab-tanitim-gizle';
+const TANITIM = [
+  { ust: 'Hoş geldin', baslik: 'SorguLab\'e hoş geldin 👋', metin: 'SQL, pandas ve NumPy\'ı gerçek veri setleri üzerinde, yazarak öğrenmek için bir alıştırma alanı. Kurulum yok, üyelik yok: her şey tarayıcında çalışır.',
+    gorsel: `<div class="tg-kartlar"><div class="tg-kart"><b>230+</b><span>soru</span></div><div class="tg-kart"><b>5</b><span>hazır veri seti</span></div><div class="tg-kart"><b>40+</b><span>konu anlatımı</span></div></div>` },
+  { ust: 'Alıştırmalar', baslik: 'Yaz, çalıştır, kontrol et', metin: 'Soldan bir soru seç, kodunu yaz. <b>Çalıştır</b> ile çıktını gör, emin olunca <b>Kontrol et</b>. Beklenen çıktıyla karşılaştırılır. Takılırsan İpucu, Cevabı göster ve Neden böyle? düğmeleri seni bekliyor.',
+    gorsel: `<div class="tg-editor"><div class="tg-kod"><span class="kw">SELECT</span> Department, <span class="fn">COUNT</span>(*)<br><span class="kw">FROM</span> hr<br><span class="kw">GROUP BY</span> Department;</div><div class="tg-dugmeler"><span class="tg-btn birincil">Çalıştır</span><span class="tg-btn vurgu">Kontrol et</span><span class="tg-btn">İpucu</span></div><div class="tg-karar">✓ Doğru! Çıktın beklenenle aynı.</div></div>` },
+  { ust: 'Veri setleri', baslik: 'Hangi veriyle çalışacağını sen seç', metin: 'Sağ üstteki <b>Veri seti</b> menüsünden İK, Örnek Mağaza, Northwind, Titanic ya da FLO\'ya geç. <b>Veri</b> sekmesinden kendi Excel ya da CSV dosyanı da yükleyebilirsin. Dosyan sadece senin cihazında kalır.',
+    gorsel: `<div class="tg-veri"><span class="tg-hap secili">İK Attrition</span><span class="tg-hap">Örnek Mağaza</span><span class="tg-hap">Northwind</span><span class="tg-hap">Titanic</span><span class="tg-hap">FLO Müşteri</span><span class="tg-hap kesik">+ Kendi verin</span></div>` },
+  { ust: 'Diğer modlar', baslik: 'Sadece soru çözmek değil', metin: '',
+    gorsel: `<ul class="tg-modlar"><li><b>Tahmin Et</b><span>Kodu çalıştırmadan çıktısını tahmin et.</span></li><li><b>Mülakat</b><span>Süreli, ipucusuz kod soruları ya da teorik sorularla prova.</span></li><li><b>Serbest Alan</b><span>Veriyle istediğin gibi oyna.</span></li><li><b>KonuLab</b><span>Üstteki SorguLab ⇄ KonuLab geçişiyle konu anlatımları.</span></li></ul>` },
+  { ust: 'Yapay zekâ', baslik: 'İstersen yanında bir yardımcı', metin: 'Üstteki <b>Yapay zekâ</b> düğmesinden ücretsiz bir Gemini anahtarı ekleyerek hatalarını açıklatabilir, kendi verine özel sorular ürettirebilirsin. Zorunlu değil, her şey onsuz da çalışır.<br><br>Bir önerin ya da bulduğun bir hata olursa <b>İletişim</b>\'ten yazabilirsin. Kolay gelsin!',
+    gorsel: `<div class="tg-veri"><span class="tg-hap ai">Yapay zekâ: kapalı</span><span class="tg-hap ai">İletişim</span></div>` },
+];
+function tanitimAc(zorla) {
+  if (!zorla) { try { if (localStorage.getItem(TANITIM_KEY)) return; } catch (e) { return; } }
+  let d = $('#tanitimDialog');
+  if (!d) { d = document.createElement('dialog'); d.id = 'tanitimDialog'; d.className = 'ai-dialog tanitim'; document.body.appendChild(d); }
+  let i = 0;
+  // Tik atılırsa ya da tanıtım sonuna kadar izlenirse (Başlayalım) bir daha kendiliğinden açılmaz. Üst bardaki ? ile her zaman açılır.
+  const kapat = bitti => { const t = $('#tgGizle', d); if (bitti === true || (t && t.checked)) { try { localStorage.setItem(TANITIM_KEY, '1'); } catch (e) { } } d.close(); };
+  const ciz = () => {
+    const a = TANITIM[i], son = i === TANITIM.length - 1, isaretli = $('#tgGizle', d) ? $('#tgGizle', d).checked : false;
+    d.innerHTML = `<div class="tg-ic">
+      <div class="tg-ust"><span class="tg-adim">${a.ust}</span><span class="tg-sayac">${i + 1} / ${TANITIM.length}</span></div>
+      <h2>${a.baslik}</h2>
+      ${a.metin ? `<p class="tg-metin">${a.metin}</p>` : ''}
+      <div class="tg-gorsel">${a.gorsel}</div>
+      <div class="tg-noktalar" aria-hidden="true">${TANITIM.map((_, k) => `<span class="${k === i ? 'aktif' : ''}"></span>`).join('')}</div>
+      <div class="tg-alt">
+        <label class="tg-gizle"><input type="checkbox" id="tgGizle" ${isaretli ? 'checked' : ''}> Bir daha gösterme</label>
+        <div class="tg-dugmeler-alt">
+          ${son ? '' : '<button class="btn hafif" id="tgAtla" type="button">Atla</button>'}
+          ${i > 0 ? '<button class="btn" id="tgGeri" type="button">Geri</button>' : ''}
+          <button class="btn birincil" id="tgIleri" type="button">${son ? 'Başlayalım' : 'Devam'}</button>
+        </div>
+      </div></div>`;
+    $('#tgIleri', d).onclick = () => { if (son) kapat(true); else { i++; ciz(); } };
+    const g = $('#tgGeri', d); if (g) g.onclick = () => { i--; ciz(); };
+    const at = $('#tgAtla', d); if (at) at.onclick = () => kapat();
+  };
+  d.onclose = null; d.oncancel = e => { e.preventDefault(); kapat(); };
+  const eskiYer = $('#tgGizle', d); if (eskiYer) eskiYer.checked = false;
+  ciz();
+  if (d.showModal) d.showModal(); else d.setAttribute('open', '');
+  setTimeout(() => { const b = $('#tgIleri', d); if (b) b.focus(); }, 30);
+}
+
 // ═══════════════ Motor (SQL + Python) ═══════════════
 // Kod motor.js'te; mümkünse arka plan iş parçacığında (Web Worker) çalışır. Böylece sonsuz döngü sayfayı dondurmaz,
 // süre sınırı ve Durdur düğmesi çalışır. Worker kurulamazsa ya da içinde motor yüklenemezse sayfanın içinde çalışır.
@@ -708,6 +756,7 @@ function veriSetiDegistir(k) { S.veriSeti = k; S.mulakat = null; S.filtre.katego
 $$('.nav-btn').forEach(b => b.addEventListener('click', () => git(b.dataset.view)));
 $('#aiBtn').addEventListener('click', aiPanelAc);
 $('#iletisimBtn').addEventListener('click', iletisimAc);
+$('#tanitimBtn').addEventListener('click', () => tanitimAc(true));
 $$('#konuDil .seg-btn').forEach(b => b.addEventListener('click', () => { S.konuDil = b.dataset.kdil; const k = KONU_OZET.find(x => x.dil === S.konuDil); konuGit(k ? k.id : 'yakinda'); }));
 const VIEWLER = ['alistirma', 'tahmin', 'mulakat', 'serbest', 'veri'];
 function git(v) { if (location.hash !== '#' + v) location.hash = v; else { S.lab = 'sorgu'; S.view = v; yenidenCiz(); } }
@@ -1673,6 +1722,7 @@ function sozlukHTML(K) {
   veriHazirla(S.veriSeti).catch(() => { });
   yukleneniGeriYukle();
   if (iletisimIstendi) setTimeout(iletisimAc, 300);
+  else setTimeout(() => tanitimAc(false), 400);
   yenidenCiz();
   sqlHazirla().catch(e => { $('#ana').insertAdjacentHTML('afterbegin', hataHTML(e)); });
 })();

@@ -20,3 +20,7 @@ Esra'nın sonraya bıraktığı istekler. Bir madde bitince buradan sil ve commi
   - Konuşulan sıra: (1) ilgi ölçümü: "Pro yakında, haberdar ol" kutusu + kısa anket (Web3Forms ile), (2) talep varsa hafif başlangıç: tek seferlik ürün (mülakat paketi / 1 yıllık Pro) Shopier/Gumroad gibi bir hizmetle, (3) ödeme yapan varsa tam abonelik: hesap (Supabase vb.), Pro içeriği sunucuda, ödeme sağlayıcı (iyzico/PayTR ya da Paddle/Lemon Squeezy, Türkiye'den satıcı kabulü kontrol edilecek) + webhook.
   - Pro adayları: anahtarsız yapay zekâ (maliyet hesaba katılmalı), cihazlar arası senkron, ek içerik paketleri, ilerleme raporu, sertifika. Ücretsiz kısım olduğu gibi kalır.
   - Ücretli ürüne geçmeden önce: Miuul soruları ve FLO verisi için Miuul'den izin (ya da ücretsiz kısımda tut), IBM HR verisinin lisansı, vergi kaydı (mali müşavir), mesafeli satış sözleşmesi, KVKK metni.
+
+
+## Ayarlar menüsü (ileride)
+Üst bar kalabalıklaşırsa bir "Ayarlar" düğmesi açıp bazı şeyleri onun altına toplayacağız (ör. Tanıtımı göster "?", Python/Yapay zekâ durumları, İletişim).

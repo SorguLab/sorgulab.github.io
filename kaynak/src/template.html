@@ -345,6 +345,43 @@ legend { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
 .ai-hap[data-durum="hazir"] { color: var(--vurgu); border-color: color-mix(in srgb, var(--vurgu) 40%, transparent); }
 .ai-dialog { border: 1px solid var(--cizgi); border-radius: 14px; padding: 0; background: var(--yuzey); color: var(--murekkep); width: min(560px, calc(100vw - 24px)); max-height: calc(100vh - 40px); }
 .ai-dialog::backdrop { background: rgb(0 0 0 / .35); }
+.yardim-hap { font-weight: 700; min-width: 30px; justify-content: center; text-align: center; }
+.ai-dialog.tanitim { width: min(600px, calc(100vw - 24px)); }
+.tg-ic { padding: 26px 28px 20px; display: grid; gap: 14px; }
+.tg-ust { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--vurgu); }
+.tg-sayac { color: var(--soluk); letter-spacing: 0; }
+.tg-ic h2 { font-size: 26px; line-height: 1.15; }
+.tg-metin { margin: 0; color: var(--soluk); line-height: 1.55; }
+.tg-metin b { color: var(--murekkep); }
+.tg-gorsel { background: var(--yuzey-2); border: 1px solid var(--cizgi); border-radius: 12px; padding: 18px; min-height: 120px; display: grid; align-items: center; }
+.tg-kartlar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.tg-kart { background: var(--yuzey); border: 1px solid var(--cizgi); border-radius: 10px; padding: 14px 10px; text-align: center; display: grid; gap: 2px; }
+.tg-kart b { font-family: var(--f-baslik); font-size: 26px; color: var(--vurgu); }
+.tg-kart span { font-size: 13px; color: var(--soluk); }
+.tg-editor { display: grid; gap: 10px; }
+.tg-kod { font-family: var(--f-kod); font-size: 13px; background: var(--yuzey); border: 1px solid var(--cizgi); border-radius: 8px; padding: 10px 12px; line-height: 1.6; }
+.tg-kod .kw { color: var(--h-kw); font-weight: 500; } .tg-kod .fn { color: var(--h-fn); }
+.tg-dugmeler { display: flex; gap: 6px; flex-wrap: wrap; }
+.tg-btn { font-size: 12.5px; font-weight: 600; padding: 4px 10px; border-radius: 7px; border: 1px solid var(--cizgi); background: var(--yuzey); }
+.tg-btn.birincil { background: var(--vurgu); border-color: var(--vurgu); color: #fff; }
+.tg-btn.vurgu { color: var(--vurgu); border-color: var(--vurgu); }
+.tg-karar { font-size: 13px; font-weight: 600; color: var(--iyi); background: var(--iyi-acik); border-radius: 8px; padding: 7px 10px; }
+.tg-veri { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.tg-hap { font-size: 13px; font-weight: 600; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--cizgi); background: var(--yuzey); }
+.tg-hap.secili { background: var(--vurgu-acik); border-color: var(--vurgu); color: var(--vurgu); }
+.tg-hap.kesik { border-style: dashed; color: var(--soluk); }
+.tg-hap.ai { color: var(--soluk); font-weight: 500; }
+.tg-modlar { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tg-modlar li { background: var(--yuzey); border: 1px solid var(--cizgi); border-radius: 10px; padding: 10px 12px; display: grid; gap: 3px; }
+.tg-modlar b { font-family: var(--f-baslik); font-size: 15px; }
+.tg-modlar span { font-size: 13px; color: var(--soluk); line-height: 1.4; }
+.tg-noktalar { display: flex; gap: 6px; justify-content: center; }
+.tg-noktalar span { width: 7px; height: 7px; border-radius: 50%; background: var(--cizgi); }
+.tg-noktalar span.aktif { background: var(--vurgu); width: 20px; border-radius: 4px; }
+.tg-alt { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 6px; border-top: 1px solid var(--cizgi); }
+.tg-gizle { display: flex; gap: 7px; align-items: center; font-size: 13.5px; color: var(--soluk); cursor: pointer; }
+.tg-dugmeler-alt { display: flex; gap: 8px; margin-left: auto; }
+@media (max-width: 520px) { .tg-kartlar, .tg-modlar { grid-template-columns: 1fr; } .tg-ic { padding: 20px 18px 16px; } }
 .ai-panel { padding: 20px 22px; display: grid; gap: 12px; }
 .ai-panel p { margin: 0; }
 .ai-ust { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
@@ -435,6 +472,7 @@ body:not([data-lab="konu"]) .konu-ozel, body[data-lab="konu"] .sorgu-ozel { disp
     <span class="hap sorgu-ozel" id="pyDurum" data-durum="yok">Python: kapalı</span>
     <button class="hap ai-hap sorgu-ozel" id="aiBtn" type="button" data-durum="yok">Yapay zekâ: kapalı</button>
     <button class="hap ai-hap" id="iletisimBtn" type="button">İletişim</button>
+    <button class="hap ai-hap yardim-hap" id="tanitimBtn" type="button" title="Tanıtımı göster" aria-label="Tanıtımı göster">?</button>
     <div class="seg konu-ozel" id="konuDil" role="tablist" aria-label="Konu dili"><button role="tab" class="seg-btn dil-sql" data-kdil="sql">SQL</button><button role="tab" class="seg-btn dil-python" data-kdil="python">Python</button></div>
   </div>
 </header>
