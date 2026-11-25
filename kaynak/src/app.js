@@ -422,14 +422,15 @@ function yedekAc(mesaj) {
   const lbl = inp.closest('label'); lbl.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inp.click(); } };
   if (!d.open) { if (d.showModal) d.showModal(); else d.setAttribute('open', ''); }
 }
-function yedekIndir(veriDahil) {
+async function yedekIndir(veriDahil) {
   const Y = VS.yuklenen;
   const yedek = { uygulama: 'SorguLab', surum: 1, tarih: new Date().toISOString(), depo: { cozuldu: depo.cozuldu, bakarak: depo.bakarak, tahmin: depo.tahmin, taslak: depo.taslak } };
   if (veriDahil && Y) yedek.yuklenen = { ad: Y.ad, tablolar: Y.tablolar, sorular: Y.sorular };
   const p = n => String(n).padStart(2, '0'), z = new Date();
-  const url = URL.createObjectURL(new Blob([JSON.stringify(yedek)], { type: 'application/json' }));
-  const a = document.createElement('a'); a.href = url; a.download = `sorgulab-yedek-${z.getFullYear()}-${p(z.getMonth() + 1)}-${p(z.getDate())}.json`;
-  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+  let ok;
+  try { ok = await dosyaKaydet(`sorgulab-yedek-${z.getFullYear()}-${p(z.getMonth() + 1)}-${p(z.getDate())}.json`, new Blob([JSON.stringify(yedek)], { type: 'application/json' })); }
+  catch (e) { yedekAc(`<div class="hata-kutu">Yedek kaydedilemedi: ${esc(e.message || e)}</div>`); return; }
+  if (!ok) return;
   try { localStorage.setItem(SON_YEDEK_KEY, String(Date.now())); } catch (e) { }
   yedekAc('<div class="bilgi">Yedek dosyası indirildi. Güvenli bir yerde sakla.</div>');
 }
@@ -753,6 +754,21 @@ function tabloHTML(t, max = 200) {
   return `<div class="tablo-kap"><table class="sonuc"><thead><tr>${t.columns.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${satir.map(r => `<tr>${r.map(hucre).join('')}</tr>`).join('')}</tbody></table></div>
   <div class="tablo-alt">${t.total ?? t.rows.length} satır × ${t.columns.length} sütun${(t.total ?? t.rows.length) > max ? ` · ilk ${max} satır gösteriliyor` : ''}</div>`;
 }
+// Dosya indirme: claude.ai içinde 'downloads' yeteneğiyle (izleyiciye onay sorulur), başka yerde normal indirme.
+// true: kaydedildi · false: kullanıcı vazgeçti
+async function dosyaKaydet(ad, blob) {
+  if (window.claude && typeof window.claude.use === 'function') {
+    let dl = null; try { dl = await window.claude.use('downloads'); } catch (e) { }
+    if (dl) {
+      try { await dl.save({ filename: ad, data: blob }); return true; }
+      catch (e) { if (e && e.code === 'declined') return false; throw new Error((e && e.message) || 'Dosya kaydedilemedi'); }
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = ad;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+  return true;
+}
 // ═══════════════ Sonuç araçları: grafik ve Excel'e indirme ═══════════════
 const CIKTILAR = new Map(); let ciktiNo = 0;
 const sayiSutun = (t, j) => { let n = 0; for (const r of t.rows) { const v = r[j]; if (v === null || v === undefined) continue; if (typeof v !== 'number' || !isFinite(v)) return false; n++; } return n > 0; };
@@ -793,8 +809,9 @@ async function excelIndir(c, btn) {
     const ks = XLSX.utils.aoa_to_sheet([...bilgi, [], ['Kod'], ...ctx.kod.split('\n').map(l => [l])]);
     ks['!cols'] = [{ wch: 14 }, { wch: 60 }];
     XLSX.utils.book_append_sheet(wb, ks, 'Kod');
-    XLSX.writeFile(wb, `sorgulab-${adTemizle(veri, 'veri')}-${zaman.replace(/[: ]/g, '-')}.xlsx`);
-    btn.textContent = 'İndirildi ✓'; setTimeout(() => { btn.textContent = eski; btn.disabled = false; }, 1800);
+    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const ok = await dosyaKaydet(`sorgulab-${adTemizle(veri, 'veri')}-${zaman.replace(/[: ]/g, '-')}.xlsx`, new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    btn.textContent = ok ? 'İndirildi ✓' : eski; setTimeout(() => { btn.textContent = eski; btn.disabled = false; }, ok ? 1800 : 0);
   } catch (e) { btn.textContent = eski; btn.disabled = false; alert('Dosya hazırlanamadı: ' + ((e && e.message) || e)); }
 }
 function grafikKur(alan, t) {
