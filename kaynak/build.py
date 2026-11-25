@@ -53,6 +53,9 @@ def birlestir(katalog, metalar, konu_ozet):
     app = open(os.path.join(SRC, 'app.js'), encoding='utf-8').read()
     assert '</script' not in app
     t = t.replace('/*BANKALAR*/', '\n'.join(parcalar)).replace('/*KATALOG*/', kat).replace('/*APP*/', app)
+    motor = open(os.path.join(SRC, 'motor.js'), encoding='utf-8').read()
+    assert '</script' not in motor
+    t = t.replace('/*MOTOR_KOD*/', json.dumps(motor)).replace('/*MOTOR*/', motor)
     return t.replace('/*HELPER*/', json.dumps(open(os.path.join(SRC, 'helper.py'), encoding='utf-8').read()))
 
 
@@ -143,7 +146,8 @@ self.addEventListener('fetch', e => {
 def pwa(t):
     t = re.sub(r'<link rel="preconnect"[^>]*>\n', '', t)
     t = re.sub(r'<link href="https://fonts.googleapis.com[^>]*>', '<link rel="stylesheet" href="fonts.css">', t)
-    t = t.replace('https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-asm.js', 'sql-asm.js')
+    s0 = t.index('const SQL_KAYNAKLAR = ['); s1 = t.index('];', s0) + 2
+    t = t[:s0] + "const SQL_KAYNAKLAR = [{ js: new URL('sql-wasm.js', location.href).href, wasm: new URL('sql-wasm.wasm', location.href).href }];" + t[s1:]
     t = t.replace('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js', 'xlsx.full.min.js')
     a = "const PY_KAYNAKLAR = [new URL('pyodide/', location.href).href, 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/'];"
     assert a in t, 'PY_KAYNAKLAR satırı bulunamadı'
@@ -171,6 +175,7 @@ def main():
     os.makedirs(CIKTI, exist_ok=True)
     open(os.path.join(CIKTI, 'claude-ai.html'), 'w', encoding='utf-8').write(t)
     open(os.path.join(KOK, 'index.html'), 'w', encoding='utf-8').write(pwa(t))
+    shutil.copy(os.path.join(SRC, 'motor.js'), os.path.join(KOK, 'motor.js'))
     for f in glob.glob(os.path.join(SRC, 'ikon', '*.png')):
         shutil.copy(f, os.path.join(KOK, os.path.basename(f)))
     m = {"name": "SorguLab", "short_name": "SorguLab", "description": "SQL, pandas ve NumPy alıştırma uygulaması",

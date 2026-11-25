@@ -12,8 +12,11 @@ const bekle = ms => new Promise(r => setTimeout(r, ms));
 
 // ─── Kalıcı ilerleme (bu tarayıcıda) ───
 const DEPO_KEY = 'sorgu-atolyesi-v1';
-let depo = { cozuldu: {}, tahmin: {}, taslak: {} };
+let depo = { cozuldu: {}, bakarak: {}, tahmin: {}, taslak: {} };
 try { const d = JSON.parse(localStorage.getItem(DEPO_KEY)); if (d) depo = Object.assign(depo, d); } catch (e) { }
+// Çözülen soru işareti: kendi çözdüysen ✓, cevaba bakıp çözdüysen soluk ✓ (üzerine gelince açıklama).
+const bakildi = {};   // bu oturumda cevabına bakılan sorular
+const tikHTML = id => depo.bakarak[id] ? '<span class="tik bakarak" title="Cevaba bakarak çözüldü" aria-label="cevaba bakarak çözüldü">✓</span>' : '<span class="tik" aria-label="çözüldü">✓</span>';
 function kaydet() { try { localStorage.setItem(DEPO_KEY, JSON.stringify(depo)); } catch (e) { } }
 
 // ─── Veri setleri ───
@@ -51,7 +54,7 @@ function yukleneniGeriYukle() {
   }).catch(() => { });
 }
 function yukleneniSil() {
-  VS.yuklenen = null; delete dbCache.yuklenen;
+  VS.yuklenen = null; delete gonderilen.yuklenen;
   Object.keys(beklenenCache).filter(k => k.startsWith('yuklenen:')).forEach(k => delete beklenenCache[k]);
   if (typeof pyYukluVS !== 'undefined' && pyYukluVS === 'yuklenen') pyYukluVS = null;
   S.gecmis = S.gecmis.filter(g => g.vs !== 'yuklenen');
@@ -359,118 +362,157 @@ function aiPanelCiz(d) {
   };
 }
 
-// ═══════════════ SQL motoru ═══════════════
-let SQLlib = null;
-const sqlHazir = (window.initSqlJs ? Promise.resolve() : scriptYukle('https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-asm.js'))
-  .then(() => initSqlJs()).then(s => { SQLlib = s; }).catch(e => { console.error(e); });
-const dbCache = {};
-function dbOlustur(tablolar) {
-  const db = new SQLlib.Database();
-  for (const [ad, t] of Object.entries(tablolar)) {
-    db.run(`CREATE TABLE "${ad}" (${t.columns.map((c, i) => `"${c}" ${t.types[i] || ''}`).join(', ')})`);
-    const st = db.prepare(`INSERT INTO "${ad}" VALUES (${t.columns.map(() => '?').join(',')})`);
-    db.run('BEGIN');
-    for (const r of t.rows) st.run(r);
-    db.run('COMMIT');
-    st.free();
+// ═══════════════ Motor (SQL + Python) ═══════════════
+// Kod motor.js'te; mümkünse arka plan iş parçacığında (Web Worker) çalışır. Böylece sonsuz döngü sayfayı dondurmaz,
+// süre sınırı ve Durdur düğmesi çalışır. Worker kurulamazsa ya da içinde motor yüklenemezse sayfanın içinde çalışır.
+const SQL_KAYNAKLAR = [
+  { js: new URL('sql-wasm.js', location.href).href, wasm: new URL('sql-wasm.wasm', location.href).href },
+  { js: 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js', wasm: 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.wasm' },
+  { js: 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-asm-memory-growth.js' }
+];
+const PY_KAYNAKLAR = [new URL('pyodide/', location.href).href, 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/'];
+const PY_PAKETLER = ['six', 'python_dateutil', 'pytz', 'numpy', 'pandas'];
+const SURE = { sql: 20000, python: 30000 };
+let motorKip = null;          // 'isci' | 'sayfa'
+let isci = null, isciP = null, isNo = 0, isciKalici = false;
+const isBekleyen = new Map();
+let gonderilen = {};          // motora gönderilen veri (anahtar -> tablolar)
+let sqlDurum = 'yok', sqlHazirP = null;
+function isciDene(url) {
+  return new Promise((ok, red) => {
+    let w;
+    try { w = new Worker(url); } catch (e) { return red(e); }
+    const t = setTimeout(() => { w.terminate(); red(new Error('yanıt yok')); }, 8000);
+    w.onerror = e => { e.preventDefault && e.preventDefault(); clearTimeout(t); w.terminate(); red(new Error('worker açılamadı')); };
+    w.onmessage = e => { if (e.data && e.data.merhaba) { clearTimeout(t); ok(w); } };
+  });
+}
+function isciMesaj(e) {
+  const m = e.data;
+  if (m.asama) { pyAsamaAyarla(m.asama); return; }
+  const b = isBekleyen.get(m.id); if (!b) return;
+  if (m.basladi) { b.basla && b.basla(); return; }
+  isBekleyen.delete(m.id); clearTimeout(b.zaman);
+  if (m.ok) b.ok(m.r); else b.red(new Error(m.hata));
+}
+async function motorHazir() {
+  if (motorKip === 'sayfa' || isci) return;
+  if (!isciP) isciP = (async () => {
+    if (!isciKalici && typeof Worker !== 'undefined') {
+      const denemeler = [() => new URL('motor.js', location.href).href];
+      if (typeof MOTOR_KOD === 'string') denemeler.push(() => URL.createObjectURL(new Blob([MOTOR_KOD], { type: 'text/javascript' })));
+      for (const d of denemeler) {
+        try { isci = await isciDene(d()); isci.onmessage = isciMesaj; isci.onerror = null; motorKip = 'isci'; return; }
+        catch (e) { console.warn('Motor iş parçacığı kurulamadı:', e); }
+      }
+    }
+    motorKip = 'sayfa';
+  })().finally(() => { isciP = null; });
+  return isciP;
+}
+function sayfayaGec() {
+  // Worker içinde motor yüklenemedi (örn. çevrimdışı iPad'de worker önbelleğe ulaşamadı): bundan sonra sayfada çalış.
+  if (isci) { isci.terminate(); isci = null; }
+  isciKalici = true; motorKip = 'sayfa'; gonderilen = {};
+  for (const [, b] of isBekleyen) b.red(new Error('motor değişti')); isBekleyen.clear();
+}
+// sure: iş başladıktan sonra en fazla bu kadar beklenir; aşılırsa motor durdurulur.
+function motor(fn, args, sure) {
+  if (motorKip === 'sayfa') {
+    Motor.ilerlemeAyarla(pyAsamaAyarla);
+    return Promise.resolve().then(() => Motor[fn](...args));
   }
-  return db;
+  return new Promise((ok, red) => {
+    const id = ++isNo, b = { ok, red };
+    if (sure) b.basla = () => { b.zaman = setTimeout(() => motorDurdur('sure', sure), sure); };
+    b.calisma = !!sure;
+    isBekleyen.set(id, b);
+    isci.postMessage({ id, fn, args });
+  });
 }
-function dbAl(key) {
-  if (!dbCache[key]) { const db = dbOlustur(VS[key].tablolar); dbCache[key] = { bytes: db.export(), oyun: db }; }
-  return dbCache[key];
+function calisiyorVar() { for (const [, b] of isBekleyen) if (b.calisma) return true; return false; }
+function motorDurdur(neden, sure) {
+  if (motorKip !== 'isci' || !isci) return;
+  isci.terminate(); isci = null; motorKip = null; gonderilen = {};
+  const m = neden === 'sure'
+    ? `Kod ${Math.round(sure / 1000)} saniyede bitmedi ve durduruldu. Sonsuz döngü ya da çok ağır bir işlem olabilir mi?`
+    : 'Çalıştırma durduruldu.';
+  for (const [, b] of isBekleyen) { clearTimeout(b.zaman); const e = new Error(m); e.durduruldu = true; b.red(e); }
+  isBekleyen.clear();
+  // Motor yeniden kurulacak: SQL hızlı açılır, Python ortamı bir sonraki çalıştırmada yeniden hazırlanır.
+  sqlHazirP = null; sqlDurum = 'yok';
+  pyHazirP = null; pyYukluVS = null; pyAsama = '';
+  if (pyDurum !== 'yok') pyDurumAyarla('yok');
 }
-function dbSifirla(key) { if (dbCache[key]) { try { dbCache[key].oyun.close(); } catch (e) { } dbCache[key].oyun = new SQLlib.Database(dbCache[key].bytes); } }
-function sqlExec(db, kod) {
-  const t0 = performance.now();
-  try {
-    const r = db.exec(kod);
-    const ms = Math.round(performance.now() - t0);
-    const son = r[r.length - 1];
-    if (!son) return { ok: true, table: null, ms, mesaj: `Sorgu çalıştı, sonuç tablosu dönmedi (${db.getRowsModified()} satır etkilendi).` };
-    return { ok: true, table: { columns: son.columns, rows: son.values, total: son.values.length }, ms };
-  } catch (e) { return { ok: false, error: e.message, ms: Math.round(performance.now() - t0) }; }
+document.addEventListener('click', e => { if (e.target.closest('[data-durdur]')) motorDurdur('kullanici'); });
+const calisiyorHTML = (metin = 'Çalışıyor…') => `<div class="yukleniyor calisiyor"><span>${metin}</span>${typeof Worker !== 'undefined' && motorKip !== 'sayfa' ? '<button class="btn kucuk-btn durdur-btn" data-durdur>Durdur</button>' : ''}</div>`;
+async function veriGonder(key) {
+  await veriHazirla(key);
+  const t = VS[key].tablolar;
+  if (gonderilen[key] !== t) { await motor('veriVer', [key, t]); gonderilen[key] = t; }
+}
+function sqlHazirla() {
+  if (!sqlHazirP) sqlHazirP = (async () => {
+    sqlDurum = 'yukleniyor';
+    await motorHazir();
+    try { await motor('sqlBaslat', [SQL_KAYNAKLAR]); }
+    catch (e) {
+      if (motorKip !== 'isci') throw e;
+      console.warn('SQL motoru iş parçacığında açılamadı, sayfada deneniyor:', e);
+      sayfayaGec(); await motor('sqlBaslat', [SQL_KAYNAKLAR]);
+    }
+    sqlDurum = 'hazir';
+  })().catch(e => { sqlDurum = 'hata'; sqlHazirP = null; throw new Error('SQL motoru yüklenemedi: ' + ((e && e.message) || e) + '. Sayfayı yenilemeyi dene.'); });
+  return sqlHazirP;
 }
 
-// ═══════════════ Python motoru (Pyodide) ═══════════════
-const PY_KAYNAKLAR = [new URL('pyodide/', location.href).href, 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/'];
-const PY_EK = '.wasm';
-const PY_PAKETLER = ['six', 'python_dateutil', 'pytz', 'numpy', 'pandas'];
 let pyAsama = '';
 function pyAsamaAyarla(t) { pyAsama = t; $$('.py-asama').forEach(el => el.textContent = t); }
 const pyBekleHTML = () => `<div class="yukleniyor"><span class="py-asama">${esc(pyAsama || 'Python ortamı hazırlanıyor…')}</span></div>`;
-function sureli(p, ms, ad) { let t; return Promise.race([p, new Promise((_, red) => { t = setTimeout(() => red(new Error(`${ad} ${Math.round(ms / 1000)} saniyede yüklenemedi`)), ms); })]).finally(() => clearTimeout(t)); }
 function hataHTML(e) {
   const m = (e && e.message) || String(e);
   const py = m.startsWith('Python ortamı yüklenemedi');
-  return `<div class="hata-kutu">${esc(m)}${py ? '<div><button class="btn kucuk-btn" data-py-tekrar>Tekrar dene</button></div>' : ''}</div>`;
+  return `<div class="hata-kutu${e && e.durduruldu ? ' durduruldu' : ''}">${esc(m)}${py ? '<div><button class="btn kucuk-btn" data-py-tekrar>Tekrar dene</button></div>' : ''}</div>`;
 }
 document.addEventListener('click', e => { if (e.target.closest('[data-py-tekrar]') || (e.target.closest('#pyDurum') && pyDurum === 'hata')) { pyAsama = ''; pyHazirla().catch(() => { }); yenidenCiz(); } });
-let pyodide = null, pyHazirP = null, pyYukluVS = null, pyDurum = 'yok', pyTipler = {};
+let pyHazirP = null, pyYukluVS = null, pyDurum = 'yok', pyTipler = {};
 function pyDurumAyarla(d) { pyDurum = d; const el = $('#pyDurum'); if (el) { el.dataset.durum = d; el.textContent = { yok: 'Python: kapalı', yukleniyor: 'Python hazırlanıyor…', hazir: 'Python hazır', hata: 'Python yüklenemedi · tekrar dene' }[d]; el.style.cursor = d === 'hata' ? 'pointer' : ''; } }
 function pyHazirla() {
   if (!pyHazirP) {
     pyHazirP = (async () => {
       pyDurumAyarla('yukleniyor');
-      let son = null;
-      for (const kok of PY_KAYNAKLAR) {
-        try {
-          pyAsamaAyarla('Python motoru indiriliyor (1/3)…');
-          if (!window.loadPyodide) await sureli(scriptYukle(kok + 'pyodide.js'), 45000, 'Python motoru');
-          pyAsamaAyarla('Python motoru başlatılıyor (2/3)…');
-          const yerel = kok === PY_KAYNAKLAR[0];
-          pyodide = await sureli(loadPyodide(yerel ? { indexURL: kok, stdLibURL: kok + 'python_stdlib' + PY_EK } : { indexURL: kok }), 120000, 'Python motoru');
-          pyAsamaAyarla('pandas ve NumPy yükleniyor (3/3)…');
-          if (yerel) {
-            const site = pyodide.runPython('import site; site.getsitepackages()[0]');
-            for (const ad of PY_PAKETLER) {
-              const buf = await sureli(fetch(kok + 'paket-' + ad + PY_EK).then(r => { if (!r.ok) throw new Error(`${ad} paketi indirilemedi (${r.status})`); return r.arrayBuffer(); }), 90000, ad);
-              await pyodide.unpackArchive(buf, 'wheel', { extractDir: site });
-            }
-            pyodide.runPython('import importlib; importlib.invalidate_caches()');
-          } else await sureli(pyodide.loadPackage(['pandas']), 150000, 'pandas');
-          pyodide.runPython(HELPER_PY);
-          pyAsamaAyarla('Python hazır');
-          pyDurumAyarla('hazir');
-          return;
-        } catch (e) {
-          son = e; console.warn('Python kaynağı kullanılamadı:', kok, e);
-          pyodide = null; try { delete window.loadPyodide; } catch (x) { window.loadPyodide = undefined; }
-        }
+      await motorHazir();
+      try { await motor('pyBaslat', [PY_KAYNAKLAR, PY_PAKETLER, HELPER_PY]); }
+      catch (e) {
+        if (motorKip !== 'isci') throw e;
+        console.warn('Python iş parçacığında açılamadı, sayfada deneniyor:', e);
+        sayfayaGec(); sqlHazirP = null; await motor('pyBaslat', [PY_KAYNAKLAR, PY_PAKETLER, HELPER_PY]);
       }
-      throw son || new Error('bilinmeyen hata');
+      pyAsamaAyarla('Python hazır');
+      pyDurumAyarla('hazir');
     })().catch(e => { pyDurumAyarla('hata'); pyAsama = ''; pyHazirP = null; throw new Error('Python ortamı yüklenemedi: ' + ((e && e.message) || e) + '. Sayfayı yenileyip tekrar deneyebilirsin.'); });
   }
   return pyHazirP;
 }
-function pyVeriYukle(key) {
-  if (pyYukluVS === key) return;
-  const f = pyodide.globals.get('_yukle');
-  pyTipler = JSON.parse(f(JSON.stringify(VS[key].tablolar)));
-  f.destroy();
-  pyYukluVS = key;
-}
-async function pyExec(kod) {
-  await pyHazirla();
-  pyVeriYukle(S.veriSeti);
-  const t0 = performance.now();
-  const f = pyodide.globals.get('_calistir');
-  const out = JSON.parse(f(kod));
-  f.destroy();
-  out.ms = Math.round(performance.now() - t0);
-  if (out.ok && !out.table && !out.stdout) out.mesaj = 'Kod çalıştı ama gösterilecek bir sonuç yok. Sonucu sonuc değişkenine ata ya da son satıra ifadeyi yaz.';
-  return out;
+async function pyVeriHazirla(key) {
+  await pyHazirla(); await veriGonder(key);
+  pyTipler = await motor('pyVeri', [key]); pyYukluVS = key;
 }
 
 // Ortak çalıştırıcı. temiz=true: soru kontrolünde, oyun alanındaki değişikliklerden etkilenmeyen taze veri.
 async function calistir(dil, kod, temiz = false) {
-  await veriHazirla(S.veriSeti);
+  const key = S.veriSeti;
   if (dil === 'sql') {
-    await sqlHazir;
-    if (temiz) { const db = new SQLlib.Database(dbAl(S.veriSeti).bytes); try { return sqlExec(db, kod); } finally { db.close(); } }
-    return sqlExec(dbAl(S.veriSeti).oyun, kod);
+    await sqlHazirla(); await veriGonder(key);
+    const r = await motor('sql', [key, kod, temiz], SURE.sql);
+    if (!r.ok) r.ipucu = lehceIpucu(kod, r.error);
+    return r;
   }
-  return pyExec(kod);
+  await pyHazirla(); await veriGonder(key);
+  const out = await motor('py', [key, kod], SURE.python);
+  pyTipler = out.tipler || pyTipler; pyYukluVS = key; delete out.tipler;
+  if (out.ok && !out.table && !out.stdout) out.mesaj = 'Kod çalıştı ama gösterilecek bir sonuç yok. Sonucu sonuc değişkenine ata ya da son satıra ifadeyi yaz.';
+  return out;
 }
 const beklenenCache = {};
 async function beklenenAl(q) {
@@ -553,11 +595,37 @@ function tabloHTML(t, max = 200) {
   return `<div class="tablo-kap"><table class="sonuc"><thead><tr>${t.columns.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${satir.map(r => `<tr>${r.map(hucre).join('')}</tr>`).join('')}</tbody></table></div>
   <div class="tablo-alt">${t.total ?? t.rows.length} satır × ${t.columns.length} sütun${(t.total ?? t.rows.length) > max ? ` · ilk ${max} satır gösteriliyor` : ''}</div>`;
 }
+// Başka veritabanlarından (SQL Server, Oracle, PostgreSQL, BigQuery, MySQL) gelen alışkanlıklar için SQLite karşılığı.
+// Sadece sorgu hata verdiğinde ve kodda ilgili kalıp varsa gösterilir.
+const LEHCE_KURALLARI = [
+  [/\bSELECT\s+(DISTINCT\s+)?TOP\b/i, '<code>TOP</code> SQL Server\'a özgü. SQLite\'ta satır sınırı sorgunun <b>sonuna</b> yazılır: <code>SELECT … ORDER BY … LIMIT 10</code>'],
+  [/\bFETCH\s+(FIRST|NEXT)\b|\bROWNUM\b/i, 'SQLite\'ta ilk N satır için <code>LIMIT 10</code>, atlamak için <code>LIMIT 10 OFFSET 20</code> kullanılır.'],
+  [/\b(GETDATE|NOW|SYSDATE|CURDATE)\s*\(|\bSYSDATE\b/i, 'Bugünün tarihi SQLite\'ta <code>date(\'now\')</code>, saatle birlikte <code>datetime(\'now\')</code>.'],
+  [/\bDATE_?DIFF\s*\(/i, 'SQLite\'ta <code>DATEDIFF</code> yok. Gün farkı: <code>julianday(bitis) - julianday(baslangic)</code>'],
+  [/\b(DATEADD|DATE_ADD|DATE_SUB|ADD_MONTHS)\s*\(|\bINTERVAL\s+'?\d/i, 'SQLite\'ta tarih eklemek için: <code>date(tarih, \'+7 days\')</code>, <code>date(tarih, \'-1 month\')</code>'],
+  [/\b(YEAR|MONTH|DAY|DAYOFWEEK|WEEKDAY|QUARTER)\s*\(|\bEXTRACT\s*\(|\bDATEPART\s*\(/i, 'SQLite\'ta tarih parçası <code>strftime</code> ile alınır: yıl <code>strftime(\'%Y\', tarih)</code>, ay <code>strftime(\'%m\', tarih)</code> (sonuç metindir; sayı gerekiyorsa <code>CAST(… AS INTEGER)</code>).'],
+  [/\b(DATE_TRUNC|TRUNC|DATEFROMPARTS|EOMONTH)\s*\(/i, 'Ay başı SQLite\'ta <code>date(tarih, \'start of month\')</code>, yıl başı <code>date(tarih, \'start of year\')</code>.'],
+  [/\b(ISNULL|NVL|NVL2)\s*\(/i, 'Boş değer yerine başka değer: SQLite\'ta <code>COALESCE(sutun, 0)</code> ya da <code>IFNULL(sutun, 0)</code>.'],
+  [/\bLEN\s*\(/i, 'SQLite\'ta metin uzunluğu <code>LENGTH(metin)</code>.'],
+  [/\b(CHARINDEX|LOCATE|STRPOS)\s*\(|\bPOSITION\s*\(/i, 'Metin içinde arama SQLite\'ta <code>INSTR(metin, \'aranan\')</code> (bulamazsa 0 döner).'],
+  [/\b(LEFT|RIGHT)\s*\(/i, 'SQLite\'ta <code>LEFT</code>/<code>RIGHT</code> fonksiyonu yok: baştan <code>SUBSTR(metin, 1, 3)</code>, sondan <code>SUBSTR(metin, -3)</code>.'],
+  [/\bILIKE\b/i, 'SQLite\'ta <code>ILIKE</code> yok; <code>LIKE</code> zaten büyük/küçük harfe duyarsız (Türkçe İ/ı hariç).'],
+  [/\bQUALIFY\b/i, 'SQLite\'ta <code>QUALIFY</code> yok. Window function\'ı bir CTE ya da alt sorguda hesapla, dışarıda <code>WHERE</code> ile filtrele.'],
+  [/\bCONVERT\s*\(|::\s*\w+/i, 'Tür dönüştürme SQLite\'ta <code>CAST(sutun AS INTEGER)</code>, <code>CAST(sutun AS REAL)</code>, <code>CAST(sutun AS TEXT)</code>.'],
+  [/\b(LISTAGG|ARRAY_AGG)\s*\(/i, 'Değerleri birleştirmek SQLite\'ta <code>GROUP_CONCAT(sutun, \', \')</code>.'],
+];
+function lehceIpucu(kod, hata) {
+  const temiz = String(kod || '').replace(/--[^\n]*/g, ' ').replace(/'(?:[^']|'')*'/g, "''");
+  const bulunan = LEHCE_KURALLARI.filter(([re]) => re.test(temiz)).map(([, m]) => m);
+  if (/no such column/i.test(hata || '') && /"[^"]*"\s*=|=\s*"[^"]*"/.test(kod || '')) bulunan.push('Metin değerleri SQLite\'ta tek tırnakla yazılır: <code>WHERE sehir = \'İzmir\'</code>. Çift tırnak sütun adı demektir.');
+  return bulunan.length ? bulunan : null;
+}
+const lehceHTML = r => r.ipucu ? `<div class="lehce-ipucu"><b>SQLite'ta farklı yazılıyor olabilir</b><ul>${r.ipucu.map(m => `<li>${m}</li>`).join('')}</ul><a href="#konu/sql-lehce-farklari">Lehçe farkları konusunu aç →</a></div>` : '';
 function ciktiHTML(r) {
   if (!r) return '';
   let h = '';
   if (r.stdout) h += `<div class="konsol"><div class="konsol-baslik">print çıktısı</div><pre>${esc(r.stdout)}</pre></div>`;
-  if (!r.ok) h += `<div class="hata-kutu"><b>Hata</b><pre>${esc(r.error)}</pre></div>`;
+  if (!r.ok) h += `<div class="hata-kutu"><b>Hata</b><pre>${esc(r.error)}</pre></div>` + lehceHTML(r);
   else if (r.table) h += tabloHTML(r.table);
   else if (r.mesaj) h += `<div class="bilgi">${esc(r.mesaj)}</div>`;
   if (r.ms !== undefined && r.ok) h += `<div class="sure">${r.ms} ms</div>`;
@@ -699,14 +767,14 @@ function alistirmaCiz() {
         <select id="katSec"><option value="">Tüm kategoriler</option>${kategoriler.map(k => `<option ${S.filtre.kategori === k ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select>
       </div>
       <ol class="sorular">${liste.map((q, i) => `<li><button class="soru-satir ${aktif && q.id === aktif.id ? 'aktif' : ''}" data-id="${q.id}">
-        <span class="no">${depo.cozuldu[q.id] ? '<span class="tik" aria-label="çözüldü">✓</span>' : i + 1}</span>
+        <span class="no">${depo.cozuldu[q.id] ? tikHTML(q.id) : i + 1}</span>
         <span class="ad">${esc(q.baslik)}<span class="kat">${esc(q.kategori)}</span></span>
         <span class="sev sev-${q.seviye}">${SEVIYE[q.seviye]}</span></button></li>`).join('') || '<li class="kucuk bos-not">Bu filtreye uyan soru yok.</li>'}</ol>
     </aside>
     <section class="calisma" id="calisma"></section>
     <aside class="sema" id="sema">${semaHTML(S.filtre.dil)}</aside>
   </div>`;
-  $$('.seg-btn', ana).forEach(b => b.onclick = () => { S.filtre.dil = b.dataset.dil; S.filtre.kategori = ''; if (b.dataset.dil === 'python') pyHazirla().then(() => veriHazirla(S.veriSeti)).then(() => { pyVeriYukle(S.veriSeti); const s = $('#sema'); if (s && S.view === 'alistirma') s.innerHTML = semaHTML('python'); }).catch(() => { }); alistirmaCiz(); });
+  $$('.seg-btn', ana).forEach(b => b.onclick = () => { S.filtre.dil = b.dataset.dil; S.filtre.kategori = ''; if (b.dataset.dil === 'python') pyVeriHazirla(S.veriSeti).then(() => { const s = $('#sema'); if (s && S.view === 'alistirma') s.innerHTML = semaHTML('python'); }).catch(() => { }); alistirmaCiz(); });
   $$('.chip[data-seviye]', ana).forEach(b => b.onclick = () => { S.filtre.seviye = +b.dataset.seviye; alistirmaCiz(); });
   $$('.kaynak-btn', ana).forEach(b => b.onclick = () => { S.filtre.kaynak = b.dataset.kaynak; S.filtre.kategori = ''; S.filtre.seviye = 0; alistirmaCiz(); });
   $('#katSec').onchange = e => { S.filtre.kategori = e.target.value; alistirmaCiz(); };
@@ -754,7 +822,7 @@ function soruCalismaCiz(host, q, { mod, liste, onKontrol }) {
       <div class="rozetler"><span class="rozet dil-${q.dil}">${DIL[q.dil]}</span><span class="rozet sev-${q.seviye}">${SEVIYE[q.seviye]}</span><span class="rozet">${esc(q.kategori)}</span>${q.sirali ? '<span class="rozet uyari">Sıralama önemli</span>' : ''}${konuBul(q) ? `<a class="konu-oku" href="#konu/${konuBul(q).id}">Konuyu oku →</a>` : ''}</div>
       <h2>${esc(q.baslik)}</h2>
       <div class="soru-metni">${q.soru}</div>
-      <details class="beklenen" open><summary>Beklenen çıktı</summary><div id="beklenen" class="beklenen-ic">${q.dil === 'python' && pyDurum !== 'hazir' ? pyBekleHTML() : '<div class="yukleniyor">Hesaplanıyor…</div>'}</div></details>
+      <details class="beklenen"${mulakat || q.seviye === 3 ? '' : ' open'}><summary>Beklenen çıktı${mulakat || q.seviye === 3 ? ' <span class="kucuk soluk-not">(bakmadan denemek için kapalı)</span>' : ''}</summary><div id="beklenen" class="beklenen-ic">${q.dil === 'python' && pyDurum !== 'hazir' ? pyBekleHTML() : '<div class="yukleniyor">Hesaplanıyor…</div>'}</div></details>
     </div>
     <div class="editor-alan">
       <div id="ed"></div>
@@ -788,7 +856,7 @@ function soruCalismaCiz(host, q, { mod, liste, onKontrol }) {
   async function calistirTik() {
     const c = $('#cikti', host);
     if (!ed.get().trim()) { c.innerHTML = `<div class="bilgi">Editör boş. Önce ${q.dil === 'sql' ? 'sorgunu' : 'kodunu'} yaz.</div>`; return null; }
-    c.innerHTML = q.dil === 'python' && pyDurum !== 'hazir' ? pyBekleHTML() : '<div class="yukleniyor">Çalışıyor…</div>';
+    c.innerHTML = q.dil === 'python' && pyDurum !== 'hazir' ? pyBekleHTML() : calisiyorHTML();
     await bekle(16);
     try { sonCikti = await calistir(q.dil, ed.get(), true); c.innerHTML = ciktiHTML(sonCikti); }
     catch (e) { c.innerHTML = hataHTML(e); }
@@ -803,7 +871,13 @@ function soruCalismaCiz(host, q, { mod, liste, onKontrol }) {
     if (!gel || !gel.ok) sonuc = { dogru: false, mesaj: 'Kodun hata verdi. Aşağıdaki hata mesajına bak.' };
     else if (!bek.ok) sonuc = { dogru: false, mesaj: 'Beklenen çıktı hesaplanamadığı için kontrol yapılamadı.' };
     else sonuc = karsilastir(bek.table, gel.table, q.sirali);
-    if (sonuc.dogru && !mulakat) { depo.cozuldu[q.id] = true; kaydet(); ustCiz(); const li = $(`.soru-satir[data-id="${q.id}"] .no`); if (li) li.innerHTML = '<span class="tik" aria-label="çözüldü">✓</span>'; }
+    if (sonuc.dogru && !mulakat) {
+      // Cevaba bakarak çözülen soru soluk işaretlenir; daha önce kendi çözdüğün bir soru bu yüzden geri düşmez.
+      if (!bakildi[q.id]) delete depo.bakarak[q.id];
+      else if (!depo.cozuldu[q.id] || depo.bakarak[q.id]) depo.bakarak[q.id] = true;
+      depo.cozuldu[q.id] = true; kaydet(); ustCiz();
+      const li = $(`.soru-satir[data-id="${q.id}"] .no`); if (li) li.innerHTML = tikHTML(q.id);
+    }
     k.innerHTML = `<div class="karar ${sonuc.dogru ? 'dogru' : 'yanlis'}" role="status"><span class="karar-ikon" aria-hidden="true">${sonuc.dogru ? '✓' : '✕'}</span><div>${sonuc.mesaj}
       ${!sonuc.dogru && !mulakat ? `<div><button class="btn kucuk-btn" id="btnHata">${aiAd()} hatamı açıklasın</button></div>` : ''}</div></div>`;
     const hb = $('#btnHata', host); if (hb) hb.onclick = () => hataAcikla(q, ed.get(), gel, bek, sonuc);
@@ -817,6 +891,7 @@ function soruCalismaCiz(host, q, { mod, liste, onKontrol }) {
     return el;
   }
   function cevapGoster() {
+    bakildi[q.id] = true;
     const el = kutu('kCevap', 'Örnek çözüm', kodBlok(q.cozum, q.dil) + '<button class="btn kucuk-btn" data-kopyala>Editöre aktar</button>');
     $('[data-kopyala]', el).onclick = () => { ed.set(q.cozum); ed.odak(); };
   }
@@ -924,7 +999,7 @@ function tahminCiz() {
     const s = $('#tahminSonuc');
     s.innerHTML = `<div class="karar ${dogru ? 'dogru' : 'yanlis'}"><span class="karar-ikon">${dogru ? '✓' : '✕'}</span><div>${dogru ? 'Doğru tahmin!' : `Doğru cevap: <b>${esc(t.secenekler[t.dogru])}</b>`}</div></div>
       <div class="ek-kutu"><div class="ek-baslik">Neden?</div><div class="aciklama">${t.aciklama}</div></div>
-      <div class="ek-kutu"><div class="ek-baslik">Kodu çalıştırınca gerçek çıktı</div><div id="tCikti">${t.dil === 'python' && pyDurum !== 'hazir' ? pyBekleHTML() : '<div class="yukleniyor">Çalışıyor…</div>'}</div></div>`;
+      <div class="ek-kutu"><div class="ek-baslik">Kodu çalıştırınca gerçek çıktı</div><div id="tCikti">${t.dil === 'python' && pyDurum !== 'hazir' ? pyBekleHTML() : calisiyorHTML()}</div></div>`;
     await bekle(16);
     try { const r = await calistir(t.dil, t.kod, true); const c = $('#tCikti'); if (c) c.innerHTML = ciktiHTML(r); }
     catch (e) { const c = $('#tCikti'); if (c) c.innerHTML = hataHTML(e); }
@@ -1007,7 +1082,7 @@ function mulakatBitir(sureDoldu) {
   const M = S.mulakat; if (!M || M.durum !== 'devam') return;
   clearInterval(sayacInterval); sayacInterval = null;
   M.durum = 'bitti'; M.gecen = Math.min(Date.now(), M.bitis) - M.baslangic; M.sureDoldu = !!sureDoldu;
-  M.sorular.forEach(q => { if (M.sonuc[q.id] === true) { depo.cozuldu[q.id] = true; } }); kaydet();
+  M.sorular.forEach(q => { if (M.sonuc[q.id] === true) { depo.cozuldu[q.id] = true; delete depo.bakarak[q.id]; } }); kaydet();
   mulakatCiz();
 }
 function kodSonucCiz() {
@@ -1141,7 +1216,7 @@ function serbestCiz() {
   </div>`;
   const ed = editorKur($('#ed'), { deger: S.serbestKod[d], dil: d, yukseklik: 240, calistir: () => run(), degisti: v => { S.serbestKod[d] = v; } });
   async function run() {
-    const c = $('#cikti'); c.innerHTML = d === 'python' && pyDurum !== 'hazir' ? pyBekleHTML() : '<div class="yukleniyor">Çalışıyor…</div>';
+    const c = $('#cikti'); c.innerHTML = d === 'python' && pyDurum !== 'hazir' ? pyBekleHTML() : calisiyorHTML();
     await bekle(16);
     try {
       const r = await calistir(d, ed.get(), false); c.innerHTML = ciktiHTML(r);
@@ -1150,7 +1225,7 @@ function serbestCiz() {
     } catch (e) { c.innerHTML = hataHTML(e); }
   }
   $('#sCalistir').onclick = run;
-  const sf = $('#sSifirla'); if (sf) sf.onclick = async () => { await sqlHazir; dbSifirla(S.veriSeti); $('#cikti').innerHTML = '<div class="bilgi">Veri orijinal haline döndü.</div>'; };
+  const sf = $('#sSifirla'); if (sf) sf.onclick = async () => { await sqlHazirla(); await motor('sifirla', [S.veriSeti]); $('#cikti').innerHTML = '<div class="bilgi">Veri orijinal haline döndü.</div>'; };
   $$('.seg-btn', ana).forEach(b => b.onclick = () => { S.serbestDil = b.dataset.dil; if (b.dataset.dil === 'python') pyHazirla().catch(() => { }); serbestCiz(); });
   $$('.chip[data-o]', ana).forEach(b => b.onclick = () => { ed.set(ornek[+b.dataset.o][1]); run(); });
   $$('.gecmis-btn', ana).forEach(b => b.onclick = () => { ed.set(S.gecmis[+b.dataset.g].kod); ed.odak(); });
@@ -1172,7 +1247,7 @@ function veriCiz() {
       <article class="veri-kart ${S.veriSeti === 'yuklenen' ? 'secili' : ''}">
         <div class="mod-ust"><span class="mod-etiket">Kendi verin</span><h2>${Y ? esc(Y.ad) : 'Excel ya da CSV yükle'}</h2>
         <p>${Y ? `${Object.keys(Y.tablolar).length} tablo yüklendi. Her sayfa ayrı bir tablo oldu.${Y.kayitli ? ' Veri bu cihazda kayıtlı: sayfayı yenilesen ya da uygulamayı kapatıp açsan da burada olacak.' : Y.kayitli === false ? ' Veri bu tarayıcıya kaydedilemedi (gizli sekme ya da yer yetersiz olabilir), sayfayı yenileyince tekrar yüklemen gerekir.' : ''}` : 'Excel\'deki her sayfa ayrı bir tabloya dönüşür. İlk satır sütun adı olarak okunur. Veri sadece bu cihazda, tarayıcının içinde saklanır, hiçbir yere gönderilmez. Sayfayı yenilesen de kalır.'}</p></div>
-        <label class="birak" id="birak" tabindex="0"><input type="file" id="dosya" accept=".xlsx,.xls,.csv,.xlsm" hidden>
+        <label class="birak" id="birak" tabindex="0"><input type="file" id="dosya" accept=".xlsx,.xls,.csv,.tsv,.txt,.xlsm" hidden>
           <span class="birak-ic"><b>${Y ? 'Başka bir dosya yükle' : 'Dosyayı buraya bırak'}</b><span class="kucuk">ya da tıklayıp seç · .xlsx, .xls, .csv</span></span></label>
         <div id="yukDurum"></div>
         ${Y ? `<ul class="tablo-ozet">${Object.entries(Y.tablolar).map(([a, t]) => `<li><code>${esc(a)}</code><span>${t.columns.length} sütun · ${t.rows.length} satır</span></li>`).join('')}</ul>
@@ -1244,19 +1319,121 @@ function adTemizle(s, yedek) {
   if (['select', 'from', 'where', 'group', 'order', 'table', 'index', 'by', 'case', 'when', 'end', 'limit', 'join', 'on', 'as', 'and', 'or', 'not', 'null', 'in', 'is', 'having', 'values', 'class', 'def', 'pd', 'np', 'sonuc', 'lambda', 'import'].includes(a)) a += '_';
   return a;
 }
-async function dosyaYukle(f) {
+// ─── CSV / TXT okuma: kodlama (UTF-8 ya da Türkçe Windows-1254), ayırıcı, Türkçe sayı ve tarih biçimleri ───
+function metinCoz(buf) {
+  const b = new Uint8Array(buf);
+  const bom = b[0] === 0xEF && b[1] === 0xBB && b[2] === 0xBF;
+  try { return { metin: new TextDecoder('utf-8', { fatal: true }).decode(bom ? b.subarray(3) : b), kodlama: 'UTF-8' }; }
+  catch (e) { return { metin: new TextDecoder('windows-1254').decode(b), kodlama: 'Windows-1254' }; }
+}
+function ayiriciBul(metin) {
+  const satirlar = metin.split(/\r?\n/).filter(l => l.trim()).slice(0, 20).map(l => l.replace(/"(?:[^"]|"")*"/g, '""'));
+  let en = { a: ',', puan: -1, n: 0 };
+  for (const a of [',', ';', '\t', '|']) {
+    const say = satirlar.map(l => l.split(a).length - 1);
+    if (!say.length || !say[0]) continue;
+    const puan = say.filter(n => n === say[0]).length;
+    if (puan > en.puan || (puan === en.puan && say[0] > en.n)) en = { a, puan, n: say[0] };
+  }
+  return en.a;
+}
+function csvAyristir(metin, a) {
+  const satirlar = []; let satir = [], hucre = '', tirnak = false;
+  for (let i = 0; i < metin.length; i++) {
+    const c = metin[i];
+    if (tirnak) {
+      if (c === '"') { if (metin[i + 1] === '"') { hucre += '"'; i++; } else tirnak = false; }
+      else hucre += c;
+    } else if (c === '"' && hucre === '') tirnak = true;
+    else if (c === a) { satir.push(hucre); hucre = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && metin[i + 1] === '\n') i++; satir.push(hucre); satirlar.push(satir); satir = []; hucre = ''; }
+    else hucre += c;
+  }
+  if (hucre !== '' || satir.length) { satir.push(hucre); satirlar.push(satir); }
+  return satirlar.filter(r => r.some(x => x.trim() !== ''));
+}
+const SAYI_RE = {
+  virgul: /^[-+]?(\d{1,3}(\.\d{3})+|\d+)(,\d+)?$/,   // 1.250,50 · 3,5 · 980
+  nokta: /^[-+]?(\d{1,3}(,\d{3})+|\d+)(\.\d+)?$/     // 1,250.50 · 3.5 · 980
+};
+function ondalikTahmin(hucreler, ayirici) {
+  let tr = 0, en = 0;
+  for (const s of hucreler) {
+    if (/^[-+]?\d{1,3}(\.\d{3})+,\d+$/.test(s) || /^[-+]?\d+,(\d{1,2}|\d{4,})$/.test(s)) tr++;
+    else if (/^[-+]?\d{1,3}(,\d{3})+\.\d+$/.test(s) || /^[-+]?\d+\.(\d{1,2}|\d{4,})$/.test(s)) en++;
+  }
+  if (tr !== en) return tr > en ? 'virgul' : 'nokta';
+  return ayirici === ';' ? 'virgul' : 'nokta';   // Türkçe Excel ';' ile ve virgüllü ondalıkla kaydeder
+}
+function sayiCevir(s, ondalik) {
+  if (!SAYI_RE[ondalik].test(s)) return null;
+  const n = ondalik === 'virgul' ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
+  return Number(n);
+}
+function tarihCevir(s, gunOnce) {
+  const m = s.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (!m) return /^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2})?)?$/.test(s) ? s.replace('T', ' ') : null;
+  const p = n => String(n).padStart(2, '0');
+  const [g, a] = gunOnce ? [+m[1], +m[2]] : [+m[2], +m[1]];
+  if (a < 1 || a > 12 || g < 1 || g > 31) return null;
+  const t = `${m[3]}-${p(a)}-${p(g)}`;
+  return m[4] && (+m[4] || +m[5] || +(m[6] || 0)) ? `${t} ${p(m[4])}:${m[5]}:${p(m[6] || 0)}` : t;
+}
+// Metin hücrelerinden oluşan tabloyu sütun sütun sayıya / ISO tarihe çevirir.
+function metinSutunlariniCevir(satirlar, ondalik) {
+  const n = Math.max(0, ...satirlar.map(r => r.length));
+  for (let j = 0; j < n; j++) {
+    const dolu = satirlar.map(r => r[j]).filter(v => v !== null && v !== undefined).map(v => String(v).trim()).filter(Boolean);
+    if (!dolu.length) continue;
+    const onSifir = dolu.some(v => /^[-+]?0\d/.test(v) && !/^[-+]?0[.,]/.test(v));
+    const sayilar = onSifir ? null : dolu.map(v => sayiCevir(v, ondalik));
+    if (sayilar && sayilar.every(x => x !== null && isFinite(x))) {
+      for (const r of satirlar) { const v = r[j] == null ? '' : String(r[j]).trim(); r[j] = v === '' ? null : sayiCevir(v, ondalik); }
+      continue;
+    }
+    // Tarih: gg.aa.yyyy / gg/aa/yyyy (ilk sayı 12'den büyükse kesin gün; ikinci sayı 12'den büyükse ABD biçimi aa/gg)
+    const parca = dolu.map(v => v.match(/^(\d{1,2})[./-](\d{1,2})[./-]\d{4}/)).filter(Boolean);
+    const gunOnce = !parca.some(m => +m[2] > 12) || parca.some(m => +m[1] > 12);
+    const tarihler = dolu.map(v => tarihCevir(v, gunOnce));
+    if (tarihler.every(Boolean) && parca.length) {
+      for (const r of satirlar) { const v = r[j] == null ? '' : String(r[j]).trim(); r[j] = v === '' ? null : tarihCevir(v, gunOnce); }
+      continue;
+    }
+    for (const r of satirlar) if (typeof r[j] === 'string') r[j] = r[j].trim() === '' ? null : r[j].trim();
+  }
+  return satirlar;
+}
+let sonYuklenenDosya = null;
+async function dosyaYukle(f, secenek = {}) {
   const d = $('#yukDurum');
   d.innerHTML = '<div class="yukleniyor">Dosya okunuyor…</div>';
   await bekle(16);
   try {
-    if (!window.XLSX) await scriptYukle('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
-    const buf = await f.arrayBuffer();
-    const wb = XLSX.read(buf, { type: 'array', cellDates: true });
-    const tablolar = {}; const uyarilar = [];
+    sonYuklenenDosya = f;
+    const metinMi = /\.(csv|tsv|txt)$/i.test(f.name) || /^text\//.test(f.type || '');
+    const sayfalar = [];
+    const tablolar = {}; const uyarilar = []; let okuma = null;
+    if (metinMi) {
+      const { metin, kodlama } = metinCoz(await f.arrayBuffer());
+      const ayirici = ayiriciBul(metin);
+      const ham = csvAyristir(metin, ayirici);
+      if (ham.length < 2) throw new Error('Dosyada okunabilir bir tablo bulunamadı. İlk satırın sütun adları olduğundan emin ol.');
+      const sayiGibi = ham.slice(1).flat().map(v => v.trim()).filter(v => /^[-+]?[\d.,]*\d$/.test(v) && /[.,]/.test(v));
+      const ondalik = secenek.ondalik || ondalikTahmin(sayiGibi, ayirici);
+      metinSutunlariniCevir(ham.slice(1), ondalik);
+      sayfalar.push({ ad: f.name.replace(/\.[^.]+$/, ''), ham });
+      okuma = { kodlama, ayirici, ondalik, onemli: sayiGibi.length > 0 };
+    } else {
+      if (!window.XLSX) await scriptYukle('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+      const wb = XLSX.read(await f.arrayBuffer(), { type: 'array', cellDates: true });
+      for (const sn of wb.SheetNames) {
+        const ham = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: true, defval: null, blankrows: false });
+        sayfalar.push({ ad: sn, ham });
+      }
+    }
     const pad = n => String(n).padStart(2, '0');
     const tarihYaz = v => { const s = `${v.getFullYear()}-${pad(v.getMonth() + 1)}-${pad(v.getDate())}`; return (v.getHours() || v.getMinutes() || v.getSeconds()) ? `${s} ${pad(v.getHours())}:${pad(v.getMinutes())}:${pad(v.getSeconds())}` : s; };
-    for (const sn of wb.SheetNames) {
-      const ham = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: true, defval: null, blankrows: false });
+    for (const { ad: sn, ham } of sayfalar) {
       if (!ham.length || !ham[0] || !ham[0].some(x => x !== null && x !== '')) continue;
       let baslik = ham[0].map((h, i) => adTemizle(h, `sutun_${i + 1}`));
       const gor = {}; baslik = baslik.map(h => { if (gor[h]) { gor[h]++; return `${h}_${gor[h]}`; } gor[h] = 1; return h; });
@@ -1265,22 +1442,30 @@ async function dosyaYukle(f) {
       if (satirlar.length > 100000) { uyarilar.push(`${sn}: ilk 100.000 satır alındı (toplam ${satirlar.length}).`); satirlar = satirlar.slice(0, 100000); }
       const tipler = baslik.map((_, i) => { const dolu = satirlar.map(r => r[i]).filter(v => v !== null); if (!dolu.length) return 'TEXT'; if (dolu.every(v => typeof v === 'number')) return dolu.every(Number.isInteger) ? 'INTEGER' : 'REAL'; return 'TEXT'; });
       satirlar = satirlar.map(r => r.map((v, i) => tipler[i] === 'TEXT' && v !== null ? String(v) : v));
-      let tad = adTemizle(wb.SheetNames.length === 1 && /\.csv$/i.test(f.name) ? f.name.replace(/\.[^.]+$/, '') : sn, 'tablo');
+      let tad = adTemizle(metinMi || sayfalar.length === 1 && /\.csv$/i.test(f.name) ? f.name.replace(/\.[^.]+$/, '') : sn, 'tablo');
       while (tablolar[tad]) tad += '_2';
       tablolar[tad] = { columns: baslik, types: tipler, rows: satirlar };
     }
     if (!Object.keys(tablolar).length) throw new Error('Dosyada okunabilir bir tablo bulunamadı. İlk satırın sütun adları olduğundan emin ol.');
     VS.yuklenen = { ad: f.name.replace(/\.[^.]+$/, ''), tablolar, sorular: [], meta: metaHesapla(tablolar) };
-    delete dbCache.yuklenen; Object.keys(beklenenCache).filter(k => k.startsWith('yuklenen:')).forEach(k => delete beklenenCache[k]);
+    delete gonderilen.yuklenen; Object.keys(beklenenCache).filter(k => k.startsWith('yuklenen:')).forEach(k => delete beklenenCache[k]);
     if (pyYukluVS === 'yuklenen') pyYukluVS = null;
     S.aktifId.yuklenen = null;
     S.gecmis = S.gecmis.filter(g => g.vs !== 'yuklenen');
-    await sqlHazir; dbAl('yuklenen');
+    await sqlHazirla(); await veriGonder('yuklenen'); await motor('dbHazirla', ['yuklenen']);
     S.veriSeti = 'yuklenen';
     S.serbestKod = varsayilanKod('yuklenen');
     await yukleneniKaydet();
     yenidenCiz();
-    if (uyarilar.length) $('#yukDurum').innerHTML = `<div class="bilgi">${uyarilar.map(esc).join('<br>')}</div>`;
+    const dd = $('#yukDurum');
+    if (dd && (uyarilar.length || okuma)) {
+      const AY = { ',': 'virgül', ';': 'noktalı virgül', '\t': 'sekme', '|': 'dik çizgi' };
+      const OND = { virgul: 'virgül (3,5 · 1.250,50)', nokta: 'nokta (3.5 · 1,250.50)' };
+      const satir = okuma ? `Dosya ${okuma.kodlama} kodlamasıyla, sütunlar <b>${AY[okuma.ayirici]}</b> ile ayrılmış olarak okundu.` +
+        (okuma.onemli ? ` Sayılarda ondalık ayırıcı <b>${OND[okuma.ondalik]}</b> kabul edildi. <button class="btn kucuk-btn" id="ondalikDegistir">${okuma.ondalik === 'virgul' ? 'Nokta' : 'Virgül'} olarak yeniden oku</button>` : '') : '';
+      dd.innerHTML = `<div class="bilgi">${[satir, ...uyarilar.map(esc)].filter(Boolean).join('<br>')}</div>`;
+      const od = $('#ondalikDegistir'); if (od) od.onclick = () => dosyaYukle(f, { ondalik: okuma.ondalik === 'virgul' ? 'nokta' : 'virgul' });
+    }
   } catch (e) { d.innerHTML = `<div class="hata-kutu">Dosya okunamadı: ${esc(e.message || e)}</div>`; }
 }
 function veriOzetiPrompt(tablolar) {
@@ -1307,6 +1492,7 @@ KURALLAR:
 - Toplam ${adet} soru üret, ${dilMetni}. Kolaydan zora sırala: yaklaşık üçte biri seviye 1 (temel SELECT/filtre/sıralama), üçte biri seviye 2 (GROUP BY, JOIN, CASE, tarih), üçte biri seviye 3 (window function, CTE, alt sorgu; pandas'ta merge, pivot_table, transform, rank).
 - SQL çözümleri SQLite lehçesinde olmalı (tarih için strftime/julianday, QUALIFY yok). Tablo ve sütun adlarını aynen kullan.
 - Python çözümlerinde her tablo aynı isimde bir pandas DataFrame olarak hazır; pd ve np import edilmiş. YYYY-MM-DD formatındaki tarih sütunları datetime tipinde gelir. Sonuç mutlaka \`sonuc\` değişkenine atanmalı.
+- Python sorularında SADECE pandas ve NumPy kullan (ve Python'un kendi yerleşik özellikleri). scipy, sklearn, statsmodels, matplotlib, seaborn gibi başka kütüphaneleri import etme; tarayıcıdaki ortamda yoklar. Arka planda scipy isteyen pandas yöntemlerini de kullanma (ör. corr(method="spearman"/"kendall") yerine a.rank().corr(b.rank()), interpolate(method="spline") gibi).
 - Her soru gerçek bir iş sorusu gibi olsun, verinin anlamına uygun olsun.
 - Soru metninde beklenen sütun adlarını <code>...</code> ile belirt, yuvarlama gerekiyorsa söyle (örn. 2 ondalık).
 - Sonuç boş olmamalı, deterministik olmalı. Sıralama önemliyse sirali=true yap ve eşitliği bozacak ikinci bir sıralama kriteri ekle.
@@ -1488,5 +1674,5 @@ function sozlukHTML(K) {
   yukleneniGeriYukle();
   if (iletisimIstendi) setTimeout(iletisimAc, 300);
   yenidenCiz();
-  sqlHazir.then(() => { if (!SQLlib) { $('#ana').insertAdjacentHTML('afterbegin', '<div class="hata-kutu">SQL motoru yüklenemedi. Sayfayı yenilemeyi dene.</div>'); } });
+  sqlHazirla().catch(e => { $('#ana').insertAdjacentHTML('afterbegin', hataHTML(e)); });
 })();

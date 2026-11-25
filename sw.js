@@ -1,8 +1,8 @@
 // SorguLab service worker: dosyaları cihaza kaydeder, sonra internetsiz çalışır.
 // Her dosya içeriğinin özetiyle (hash) saklanır: yeni sürümde sadece DEĞİŞEN dosyalar iner (Python motoru tekrar inmez).
-const SURUM = 'sa-a7619d9bce';
+const SURUM = 'sa-2a154e777a';
 const DOSYALAR = {
- "index.html": "5389b9cff1",
+ "index.html": "4afa5ebd48",
  "manifest.webmanifest": "2eb9d20212",
  "apple-touch-icon.png": "a597da367f",
  "bricolage-grotesque-latin-600-normal.woff2": "b34fc8c1ef",
@@ -24,6 +24,7 @@ const DOSYALAR = {
  "jetbrains-mono-latin-ext-400-normal.woff2": "505dfba8ec",
  "jetbrains-mono-latin-ext-500-normal.woff2": "879df9319f",
  "konular.json": "99c59d721e",
+ "motor.js": "29a5db3967",
  "paket-numpy.wasm": "41c1f62e8b",
  "paket-pandas.wasm": "8705e2e378",
  "paket-python_dateutil.wasm": "cd2f76132e",
@@ -34,7 +35,8 @@ const DOSYALAR = {
  "pyodide.asm.wasm": "b7e66a1942",
  "pyodide.js": "c006910762",
  "python_stdlib.wasm": "72894522b7",
- "sql-asm.js": "be591a3c6b",
+ "sql-wasm.js": "558a72c3ab",
+ "sql-wasm.wasm": "d7e61b8285",
  "veri-flo.json": "def3e023c4",
  "veri-hr.json": "e7bd21d63f",
  "veri-northwind.json": "14c4818147",
