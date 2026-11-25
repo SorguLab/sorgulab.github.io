@@ -133,7 +133,7 @@ blockquote.odev { margin: 2px 0 10px; padding: 8px 12px; border-left: 3px solid 
 .soru-satir .no { font: 500 12px var(--f-kod); color: var(--soluk); text-align: center; font-variant-numeric: tabular-nums; }
 .soru-satir .ad { font-size: 14px; line-height: 1.3; display: grid; }
 .soru-satir .kat { font-size: 12px; color: var(--soluk); }
-.tik { color: var(--iyi); font-weight: 700; } .tik.bakarak { opacity: .45; cursor: help; } .soluk-not { color: var(--soluk); font-weight: 400; } .carpi { color: var(--kotu); font-weight: 700; }
+.tik { color: var(--iyi); font-weight: 700; } .tik.bakarak { color: var(--soluk); font-weight: 800; cursor: help; } .soluk-not { color: var(--soluk); font-weight: 400; } .carpi { color: var(--kotu); font-weight: 700; }
 .sev { font-size: 11.5px; font-weight: 600; padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
 .sev-1 { color: var(--iyi); background: var(--iyi-acik); } .sev-2 { color: var(--uyari); background: color-mix(in srgb, var(--uyari) 14%, transparent); } .sev-3 { color: var(--kotu); background: var(--kotu-acik); }
 .bos-not { padding: 10px; }
@@ -673,18 +673,19 @@ var Motor = (function () {
     }
     return pyTip;
   }
-  async function pyCalistir(key, kod) {
+  async function pyCalistir(key, kod, kalici) {
     var tip = await pyVeri(key);
     var t0 = performance.now();
     var f = py.globals.get('_calistir');
     var out;
-    try { out = JSON.parse(f(kod)); } finally { f.destroy(); }
+    try { out = JSON.parse(f(kod, !!kalici)); } finally { f.destroy(); }
     out.ms = Math.round(performance.now() - t0);
     out.tipler = tip;
     return out;
   }
 
-  var api = { veriVer: veriVer, sqlBaslat: sqlBaslat, sql: sql, dbHazirla: dbHazirla, sifirla: sifirla, pyBaslat: pyBaslat, pyVeri: pyVeri, py: pyCalistir,
+  async function pySifirla() { if (pyP) { await pyP; py.runPython('_serbest_sifirla()'); } return true; }
+  var api = { pySifirla: pySifirla, veriVer: veriVer, sqlBaslat: sqlBaslat, sql: sql, dbHazirla: dbHazirla, sifirla: sifirla, pyBaslat: pyBaslat, pyVeri: pyVeri, py: pyCalistir,
     ilerlemeAyarla: function (f) { ilerleme = f; } };
 
   if (isci) {
@@ -2128,8 +2129,8 @@ const VERI_KATALOG = [
 {"key": "flo", "ad": "FLO Müşteri", "etiket": "Hazır veri", "aciklama": "Ayakkabı perakendecisi FLO'nun 2020-2021'de hem online hem mağazadan (OmniChannel) alışveriş yapmış 19.945 müşterisi. Her satır bir müşteri: ilk/son alışveriş tarihleri, kanal, online ve offline sipariş sayısı ve harcama, son 12 aydaki ilgi alanı kategorileri. RFM segmentasyonu, tarih farkları ve metin içinde arama alıştırmaları için ideal.", "varsayilan": {"sql": "SELECT master_id, order_channel, last_order_date,\n       order_num_total_ever_online, order_num_total_ever_offline,\n       customer_value_total_ever_online, customer_value_total_ever_offline,\n       interested_in_categories_12\nFROM flo\nLIMIT 20;", "python": "# DataFrame hazır: flo (tarih sütunları datetime)\nflo.head(10)"}, "ornekler": {"sql": [["İlk 20 müşteri", "SELECT * FROM flo LIMIT 20;"], ["Kanallar", "SELECT order_channel, COUNT(*) AS musteri\nFROM flo\nGROUP BY order_channel;"], ["Tarih aralığı", "SELECT MIN(first_order_date), MAX(last_order_date) FROM flo;"]], "python": [["İlk 10 müşteri", "flo.head(10)"], ["Veri tipleri", "flo.dtypes"], ["Özet", "flo.describe().T"]]}, "ilk_soru": "fl01", "dosya": "veri-flo.json", "meta": {"flo": {"columns": ["master_id", "order_channel", "last_order_channel", "first_order_date", "last_order_date", "last_order_date_online", "last_order_date_offline", "order_num_total_ever_online", "order_num_total_ever_offline", "customer_value_total_ever_offline", "customer_value_total_ever_online", "interested_in_categories_12"], "types": ["TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "INTEGER", "INTEGER", "REAL", "REAL", "TEXT"], "n": 19945}}, "sorular": [].concat(FLO_SORULAR)}
 ];
 const KONU_OZET = [{"id": "sql-baslarken", "grup": "sql", "baslik": "Başlarken", "alistirma": {"dil": "sql", "kategori": "Temel SELECT"}, "dil": "sql"}, {"id": "sql-filtreleme", "grup": "sql", "baslik": "Filtreleme", "alistirma": {"dil": "sql", "kategori": "Filtreleme"}, "dil": "sql"}, {"id": "sql-null", "grup": "sql", "baslik": "NULL ile çalışmak", "alistirma": {"dil": "sql", "kategori": "Eksik Veri"}, "dil": "sql"}, {"id": "sql-siralama", "grup": "sql", "baslik": "Sıralama", "dil": "sql"}, {"id": "sql-gruplama", "grup": "sql", "baslik": "Toplama ve gruplama", "alistirma": {"dil": "sql", "kategori": "Aggregation"}, "dil": "sql"}, {"id": "sql-case-when", "grup": "sql", "baslik": "CASE WHEN", "alistirma": {"dil": "sql", "kategori": "CASE WHEN"}, "dil": "sql"}, {"id": "sql-join", "grup": "sql", "baslik": "JOIN'ler", "alistirma": {"dil": "sql", "kategori": "JOIN"}, "dil": "sql"}, {"id": "sql-alt-sorgu-cte", "grup": "sql", "baslik": "Alt sorgular ve CTE", "alistirma": {"dil": "sql", "kategori": "Subquery / CTE"}, "dil": "sql"}, {"id": "sql-window", "grup": "sql", "baslik": "Window function'lar", "alistirma": {"dil": "sql", "kategori": "Window Functions"}, "dil": "sql"}, {"id": "sql-metin", "grup": "sql", "baslik": "Metin fonksiyonları", "alistirma": {"dil": "sql", "kategori": "Metin"}, "dil": "sql"}, {"id": "sql-tarih", "grup": "sql", "baslik": "Tarih işlemleri", "alistirma": {"dil": "sql", "kategori": "Tarih"}, "dil": "sql"}, {"id": "sql-recursive-cte", "grup": "sql", "baslik": "Recursive CTE", "dil": "sql"}, {"id": "sql-lehce-farklari", "grup": "sql", "baslik": "Lehçe farkları", "dil": "sql"}, {"id": "temel-degiskenler-tipler", "grup": "temel", "baslik": "Değişkenler ve veri tipleri", "dil": "python"}, {"id": "temel-metinler", "grup": "temel", "baslik": "Metinler", "dil": "python"}, {"id": "temel-listeler", "grup": "temel", "baslik": "Listeler", "dil": "python"}, {"id": "temel-dictionary-tuple-set", "grup": "temel", "baslik": "Dictionary, tuple ve set", "dil": "python"}, {"id": "temel-kosullar", "grup": "temel", "baslik": "Koşullar", "dil": "python"}, {"id": "temel-donguler", "grup": "temel", "baslik": "Döngüler", "dil": "python"}, {"id": "temel-fonksiyonlar", "grup": "temel", "baslik": "Fonksiyonlar", "dil": "python"}, {"id": "temel-fonksiyonel-araclar", "grup": "temel", "baslik": "Fonksiyonel araçlar", "dil": "python"}, {"id": "temel-comprehension", "grup": "temel", "baslik": "List comprehension", "dil": "python"}, {"id": "temel-hata-yakalama", "grup": "temel", "baslik": "Hata yakalama", "dil": "python"}, {"id": "pandas-dataframe-giris", "grup": "pandas", "baslik": "DataFrame'e giriş", "alistirma": {"dil": "python", "kategori": "pandas Temelleri"}, "dil": "python"}, {"id": "pandas-filtreleme", "grup": "pandas", "baslik": "Filtreleme ve seçme", "alistirma": {"dil": "python", "kategori": "Filtreleme"}, "dil": "python"}, {"id": "pandas-eksik-veri", "grup": "pandas", "baslik": "Eksik veri", "alistirma": {"dil": "python", "kategori": "Eksik Veri"}, "dil": "python"}, {"id": "pandas-siralama-sayma", "grup": "pandas", "baslik": "Sıralama ve sayma", "dil": "python"}, {"id": "pandas-gruplama", "grup": "pandas", "baslik": "Gruplama", "alistirma": {"dil": "python", "kategori": "Gruplama"}, "dil": "python"}, {"id": "pandas-yeni-sutun", "grup": "pandas", "baslik": "Yeni sütun türetme", "alistirma": {"dil": "python", "kategori": "Dönüşüm"}, "dil": "python"}, {"id": "pandas-birlestirme", "grup": "pandas", "baslik": "Birleştirme", "alistirma": {"dil": "python", "kategori": "Birleştirme"}, "dil": "python"}, {"id": "pandas-pivot", "grup": "pandas", "baslik": "Pivot ve yeniden şekillendirme", "dil": "python"}, {"id": "pandas-metin", "grup": "pandas", "baslik": "Metin işlemleri", "alistirma": {"dil": "python", "kategori": "Metin"}, "dil": "python"}, {"id": "pandas-tarih", "grup": "pandas", "baslik": "Tarih işlemleri", "alistirma": {"dil": "python", "kategori": "Tarih"}, "dil": "python"}, {"id": "pandas-analiz-kaliplari", "grup": "pandas", "baslik": "Analiz kalıpları", "alistirma": {"dil": "python", "kategori": "Segmentasyon"}, "dil": "python"}, {"id": "numpy-diziler", "grup": "numpy", "baslik": "Diziler", "alistirma": {"dil": "python", "kategori": "NumPy"}, "dil": "python"}, {"id": "numpy-indeksleme", "grup": "numpy", "baslik": "İndeksleme", "dil": "python"}, {"id": "numpy-istatistik", "grup": "numpy", "baslik": "İstatistik fonksiyonları", "dil": "python"}, {"id": "numpy-kosullu-islemler", "grup": "numpy", "baslik": "Koşullu işlemler", "dil": "python"}, {"id": "numpy-broadcasting", "grup": "numpy", "baslik": "Broadcasting", "dil": "python"}, {"id": "kavram-veri-modeli", "grup": "kavram", "baslik": "Veri modeli", "dil": "genel"}, {"id": "kavram-performans", "grup": "kavram", "baslik": "Performans", "dil": "genel"}, {"id": "kavram-analitik-dunya", "grup": "kavram", "baslik": "Analitik dünya", "dil": "genel"}, {"id": "kavram-istatistik-temelleri", "grup": "kavram", "baslik": "İstatistik temelleri", "dil": "genel"}];
-const HELPER_PY = "import warnings\nwarnings.filterwarnings(\"ignore\", category=DeprecationWarning)\nimport pandas as pd, numpy as np, json, io, sys, ast, traceback, re, datetime\n\n_BASE = {}\n_TARIH = re.compile(r'^\\d{4}-\\d{2}-\\d{2}([ T]\\d{2}:\\d{2}(:\\d{2})?)?$')\n\ndef _yukle(js):\n    _BASE.clear()\n    veri = json.loads(js)\n    for ad, t in veri.items():\n        df = pd.DataFrame(t['rows'], columns=t['columns'])\n        for c in df.columns:\n            if df[c].dtype == object or pd.api.types.is_string_dtype(df[c]):\n                dolu = df[c].dropna()\n                if len(dolu) and dolu.map(lambda v: isinstance(v, str) and bool(_TARIH.match(v))).all():\n                    df[c] = pd.to_datetime(df[c], errors='coerce')\n        _BASE[ad] = df\n    return json.dumps({a: [[c, str(d)] for c, d in df.dtypes.items()] for a, df in _BASE.items()})\n\ndef _deger(v):\n    if v is None:\n        return None\n    if isinstance(v, (pd.Timestamp, datetime.datetime)):\n        if pd.isna(v):\n            return None\n        return v.strftime('%Y-%m-%d') if (v.hour, v.minute, v.second) == (0, 0, 0) else v.strftime('%Y-%m-%d %H:%M:%S')\n    if isinstance(v, datetime.date):\n        return v.isoformat()\n    if isinstance(v, pd.Timedelta):\n        return None if pd.isna(v) else str(v)\n    if isinstance(v, (pd.Period, pd.Interval)):\n        return str(v)\n    if isinstance(v, (np.bool_, bool)):\n        return bool(v)\n    if isinstance(v, np.integer):\n        return int(v)\n    if isinstance(v, (np.floating, float)):\n        return None if np.isnan(v) else float(v)\n    if isinstance(v, (int, str)):\n        return v\n    try:\n        if pd.isna(v):\n            return None\n    except Exception:\n        pass\n    return str(v)\n\ndef _tablo(obj, limit=5000):\n    tur = type(obj).__name__\n    if obj is None:\n        return None\n    if isinstance(obj, pd.Series):\n        ad = obj.name if obj.name is not None else 'deger'\n        df = obj.to_frame(name=ad)\n        isimsiz_sayi = obj.index.name is None and not isinstance(obj.index, pd.MultiIndex) and pd.api.types.is_integer_dtype(obj.index)\n        if isimsiz_sayi:\n            df = df.reset_index(drop=True)\n        else:\n            if ad in [n for n in df.index.names if n is not None]:\n                df.columns = [str(ad) + '_deger']\n            df = df.reset_index()\n    elif isinstance(obj, pd.DataFrame):\n        df = obj\n        if isinstance(df.index, pd.MultiIndex) or df.index.name is not None:\n            df = df.reset_index()\n        elif not isinstance(df.index, pd.RangeIndex) and not pd.api.types.is_integer_dtype(df.index):\n            df = df.reset_index()\n        else:\n            df = df.reset_index(drop=True)\n    elif isinstance(obj, np.ndarray) and obj.ndim == 2:\n        df = pd.DataFrame(obj, columns=[f'sutun_{i+1}' for i in range(obj.shape[1])])\n    elif isinstance(obj, tuple) and len(obj) > 0 and all(isinstance(x, np.ndarray) and x.ndim == 1 for x in obj) and len({len(x) for x in obj}) == 1:\n        df = pd.DataFrame({f'deger_{i+1}': list(x) for i, x in enumerate(obj)})\n    elif isinstance(obj, (tuple, list)) and all(not isinstance(x, (list, tuple, dict, pd.Series, pd.DataFrame, np.ndarray)) for x in obj):\n        if isinstance(obj, tuple):\n            df = pd.DataFrame([list(obj)], columns=[f'deger_{i+1}' for i in range(len(obj))])\n        else:\n            df = pd.DataFrame({'deger': list(obj)})\n    elif isinstance(obj, dict):\n        df = pd.DataFrame({'anahtar': list(obj.keys()), 'deger': [str(v) if isinstance(v, (list, dict)) else v for v in obj.values()]})\n    elif isinstance(obj, (pd.Index, np.ndarray)):\n        df = pd.DataFrame({'deger': list(np.asarray(obj).ravel())})\n    elif np.isscalar(obj) or isinstance(obj, (pd.Timestamp, pd.Timedelta)):\n        df = pd.DataFrame({'deger': [obj]})\n    else:\n        return {'columns': ['deger'], 'rows': [[repr(obj)[:2000]]], 'total': 1, 'tur': tur}\n    if isinstance(df.columns, pd.MultiIndex):\n        df = df.copy()\n        df.columns = ['_'.join(str(x) for x in c if str(x) != '') for c in df.columns]\n    cols = [str(c) for c in df.columns]\n    rows = [[_deger(v) for v in r] for r in df.head(limit).itertuples(index=False, name=None)]\n    return {'columns': cols, 'rows': rows, 'total': int(len(df)), 'tur': tur}\n\ndef _calistir(kod):\n    ns = {'pd': pd, 'np': np}\n    for k, v in _BASE.items():\n        ns[k] = v.copy()\n    buf = io.StringIO()\n    eski = sys.stdout\n    sys.stdout = buf\n    try:\n        agac = ast.parse(kod)\n        son = None\n        if agac.body and isinstance(agac.body[-1], ast.Expr):\n            ifade = ast.Expression(agac.body.pop().value)\n            exec(compile(agac, '<kod>', 'exec'), ns)\n            son = eval(compile(ifade, '<kod>', 'eval'), ns)\n        else:\n            exec(compile(agac, '<kod>', 'exec'), ns)\n        deger = ns['sonuc'] if 'sonuc' in ns else son\n        return json.dumps({'ok': True, 'stdout': buf.getvalue()[-20000:], 'table': _tablo(deger), 'sonucVar': 'sonuc' in ns})\n    except Exception as e:\n        satir = ''\n        tb = traceback.extract_tb(sys.exc_info()[2])\n        for f in tb:\n            if f.filename == '<kod>':\n                satir = f' (sat\u0131r {f.lineno})'\n        if isinstance(e, SyntaxError):\n            satir = f' (sat\u0131r {e.lineno})'\n        return json.dumps({'ok': False, 'stdout': buf.getvalue()[-20000:], 'error': f'{type(e).__name__}: {e}{satir}'})\n    finally:\n        sys.stdout = eski\n";
-const MOTOR_KOD = "// SorguLab motoru: SQL (sql.js) ve Python (Pyodide).\n// Normalde ayr\u0131 bir arka plan i\u015f par\u00e7ac\u0131\u011f\u0131nda (Web Worker) \u00e7al\u0131\u015f\u0131r: sonsuz d\u00f6ng\u00fc sayfay\u0131 dondurmaz, Durdur ile kesilebilir.\n// Worker kurulamazsa ayn\u0131 kod sayfan\u0131n i\u00e7inde (eski y\u00f6ntem) \u00e7al\u0131\u015f\u0131r. Her iki durumda da tek kaynak bu dosyad\u0131r.\nvar Motor = (function () {\n  var isci = typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope;\n  var G = isci ? self : window;\n  var ilerleme = function () { };\n\n  function scriptAl(url) {\n    if (isci) return new Promise(function (ok, red) { try { importScripts(url); ok(); } catch (e) { red(new Error(url + ' y\u00fcklenemedi')); } });\n    return new Promise(function (ok, red) {\n      var s = document.createElement('script'); s.src = url; s.onload = ok;\n      s.onerror = function () { s.remove(); red(new Error(url + ' y\u00fcklenemedi')); };\n      document.head.appendChild(s);\n    });\n  }\n  function sureli(p, ms, ad) {\n    var t;\n    return Promise.race([p, new Promise(function (_, red) { t = setTimeout(function () { red(new Error(ad + ' ' + Math.round(ms / 1000) + ' saniyede y\u00fcklenemedi')); }, ms); })])\n      .finally(function () { clearTimeout(t); });\n  }\n\n  // \u2500\u2500\u2500 Veri \u2500\u2500\u2500\n  var veri = {};      // anahtar -> { tablolar, bytes, oyun }\n  var pyAnahtar = null, pyTip = {};\n  function veriVer(key, tablolar) {\n    var v = veri[key];\n    if (v && v.tablolar === tablolar) return true;\n    if (v && v.oyun) { try { v.oyun.close(); } catch (e) { } }\n    veri[key] = { tablolar: tablolar, bytes: null, oyun: null };\n    if (pyAnahtar === key) pyAnahtar = null;\n    return true;\n  }\n\n  // \u2500\u2500\u2500 SQL \u2500\u2500\u2500\n  var SQL = null, sqlP = null;\n  function sqlBaslat(kaynaklar) {\n    if (!sqlP) sqlP = (async function () {\n      var son = null;\n      for (var i = 0; i < kaynaklar.length; i++) {\n        var k = kaynaklar[i];\n        try {\n          if (!G.initSqlJs) await sureli(scriptAl(k.js), 30000, 'SQL motoru');\n          SQL = await sureli(G.initSqlJs(k.wasm ? { locateFile: function () { return k.wasm; } } : {}), 30000, 'SQL motoru');\n          return true;\n        } catch (e) { son = e; SQL = null; try { delete G.initSqlJs; } catch (x) { G.initSqlJs = undefined; } }\n      }\n      throw son || new Error('SQL motoru y\u00fcklenemedi');\n    })().catch(function (e) { sqlP = null; throw e; });\n    return sqlP;\n  }\n  function olustur(tablolar) {\n    var db = new SQL.Database();\n    Object.keys(tablolar).forEach(function (ad) {\n      var t = tablolar[ad];\n      db.run('CREATE TABLE \"' + ad + '\" (' + t.columns.map(function (c, i) { return '\"' + c + '\" ' + (t.types[i] || ''); }).join(', ') + ')');\n      var st = db.prepare('INSERT INTO \"' + ad + '\" VALUES (' + t.columns.map(function () { return '?'; }).join(',') + ')');\n      db.run('BEGIN');\n      for (var r = 0; r < t.rows.length; r++) st.run(t.rows[r]);\n      db.run('COMMIT');\n      st.free();\n    });\n    return db;\n  }\n  function dbAl(key) {\n    var v = veri[key];\n    if (!v) throw new Error('Veri y\u00fcklenmedi: ' + key);\n    if (!v.bytes) { var db = olustur(v.tablolar); v.bytes = db.export(); v.oyun = db; }\n    return v;\n  }\n  function exec(db, kod) {\n    var t0 = performance.now();\n    try {\n      var r = db.exec(kod);\n      var ms = Math.round(performance.now() - t0);\n      var son = r[r.length - 1];\n      if (!son) return { ok: true, table: null, ms: ms, mesaj: 'Sorgu \u00e7al\u0131\u015ft\u0131, sonu\u00e7 tablosu d\u00f6nmedi (' + db.getRowsModified() + ' sat\u0131r etkilendi).' };\n      return { ok: true, table: { columns: son.columns, rows: son.values, total: son.values.length }, ms: ms };\n    } catch (e) { return { ok: false, error: e.message, ms: Math.round(performance.now() - t0) }; }\n  }\n  async function sql(key, kod, temiz) {\n    await sqlP;\n    var v = dbAl(key);\n    if (temiz) { var db = new SQL.Database(v.bytes); try { return exec(db, kod); } finally { db.close(); } }\n    return exec(v.oyun, kod);\n  }\n  async function dbHazirla(key) { await sqlP; dbAl(key); return true; }\n  function sifirla(key) {\n    var v = veri[key];\n    if (v && v.bytes) { try { v.oyun.close(); } catch (e) { } v.oyun = new SQL.Database(v.bytes); }\n    return true;\n  }\n\n  // \u2500\u2500\u2500 Python \u2500\u2500\u2500\n  var py = null, pyP = null;\n  function pyBaslat(kaynaklar, paketler, helper) {\n    if (!pyP) pyP = (async function () {\n      var son = null;\n      for (var i = 0; i < kaynaklar.length; i++) {\n        var kok = kaynaklar[i];\n        try {\n          ilerleme('Python motoru indiriliyor (1/3)\u2026');\n          if (!G.loadPyodide) await sureli(scriptAl(kok + 'pyodide.js'), 45000, 'Python motoru');\n          ilerleme('Python motoru ba\u015flat\u0131l\u0131yor (2/3)\u2026');\n          var yerel = i === 0 && kaynaklar.length > 0 && kok.indexOf('cdn.jsdelivr') < 0;\n          py = await sureli(G.loadPyodide(yerel ? { indexURL: kok, stdLibURL: kok + 'python_stdlib.wasm' } : { indexURL: kok }), 120000, 'Python motoru');\n          ilerleme('pandas ve NumPy y\u00fckleniyor (3/3)\u2026');\n          if (yerel) {\n            var site = py.runPython('import site; site.getsitepackages()[0]');\n            for (var j = 0; j < paketler.length; j++) {\n              var ad = paketler[j];\n              var buf = await sureli(fetch(kok + 'paket-' + ad + '.wasm').then(function (r) { if (!r.ok) throw new Error(ad + ' paketi indirilemedi (' + r.status + ')'); return r.arrayBuffer(); }), 90000, ad);\n              await py.unpackArchive(buf, 'wheel', { extractDir: site });\n            }\n            py.runPython('import importlib; importlib.invalidate_caches()');\n          } else await sureli(py.loadPackage(['pandas']), 150000, 'pandas');\n          py.runPython(helper);\n          pyAnahtar = null;\n          ilerleme('Python haz\u0131r');\n          return true;\n        } catch (e) {\n          son = e; py = null;\n          try { delete G.loadPyodide; } catch (x) { G.loadPyodide = undefined; }\n        }\n      }\n      throw son || new Error('bilinmeyen hata');\n    })().catch(function (e) { pyP = null; throw e; });\n    return pyP;\n  }\n  async function pyVeri(key) {\n    await pyP;\n    if (pyAnahtar !== key) {\n      var f = py.globals.get('_yukle');\n      try { pyTip = JSON.parse(f(JSON.stringify(veri[key].tablolar))); } finally { f.destroy(); }\n      pyAnahtar = key;\n    }\n    return pyTip;\n  }\n  async function pyCalistir(key, kod) {\n    var tip = await pyVeri(key);\n    var t0 = performance.now();\n    var f = py.globals.get('_calistir');\n    var out;\n    try { out = JSON.parse(f(kod)); } finally { f.destroy(); }\n    out.ms = Math.round(performance.now() - t0);\n    out.tipler = tip;\n    return out;\n  }\n\n  var api = { veriVer: veriVer, sqlBaslat: sqlBaslat, sql: sql, dbHazirla: dbHazirla, sifirla: sifirla, pyBaslat: pyBaslat, pyVeri: pyVeri, py: pyCalistir,\n    ilerlemeAyarla: function (f) { ilerleme = f; } };\n\n  if (isci) {\n    ilerleme = function (t) { self.postMessage({ asama: t }); };\n    self.onmessage = async function (e) {\n      var m = e.data;\n      self.postMessage({ id: m.id, basladi: true });\n      try { var r = await api[m.fn].apply(null, m.args || []); self.postMessage({ id: m.id, ok: true, r: r }); }\n      catch (x) { self.postMessage({ id: m.id, ok: false, hata: (x && x.message) || String(x) }); }\n    };\n    self.postMessage({ merhaba: true });\n  }\n  return api;\n})();\n";
+const HELPER_PY = "import warnings\nwarnings.filterwarnings(\"ignore\", category=DeprecationWarning)\nimport pandas as pd, numpy as np, json, io, sys, ast, traceback, re, datetime\n\n_BASE = {}\n_SERBEST = None   # Serbest Alan'\u0131n kal\u0131c\u0131 \u00e7al\u0131\u015fma alan\u0131 (de\u011fi\u015fkenler \u00e7al\u0131\u015ft\u0131rmalar aras\u0131nda saklan\u0131r)\n_TARIH = re.compile(r'^\\d{4}-\\d{2}-\\d{2}([ T]\\d{2}:\\d{2}(:\\d{2})?)?$')\n\ndef _serbest_sifirla():\n    global _SERBEST\n    _SERBEST = None\n\ndef _yukle(js):\n    _serbest_sifirla()\n    _BASE.clear()\n    veri = json.loads(js)\n    for ad, t in veri.items():\n        df = pd.DataFrame(t['rows'], columns=t['columns'])\n        for c in df.columns:\n            if df[c].dtype == object or pd.api.types.is_string_dtype(df[c]):\n                dolu = df[c].dropna()\n                if len(dolu) and dolu.map(lambda v: isinstance(v, str) and bool(_TARIH.match(v))).all():\n                    df[c] = pd.to_datetime(df[c], errors='coerce')\n        _BASE[ad] = df\n    return json.dumps({a: [[c, str(d)] for c, d in df.dtypes.items()] for a, df in _BASE.items()})\n\ndef _deger(v):\n    if v is None:\n        return None\n    if isinstance(v, (pd.Timestamp, datetime.datetime)):\n        if pd.isna(v):\n            return None\n        return v.strftime('%Y-%m-%d') if (v.hour, v.minute, v.second) == (0, 0, 0) else v.strftime('%Y-%m-%d %H:%M:%S')\n    if isinstance(v, datetime.date):\n        return v.isoformat()\n    if isinstance(v, pd.Timedelta):\n        return None if pd.isna(v) else str(v)\n    if isinstance(v, (pd.Period, pd.Interval)):\n        return str(v)\n    if isinstance(v, (np.bool_, bool)):\n        return bool(v)\n    if isinstance(v, np.integer):\n        return int(v)\n    if isinstance(v, (np.floating, float)):\n        return None if np.isnan(v) else float(v)\n    if isinstance(v, (int, str)):\n        return v\n    try:\n        if pd.isna(v):\n            return None\n    except Exception:\n        pass\n    return str(v)\n\ndef _tablo(obj, limit=5000):\n    tur = type(obj).__name__\n    if obj is None:\n        return None\n    if isinstance(obj, pd.Series):\n        ad = obj.name if obj.name is not None else 'deger'\n        df = obj.to_frame(name=ad)\n        isimsiz_sayi = obj.index.name is None and not isinstance(obj.index, pd.MultiIndex) and pd.api.types.is_integer_dtype(obj.index)\n        if isimsiz_sayi:\n            df = df.reset_index(drop=True)\n        else:\n            if ad in [n for n in df.index.names if n is not None]:\n                df.columns = [str(ad) + '_deger']\n            df = df.reset_index()\n    elif isinstance(obj, pd.DataFrame):\n        df = obj\n        if isinstance(df.index, pd.MultiIndex) or df.index.name is not None:\n            df = df.reset_index()\n        elif not isinstance(df.index, pd.RangeIndex) and not pd.api.types.is_integer_dtype(df.index):\n            df = df.reset_index()\n        else:\n            df = df.reset_index(drop=True)\n    elif isinstance(obj, np.ndarray) and obj.ndim == 2:\n        df = pd.DataFrame(obj, columns=[f'sutun_{i+1}' for i in range(obj.shape[1])])\n    elif isinstance(obj, tuple) and len(obj) > 0 and all(isinstance(x, np.ndarray) and x.ndim == 1 for x in obj) and len({len(x) for x in obj}) == 1:\n        df = pd.DataFrame({f'deger_{i+1}': list(x) for i, x in enumerate(obj)})\n    elif isinstance(obj, list) and obj and all(isinstance(x, dict) for x in obj):\n        df = pd.DataFrame(obj)\n    elif isinstance(obj, (list, tuple)) and obj and all(isinstance(x, (list, tuple)) for x in obj) and len({len(x) for x in obj}) == 1 and all(not isinstance(y, (list, tuple, dict)) for x in obj for y in x):\n        df = pd.DataFrame([list(x) for x in obj], columns=[f'sutun_{i+1}' for i in range(len(obj[0]))])\n    elif isinstance(obj, (tuple, list)) and all(not isinstance(x, (list, tuple, dict, pd.Series, pd.DataFrame, np.ndarray)) for x in obj):\n        if isinstance(obj, tuple):\n            df = pd.DataFrame([list(obj)], columns=[f'deger_{i+1}' for i in range(len(obj))])\n        else:\n            df = pd.DataFrame({'deger': list(obj)})\n    elif isinstance(obj, dict):\n        df = pd.DataFrame({'anahtar': list(obj.keys()), 'deger': [str(v) if isinstance(v, (list, dict)) else v for v in obj.values()]})\n    elif isinstance(obj, (pd.Index, np.ndarray)):\n        df = pd.DataFrame({'deger': list(np.asarray(obj).ravel())})\n    elif np.isscalar(obj) or isinstance(obj, (pd.Timestamp, pd.Timedelta)):\n        df = pd.DataFrame({'deger': [obj]})\n    else:\n        return {'columns': ['deger'], 'rows': [[repr(obj)[:2000]]], 'total': 1, 'tur': tur}\n    if isinstance(df.columns, pd.MultiIndex):\n        df = df.copy()\n        df.columns = ['_'.join(str(x) for x in c if str(x) != '') for c in df.columns]\n    cols = [str(c) for c in df.columns]\n    rows = [[_deger(v) for v in r] for r in df.head(limit).itertuples(index=False, name=None)]\n    # S\u00fctun t\u00fcrleri (f: ondal\u0131kl\u0131, i/u: tam say\u0131, b: mant\u0131ksal, M: tarih, O: metin/kar\u0131\u015f\u0131k): ekranda NaN / None / NaT ve 3.0 gibi pandas'taki gibi g\u00f6stermek i\u00e7in\n    turler = [d.kind for d in df.dtypes]\n    return {'columns': cols, 'rows': rows, 'total': int(len(df)), 'tur': tur, 'turler': turler}\n\ndef _calistir(kod, kalici=False):\n    global _SERBEST\n    if kalici:\n        if _SERBEST is None:\n            _SERBEST = {'pd': pd, 'np': np}\n            for k, v in _BASE.items():\n                _SERBEST[k] = v.copy()\n        ns = _SERBEST\n    else:\n        ns = {'pd': pd, 'np': np}\n        for k, v in _BASE.items():\n            ns[k] = v.copy()\n    buf = io.StringIO()\n    eski = sys.stdout\n    sys.stdout = buf\n    try:\n        agac = ast.parse(kod)\n        # Kal\u0131c\u0131 alanda \u00f6nceki \u00e7al\u0131\u015ft\u0131rmadan kalan sonuc tekrar g\u00f6sterilmesin: sadece bu kodda atan\u0131yorsa kullan\n        atiyor = any(isinstance(n, ast.Name) and n.id == 'sonuc' and isinstance(n.ctx, ast.Store) for n in ast.walk(agac))\n        son = None\n        if agac.body and isinstance(agac.body[-1], ast.Expr):\n            ifade = ast.Expression(agac.body.pop().value)\n            exec(compile(agac, '<kod>', 'exec'), ns)\n            son = eval(compile(ifade, '<kod>', 'eval'), ns)\n        else:\n            exec(compile(agac, '<kod>', 'exec'), ns)\n        sonuc_yeni = 'sonuc' in ns and (atiyor or not kalici)\n        deger = ns['sonuc'] if sonuc_yeni else son\n        if isinstance(deger, np.ndarray) and deger.ndim > 2:\n            print(f'{deger.ndim} boyutlu dizi (shape={deger.shape}) tablo olarak g\u00f6sterilemez, oldu\u011fu gibi yazd\u0131r\u0131ld\u0131:')\n            print(np.array2string(deger))\n            deger = None\n        return json.dumps({'ok': True, 'stdout': buf.getvalue()[-20000:], 'table': _tablo(deger), 'sonucVar': sonuc_yeni})\n    except Exception as e:\n        satir = ''\n        tb = traceback.extract_tb(sys.exc_info()[2])\n        for f in tb:\n            if f.filename == '<kod>':\n                satir = f' (sat\u0131r {f.lineno})'\n        if isinstance(e, SyntaxError):\n            satir = f' (sat\u0131r {e.lineno})'\n        return json.dumps({'ok': False, 'stdout': buf.getvalue()[-20000:], 'error': f'{type(e).__name__}: {e}{satir}'})\n    finally:\n        sys.stdout = eski\n";
+const MOTOR_KOD = "// SorguLab motoru: SQL (sql.js) ve Python (Pyodide).\n// Normalde ayr\u0131 bir arka plan i\u015f par\u00e7ac\u0131\u011f\u0131nda (Web Worker) \u00e7al\u0131\u015f\u0131r: sonsuz d\u00f6ng\u00fc sayfay\u0131 dondurmaz, Durdur ile kesilebilir.\n// Worker kurulamazsa ayn\u0131 kod sayfan\u0131n i\u00e7inde (eski y\u00f6ntem) \u00e7al\u0131\u015f\u0131r. Her iki durumda da tek kaynak bu dosyad\u0131r.\nvar Motor = (function () {\n  var isci = typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope;\n  var G = isci ? self : window;\n  var ilerleme = function () { };\n\n  function scriptAl(url) {\n    if (isci) return new Promise(function (ok, red) { try { importScripts(url); ok(); } catch (e) { red(new Error(url + ' y\u00fcklenemedi')); } });\n    return new Promise(function (ok, red) {\n      var s = document.createElement('script'); s.src = url; s.onload = ok;\n      s.onerror = function () { s.remove(); red(new Error(url + ' y\u00fcklenemedi')); };\n      document.head.appendChild(s);\n    });\n  }\n  function sureli(p, ms, ad) {\n    var t;\n    return Promise.race([p, new Promise(function (_, red) { t = setTimeout(function () { red(new Error(ad + ' ' + Math.round(ms / 1000) + ' saniyede y\u00fcklenemedi')); }, ms); })])\n      .finally(function () { clearTimeout(t); });\n  }\n\n  // \u2500\u2500\u2500 Veri \u2500\u2500\u2500\n  var veri = {};      // anahtar -> { tablolar, bytes, oyun }\n  var pyAnahtar = null, pyTip = {};\n  function veriVer(key, tablolar) {\n    var v = veri[key];\n    if (v && v.tablolar === tablolar) return true;\n    if (v && v.oyun) { try { v.oyun.close(); } catch (e) { } }\n    veri[key] = { tablolar: tablolar, bytes: null, oyun: null };\n    if (pyAnahtar === key) pyAnahtar = null;\n    return true;\n  }\n\n  // \u2500\u2500\u2500 SQL \u2500\u2500\u2500\n  var SQL = null, sqlP = null;\n  function sqlBaslat(kaynaklar) {\n    if (!sqlP) sqlP = (async function () {\n      var son = null;\n      for (var i = 0; i < kaynaklar.length; i++) {\n        var k = kaynaklar[i];\n        try {\n          if (!G.initSqlJs) await sureli(scriptAl(k.js), 30000, 'SQL motoru');\n          SQL = await sureli(G.initSqlJs(k.wasm ? { locateFile: function () { return k.wasm; } } : {}), 30000, 'SQL motoru');\n          return true;\n        } catch (e) { son = e; SQL = null; try { delete G.initSqlJs; } catch (x) { G.initSqlJs = undefined; } }\n      }\n      throw son || new Error('SQL motoru y\u00fcklenemedi');\n    })().catch(function (e) { sqlP = null; throw e; });\n    return sqlP;\n  }\n  function olustur(tablolar) {\n    var db = new SQL.Database();\n    Object.keys(tablolar).forEach(function (ad) {\n      var t = tablolar[ad];\n      db.run('CREATE TABLE \"' + ad + '\" (' + t.columns.map(function (c, i) { return '\"' + c + '\" ' + (t.types[i] || ''); }).join(', ') + ')');\n      var st = db.prepare('INSERT INTO \"' + ad + '\" VALUES (' + t.columns.map(function () { return '?'; }).join(',') + ')');\n      db.run('BEGIN');\n      for (var r = 0; r < t.rows.length; r++) st.run(t.rows[r]);\n      db.run('COMMIT');\n      st.free();\n    });\n    return db;\n  }\n  function dbAl(key) {\n    var v = veri[key];\n    if (!v) throw new Error('Veri y\u00fcklenmedi: ' + key);\n    if (!v.bytes) { var db = olustur(v.tablolar); v.bytes = db.export(); v.oyun = db; }\n    return v;\n  }\n  function exec(db, kod) {\n    var t0 = performance.now();\n    try {\n      var r = db.exec(kod);\n      var ms = Math.round(performance.now() - t0);\n      var son = r[r.length - 1];\n      if (!son) return { ok: true, table: null, ms: ms, mesaj: 'Sorgu \u00e7al\u0131\u015ft\u0131, sonu\u00e7 tablosu d\u00f6nmedi (' + db.getRowsModified() + ' sat\u0131r etkilendi).' };\n      return { ok: true, table: { columns: son.columns, rows: son.values, total: son.values.length }, ms: ms };\n    } catch (e) { return { ok: false, error: e.message, ms: Math.round(performance.now() - t0) }; }\n  }\n  async function sql(key, kod, temiz) {\n    await sqlP;\n    var v = dbAl(key);\n    if (temiz) { var db = new SQL.Database(v.bytes); try { return exec(db, kod); } finally { db.close(); } }\n    return exec(v.oyun, kod);\n  }\n  async function dbHazirla(key) { await sqlP; dbAl(key); return true; }\n  function sifirla(key) {\n    var v = veri[key];\n    if (v && v.bytes) { try { v.oyun.close(); } catch (e) { } v.oyun = new SQL.Database(v.bytes); }\n    return true;\n  }\n\n  // \u2500\u2500\u2500 Python \u2500\u2500\u2500\n  var py = null, pyP = null;\n  function pyBaslat(kaynaklar, paketler, helper) {\n    if (!pyP) pyP = (async function () {\n      var son = null;\n      for (var i = 0; i < kaynaklar.length; i++) {\n        var kok = kaynaklar[i];\n        try {\n          ilerleme('Python motoru indiriliyor (1/3)\u2026');\n          if (!G.loadPyodide) await sureli(scriptAl(kok + 'pyodide.js'), 45000, 'Python motoru');\n          ilerleme('Python motoru ba\u015flat\u0131l\u0131yor (2/3)\u2026');\n          var yerel = i === 0 && kaynaklar.length > 0 && kok.indexOf('cdn.jsdelivr') < 0;\n          py = await sureli(G.loadPyodide(yerel ? { indexURL: kok, stdLibURL: kok + 'python_stdlib.wasm' } : { indexURL: kok }), 120000, 'Python motoru');\n          ilerleme('pandas ve NumPy y\u00fckleniyor (3/3)\u2026');\n          if (yerel) {\n            var site = py.runPython('import site; site.getsitepackages()[0]');\n            for (var j = 0; j < paketler.length; j++) {\n              var ad = paketler[j];\n              var buf = await sureli(fetch(kok + 'paket-' + ad + '.wasm').then(function (r) { if (!r.ok) throw new Error(ad + ' paketi indirilemedi (' + r.status + ')'); return r.arrayBuffer(); }), 90000, ad);\n              await py.unpackArchive(buf, 'wheel', { extractDir: site });\n            }\n            py.runPython('import importlib; importlib.invalidate_caches()');\n          } else await sureli(py.loadPackage(['pandas']), 150000, 'pandas');\n          py.runPython(helper);\n          pyAnahtar = null;\n          ilerleme('Python haz\u0131r');\n          return true;\n        } catch (e) {\n          son = e; py = null;\n          try { delete G.loadPyodide; } catch (x) { G.loadPyodide = undefined; }\n        }\n      }\n      throw son || new Error('bilinmeyen hata');\n    })().catch(function (e) { pyP = null; throw e; });\n    return pyP;\n  }\n  async function pyVeri(key) {\n    await pyP;\n    if (pyAnahtar !== key) {\n      var f = py.globals.get('_yukle');\n      try { pyTip = JSON.parse(f(JSON.stringify(veri[key].tablolar))); } finally { f.destroy(); }\n      pyAnahtar = key;\n    }\n    return pyTip;\n  }\n  async function pyCalistir(key, kod, kalici) {\n    var tip = await pyVeri(key);\n    var t0 = performance.now();\n    var f = py.globals.get('_calistir');\n    var out;\n    try { out = JSON.parse(f(kod, !!kalici)); } finally { f.destroy(); }\n    out.ms = Math.round(performance.now() - t0);\n    out.tipler = tip;\n    return out;\n  }\n\n  async function pySifirla() { if (pyP) { await pyP; py.runPython('_serbest_sifirla()'); } return true; }\n  var api = { pySifirla: pySifirla, veriVer: veriVer, sqlBaslat: sqlBaslat, sql: sql, dbHazirla: dbHazirla, sifirla: sifirla, pyBaslat: pyBaslat, pyVeri: pyVeri, py: pyCalistir,\n    ilerlemeAyarla: function (f) { ilerleme = f; } };\n\n  if (isci) {\n    ilerleme = function (t) { self.postMessage({ asama: t }); };\n    self.onmessage = async function (e) {\n      var m = e.data;\n      self.postMessage({ id: m.id, basladi: true });\n      try { var r = await api[m.fn].apply(null, m.args || []); self.postMessage({ id: m.id, ok: true, r: r }); }\n      catch (x) { self.postMessage({ id: m.id, ok: false, hata: (x && x.message) || String(x) }); }\n    };\n    self.postMessage({ merhaba: true });\n  }\n  return api;\n})();\n";
 // ═══════════════ SorguLab ═══════════════
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -2146,9 +2147,9 @@ const bekle = ms => new Promise(r => setTimeout(r, ms));
 const DEPO_KEY = 'sorgu-atolyesi-v1';
 let depo = { cozuldu: {}, bakarak: {}, tahmin: {}, taslak: {} };
 try { const d = JSON.parse(localStorage.getItem(DEPO_KEY)); if (d) depo = Object.assign(depo, d); } catch (e) { }
-// Çözülen soru işareti: kendi çözdüysen ✓, cevaba bakıp çözdüysen soluk ✓ (üzerine gelince açıklama).
+// Çözülen soru işareti: kendi çözdüysen ✓, cevaba bakıp çözdüysen – (üzerine gelince açıklama).
 const bakildi = {};   // bu oturumda cevabına bakılan sorular
-const tikHTML = id => depo.bakarak[id] ? '<span class="tik bakarak" title="Cevaba bakarak çözüldü" aria-label="cevaba bakarak çözüldü">✓</span>' : '<span class="tik" aria-label="çözüldü">✓</span>';
+const tikHTML = id => depo.bakarak[id] ? '<span class="tik bakarak" title="Cevaba bakarak çözüldü" aria-label="cevaba bakarak çözüldü">–</span>' : '<span class="tik" aria-label="çözüldü">✓</span>';
 function kaydet() { try { localStorage.setItem(DEPO_KEY, JSON.stringify(depo)); } catch (e) { } }
 
 // ─── Veri setleri ───
@@ -2722,8 +2723,8 @@ function motorDurdur(neden, sure) {
   if (motorKip !== 'isci' || !isci) return;
   isci.terminate(); isci = null; motorKip = null; gonderilen = {};
   const m = neden === 'sure'
-    ? `Kod ${Math.round(sure / 1000)} saniyede bitmedi ve durduruldu. Sonsuz döngü ya da çok ağır bir işlem olabilir mi?`
-    : 'Çalıştırma durduruldu.';
+    ? `Kod ${Math.round(sure / 1000)} saniyede bitmedi ve durduruldu. Sonsuz döngü ya da çok ağır bir işlem olabilir mi? (Serbest Alan'daki Python değişkenlerin de sıfırlandı.)`
+    : 'Çalıştırma durduruldu. (Serbest Alan\'daki Python değişkenlerin de sıfırlandı.)';
   for (const [, b] of isBekleyen) { clearTimeout(b.zaman); const e = new Error(m); e.durduruldu = true; b.red(e); }
   isBekleyen.clear();
   // Motor yeniden kurulacak: SQL hızlı açılır, Python ortamı bir sonraki çalıştırmada yeniden hazırlanır.
@@ -2796,7 +2797,8 @@ async function calistir(dil, kod, temiz = false) {
     return r;
   }
   await pyHazirla(); await veriGonder(key);
-  const out = await motor('py', [key, kod], SURE.python);
+  // temiz=false sadece Serbest Alan'da: değişkenler çalıştırmalar arasında saklanır
+  const out = await motor('py', [key, kod, !temiz], SURE.python);
   pyTipler = out.tipler || pyTipler; pyYukluVS = key; delete out.tipler;
   if (out.ok && !out.table && !out.stdout) out.mesaj = 'Kod çalıştı ama gösterilecek bir sonuç yok. Sonucu sonuc değişkenine ata ya da son satıra ifadeyi yaz.';
   return out;
@@ -2869,9 +2871,17 @@ function renklendir(kod, dil) {
   return out;
 }
 const kodBlok = (kod, dil) => `<pre class="kod-blok"><code>${renklendir(kod, dil)}</code></pre>`;
-function hucre(v) {
-  if (v === null || v === undefined) return '<td class="null">NULL</td>';
-  if (typeof v === 'number') { const s = Number.isInteger(v) ? String(v) : String(+v.toFixed(4)); return `<td class="say">${s}</td>`; }
+// tur: Python sonuçlarında sütunun pandas türü (f, i, b, M, O…). Verilirse boş değerler ve ondalıklar pandas'taki gibi yazılır.
+function hucre(v, tur) {
+  if (v === null || v === undefined) {
+    if (!tur) return '<td class="null">NULL</td>';
+    return `<td class="null">${tur === 'f' || tur === 'c' ? 'NaN' : tur === 'M' || tur === 'm' ? 'NaT' : 'None'}</td>`;
+  }
+  if (typeof v === 'number') {
+    let s = Number.isInteger(v) ? String(v) : String(+v.toFixed(4));
+    if (tur === 'f' && Number.isInteger(v) && Math.abs(v) < 1e16) s += '.0';
+    return `<td class="say">${s}</td>`;
+  }
   if (typeof v === 'boolean') return `<td>${v ? 'True' : 'False'}</td>`;
   if (v === '') return '<td class="null">(boş)</td>';
   return `<td>${esc(v)}</td>`;
@@ -2879,7 +2889,7 @@ function hucre(v) {
 function tabloHTML(t, max = 200) {
   if (!t || !t.columns) return '';
   const satir = t.rows.slice(0, max);
-  return `<div class="tablo-kap"><table class="sonuc"><thead><tr>${t.columns.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${satir.map(r => `<tr>${r.map(hucre).join('')}</tr>`).join('')}</tbody></table></div>
+  return `<div class="tablo-kap"><table class="sonuc"><thead><tr>${t.columns.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${satir.map(r => `<tr>${r.map((v, j) => hucre(v, t.turler && t.turler[j])).join('')}</tr>`).join('')}</tbody></table></div>
   <div class="tablo-alt">${t.total ?? t.rows.length} satır × ${t.columns.length} sütun${(t.total ?? t.rows.length) > max ? ` · ilk ${max} satır gösteriliyor` : ''}</div>`;
 }
 // Dosya indirme: claude.ai içinde 'downloads' yeteneğiyle (izleyiciye onay sorulur), başka yerde normal indirme.
@@ -3162,7 +3172,57 @@ function ustCiz() {
   const ai = $('#aiBtn'); if (ai) { ai.textContent = 'Yapay zekâ: ' + aiDurumMetni(); ai.dataset.durum = aiTur() ? 'hazir' : 'yok'; }
 }
 $('#vsSec').addEventListener('change', e => { veriSetiDegistir(e.target.value); });
-function veriSetiDegistir(k) { S.veriSeti = k; S.mulakat = null; S.filtre.kategori = ''; S.filtre.kaynak = ''; S.serbestKod = varsayilanKod(k); veriHazirla(k).catch(() => { }); yenidenCiz(); }
+// ─── Onay penceresi (tarayıcının confirm'ü bazı ortamlarda engellenir) ───
+function onayIste(baslik, metin, evet = 'Evet', hayir = 'Vazgeç') {
+  return new Promise(ok => {
+    let d = $('#onayDialog');
+    if (!d) { d = document.createElement('dialog'); d.id = 'onayDialog'; d.className = 'ai-dialog onay'; document.body.appendChild(d); }
+    d.innerHTML = `<div class="yedek-ic"><h2>${esc(baslik)}</h2><p class="tg-metin">${metin}</p>
+      <div class="yedek-dugmeler" style="justify-content:flex-end"><button class="btn" id="onayHayir" type="button">${esc(hayir)}</button><button class="btn birincil" id="onayEvet" type="button">${esc(evet)}</button></div></div>`;
+    let sonuc = false;
+    $('#onayEvet', d).onclick = () => { sonuc = true; d.close(); };
+    $('#onayHayir', d).onclick = () => d.close();
+    d.onclose = () => ok(sonuc);
+    if (d.showModal) d.showModal(); else d.setAttribute('open', '');
+    setTimeout(() => $('#onayHayir', d).focus(), 20);
+  });
+}
+// Devam eden kod mülakatı varken veri seti değişecekse önce sor. true: geçilebilir.
+async function mulakatBirakilsinMi(k) {
+  if (k === S.veriSeti || !S.mulakat || S.mulakat.durum !== 'devam') return true;
+  const M = S.mulakat, kalan = Math.max(0, M.bitis - Date.now());
+  const ok = await onayIste('Mülakat devam ediyor', `<b>${esc(VS[S.veriSeti].ad)}</b> verisiyle başladığın kod mülakatı sürüyor (${M.sorular.length} soru, kalan süre ${sureYaz(kalan)}). Veri setini değiştirirsen mülakat yarıda biter ve kaydedilmez.`, 'Mülakatı bırak, veri setini değiştir', 'Mülakata devam et');
+  if (ok) { S.mulakat = null; clearInterval(sayacInterval); sayacInterval = null; }
+  return ok;
+}
+async function veriSetiDegistir(k) {
+  if (!(await mulakatBirakilsinMi(k))) { const sel = $('#vsSec'); if (sel) sel.value = S.veriSeti; return false; }
+  S.veriSeti = k; S.mulakat = null; S.filtre.kategori = ''; S.filtre.kaynak = ''; S.serbestKod = varsayilanKod(k); veriHazirla(k).catch(() => { }); yenidenCiz();
+  return true;
+}
+// ─── Mülakat kaydı: sayfa yenilense ya da kapanıp açılsa da yarım mülakat kaybolmasın ───
+const MULAKAT_KEY = 'sorgulab-mulakat';
+function mulakatKaydet() {
+  try {
+    const M = S.mulakat, T = S.teorik;
+    if (!M && !T) { localStorage.removeItem(MULAKAT_KEY); return; }
+    localStorage.setItem(MULAKAT_KEY, JSON.stringify({ veriSeti: M ? M.veriSeti : null, mulakat: M ? { ...M, sorular: M.sorular.map(q => q.id) } : null, teorik: T || null }));
+  } catch (e) { }
+}
+setInterval(mulakatKaydet, 2000);
+window.addEventListener('pagehide', mulakatKaydet);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') mulakatKaydet(); });
+function mulakatGeriYukle(sadeceYuklenen) {
+  let k; try { k = JSON.parse(localStorage.getItem(MULAKAT_KEY) || 'null'); } catch (e) { return; }
+  if (!k) return;
+  if (k.teorik && !sadeceYuklenen && !S.teorik) S.teorik = k.teorik;
+  const m = k.mulakat;
+  if (!m || S.mulakat || !VS[k.veriSeti] || (k.veriSeti === 'yuklenen') !== !!sadeceYuklenen) return;
+  const sorular = m.sorular.map(id => VS[k.veriSeti].sorular.find(q => q.id === id));
+  if (sorular.some(q => !q)) return;
+  S.veriSeti = k.veriSeti; S.serbestKod = varsayilanKod(k.veriSeti); veriHazirla(k.veriSeti).catch(() => { });
+  S.mulakat = { ...m, sorular };
+}
 $$('.nav-btn').forEach(b => b.addEventListener('click', () => git(b.dataset.view)));
 $('#aiBtn').addEventListener('click', aiPanelAc);
 
@@ -3505,7 +3565,7 @@ function mulakatCiz() {
     for (const l of plan) { const c = karistir(havuz.filter(q => q.seviye === l && !kul.has(q.id)))[0] || karistir(havuz.filter(q => !kul.has(q.id)))[0]; if (c) { secilen.push(c); kul.add(c.id); } }
     secilen.sort((a, b) => a.seviye - b.seviye);
     if (secilen.some(q => q.dil === 'python')) pyHazirla().catch(() => { });
-    S.mulakat = { durum: 'devam', sorular: secilen, i: 0, sonuc: {}, kod: {}, bitis: Date.now() + dk * 60000, baslangic: Date.now(), dk };
+    S.mulakat = { durum: 'devam', veriSeti: S.veriSeti, sorular: secilen, i: 0, sonuc: {}, kod: {}, bitis: Date.now() + dk * 60000, baslangic: Date.now(), dk };
     mulakatCiz();
   };
   $('#teoForm').onsubmit = e => {
@@ -3667,7 +3727,7 @@ function serbestCiz() {
       </div>
       <div class="editor-alan"><div id="ed"></div>
         <div class="arac-cubugu"><button class="btn birincil" id="sCalistir">Çalıştır <kbd>Ctrl</kbd><kbd>Enter</kbd></button>
-        ${d === 'sql' ? '<button class="btn hafif" id="sSifirla" title="CREATE/UPDATE/DELETE ile yaptığın değişiklikleri geri alır">Veriyi sıfırla</button>' : '<span class="kucuk">Her çalıştırmada tablolar orijinal haliyle gelir. Değişken saklamak için hepsini aynı hücrede yaz.</span>'}</div></div>
+        ${d === 'sql' ? '<button class="btn hafif" id="sSifirla" title="CREATE/UPDATE/DELETE ile yaptığın değişiklikleri geri alır">Veriyi sıfırla</button>' : '<button class="btn hafif" id="sSifirla" title="Tanımladığın değişkenleri siler, tabloları orijinal haline döndürür">Sıfırla</button><span class="kucuk">Değişkenlerin ve tablolarda yaptığın değişiklikler sonraki çalıştırmalarda da durur.</span>'}</div></div>
       <div class="cikti" id="cikti"><div class="cikti-bos">Serbest alan: istediğin sorguyu yaz, sonucu gör. Burada kontrol yok, sadece keşif.</div></div>
       ${gecmisBu.length ? `<div class="gecmis"><div class="ek-baslik">Son çalıştırdıkların</div><ul>${gecmisBu.slice(0, 8).map(g => `<li><button class="gecmis-btn" data-g="${S.gecmis.indexOf(g)}"><code>${esc(g.kod.replace(/\s+/g, ' ').slice(0, 90))}</code></button></li>`).join('')}</ul></div>` : ''}
     </section>
@@ -3684,7 +3744,10 @@ function serbestCiz() {
     } catch (e) { c.innerHTML = hataHTML(e); }
   }
   $('#sCalistir').onclick = run;
-  const sf = $('#sSifirla'); if (sf) sf.onclick = async () => { await sqlHazirla(); await motor('sifirla', [S.veriSeti]); $('#cikti').innerHTML = '<div class="bilgi">Veri orijinal haline döndü.</div>'; };
+  const sf = $('#sSifirla'); if (sf) sf.onclick = async () => {
+    if (d === 'sql') { await sqlHazirla(); await motor('sifirla', [S.veriSeti]); $('#cikti').innerHTML = '<div class="bilgi">Veri orijinal haline döndü.</div>'; }
+    else { if (pyHazirP) { await pyHazirla(); await motor('pySifirla', []); } $('#cikti').innerHTML = '<div class="bilgi">Python sıfırlandı: değişkenler silindi, tablolar orijinal haline döndü.</div>'; }
+  };
   $$('.seg-btn', ana).forEach(b => b.onclick = () => { S.serbestDil = b.dataset.dil; if (b.dataset.dil === 'python') pyHazirla().catch(() => { }); serbestCiz(); });
   $$('.chip[data-o]', ana).forEach(b => b.onclick = () => { ed.set(ornek[+b.dataset.o][1]); run(); });
   $$('.gecmis-btn', ana).forEach(b => b.onclick = () => { ed.set(S.gecmis[+b.dataset.g].kod); ed.odak(); });
@@ -3708,6 +3771,7 @@ function veriCiz() {
         <p>${Y ? `${Object.keys(Y.tablolar).length} tablo yüklendi. Her sayfa ayrı bir tablo oldu.${Y.kayitli ? ' Veri bu cihazda kayıtlı: sayfayı yenilesen ya da uygulamayı kapatıp açsan da burada olacak.' : Y.kayitli === false ? ' Veri bu tarayıcıya kaydedilemedi (gizli sekme ya da yer yetersiz olabilir), sayfayı yenileyince tekrar yüklemen gerekir.' : ''}` : 'Excel\'deki her sayfa ayrı bir tabloya dönüşür. İlk satır sütun adı olarak okunur. Veri sadece bu cihazda, tarayıcının içinde saklanır, hiçbir yere gönderilmez. Sayfayı yenilesen de kalır.'}</p></div>
         <label class="birak" id="birak" tabindex="0"><input type="file" id="dosya" accept=".xlsx,.xls,.csv,.tsv,.txt,.xlsm" hidden>
           <span class="birak-ic"><b>${Y ? 'Başka bir dosya yükle' : 'Dosyayı buraya bırak'}</b><span class="kucuk">ya da tıklayıp seç · .xlsx, .xls, .csv</span></span></label>
+        <p class="kucuk" style="margin:6px 0 0;color:var(--soluk)"><i>* Her sayfanın ilk satırında sütun adları olduğundan emin ol. Başlık satırı yoksa ilk veri satırı sütun adı sanılır.</i></p>
         <div id="yukDurum"></div>
         ${Y ? `<ul class="tablo-ozet">${Object.entries(Y.tablolar).map(([a, t]) => `<li><code>${esc(a)}</code><span>${t.columns.length} sütun · ${t.rows.length} satır</span></li>`).join('')}</ul>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${S.veriSeti === 'yuklenen' ? '<span class="aktif-etiket">Şu an bu veriyle çalışıyorsun</span>' : '<button class="btn" data-vs="yuklenen">Bu veriyle çalış</button>'}<button class="btn hafif" id="veriSil" type="button">Veriyi sil</button></div>
@@ -3718,7 +3782,7 @@ function veriCiz() {
     ${Y ? `<section class="onizleme"><h2>Yüklenen tablolar</h2>${Object.entries(Y.tablolar).map(([a, t], i) => onizlemeHTML(a, t, i === 0)).join('')}</section>` : ''}
   </div>`;
   $$('[data-vs]', ana).forEach(b => b.onclick = () => veriSetiDegistir(b.dataset.vs));
-  const sil = $('#veriSil'); if (sil) sil.onclick = () => { if (confirm('Yüklediğin veri ve ona özel ürettiğin sorular bu cihazdan silinsin mi?')) yukleneniSil(); };
+  const sil = $('#veriSil'); if (sil) sil.onclick = async () => { if (await onayIste('Veriyi sil', 'Yüklediğin veri ve ona özel ürettiğin sorular bu cihazdan silinsin mi?', 'Sil', 'Vazgeç')) yukleneniSil(); };
   const inp = $('#dosya'), bir = $('#birak');
   inp.onchange = () => inp.files[0] && dosyaYukle(inp.files[0]);
   bir.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inp.click(); } });
@@ -3734,7 +3798,7 @@ function onizlemeHTML(ad, t, acik) {
     <summary><code>${esc(ad)}</code><span class="kucuk">${t.rows.length} satır × ${t.columns.length} sütun</span></summary>
     <div class="onizleme-kap" tabindex="0" aria-label="${esc(ad)} tablosu önizlemesi">
       <table class="sonuc"><thead><tr>${t.columns.map((c, i) => `<th>${esc(c)}<span class="th-tip">${esc(t.types[i].toLowerCase())}</span></th>`).join('')}</tr></thead>
-      <tbody>${t.rows.slice(0, n).map(r => `<tr>${r.map(hucre).join('')}</tr>`).join('')}</tbody></table>
+      <tbody>${t.rows.slice(0, n).map(r => `<tr>${r.map(v => hucre(v)).join('')}</tr>`).join('')}</tbody></table>
     </div>
     <div class="tablo-alt">${t.rows.length > n ? `İlk ${n} satır gösteriliyor. Tamamı için Serbest Alan\'da sorgu yazabilirsin.` : 'Tüm satırlar gösteriliyor.'} Tablo kutusunun içinde yana ve aşağı kaydırabilirsin.</div>
   </details>`;
@@ -3920,7 +3984,8 @@ async function dosyaYukle(f, secenek = {}) {
     if (dd && (uyarilar.length || okuma)) {
       const AY = { ',': 'virgül', ';': 'noktalı virgül', '\t': 'sekme', '|': 'dik çizgi' };
       const OND = { virgul: 'virgül (3,5 · 1.250,50)', nokta: 'nokta (3.5 · 1,250.50)' };
-      const satir = okuma ? `Dosya ${okuma.kodlama} kodlamasıyla, sütunlar <b>${AY[okuma.ayirici]}</b> ile ayrılmış olarak okundu.` +
+      const cokSutun = okuma && Object.values(tablolar).some(t => t.columns.length > 1);
+      const satir = okuma ? `Dosya ${okuma.kodlama} kodlamasıyla${cokSutun ? `, sütunlar <b>${AY[okuma.ayirici]}</b> ile ayrılmış olarak` : ''} okundu.` +
         (okuma.onemli ? ` Sayılarda ondalık ayırıcı <b>${OND[okuma.ondalik]}</b> kabul edildi. <button class="btn kucuk-btn" id="ondalikDegistir">${okuma.ondalik === 'virgul' ? 'Nokta' : 'Virgül'} olarak yeniden oku</button>` : '') : '';
       dd.innerHTML = `<div class="bilgi">${[satir, ...uyarilar.map(esc)].filter(Boolean).join('<br>')}</div>`;
       const od = $('#ondalikDegistir'); if (od) od.onclick = () => dosyaYukle(f, { ondalik: okuma.ondalik === 'virgul' ? 'nokta' : 'virgul' });
@@ -4002,7 +4067,7 @@ async function soruUret(dil, adet) {
   const sayim = diller.length > 1 ? ` (${gecen.filter(q => q.dil === 'sql').length} SQL, ${gecen.filter(q => q.dil === 'python').length} Python)` : '';
   if (!gecen.length && hatalar.length) { yaz(`<div class="hata-kutu">${hatalar.map(esc).join('<br>')}</div>`); return; }
   yaz(`<div class="karar ${gecen.length ? 'dogru' : 'yanlis'}"><span class="karar-ikon">${gecen.length ? '✓' : '✕'}</span><div>${gecen.length} soru eklendi${sayim}.${elenen.length ? ` ${elenen.length} tanesinin çözümü veride çalışmadığı için elendi.` : ''}${hatalar.length ? ` Bir kısmı üretilemedi: ${esc(hatalar.join(' · '))}` : ''} ${gecen.length ? '<button class="btn kucuk-btn" data-git="alistirma">Alıştırmalara git</button>' : ''}</div></div>`);
-  $$('[data-git]').forEach(b => b.onclick = () => { if (S.veriSeti !== 'yuklenen') S.veriSeti = 'yuklenen'; S.filtre = { dil: gecen[0] ? gecen[0].dil : 'sql', seviye: 0, kategori: '' }; git(b.dataset.git); });
+  $$('[data-git]').forEach(b => b.onclick = async () => { if (!(await mulakatBirakilsinMi('yuklenen'))) return; if (S.veriSeti !== 'yuklenen') { S.veriSeti = 'yuklenen'; S.mulakat = null; } S.filtre = { dil: gecen[0] ? gecen[0].dil : 'sql', seviye: 0, kategori: '' }; git(b.dataset.git); });
 }
 
 
@@ -4060,7 +4125,7 @@ function konuListeCiz(K, aktif) {
   const kap = $('#konuListe');
   if (ara) {
     const bulunan = K.konular.filter(x => trKucuk(x.ara).includes(ara));
-    kap.innerHTML = bulunan.length ? `<div class="konu-grup-ad">${bulunan.length} sonuç</div>` + bulunan.map(x => `<a class="konu-link" href="#konu/${encodeURIComponent(x.id)}" ${aktif && aktif.id === x.id ? 'aria-current="page"' : ''}><span class="no">${esc(K.gruplar.find(g => g.id === x.grup).ad.slice(0, 3))}</span>${esc(x.baslik)}</a>`).join('') : '<div class="konu-bul">Bu kelimeyle konu bulunamadı.</div>';
+    kap.innerHTML = bulunan.length ? `<div class="konu-grup-ad">${bulunan.length} sonuç</div>` + bulunan.map(x => `<a class="konu-link" href="#konu/${encodeURIComponent(x.id)}" ${aktif && aktif.id === x.id ? 'aria-current="page"' : ''}><span class="no">${(g => g.dil === 'python' ? 'py' : g.dil === 'sql' ? 'SQL' : 'kavram')(K.gruplar.find(g => g.id === x.grup))}</span>${esc(x.baslik)}</a>`).join('') : '<div class="konu-bul">Bu kelimeyle konu bulunamadı.</div>';
     return;
   }
   kap.innerHTML = K.gruplar.filter(g => g.dil === S.konuDil).map(g => {
@@ -4084,9 +4149,17 @@ function konuBlokHTML(b) {
   }
   return `<div class="ornek"><pre class="kod-blok"><code>${renklendir(b.kod, b.dil)}</code></pre>${cikti}</div>`;
 }
+// Konudan alıştırmaya geçişte gidilecek veri seti: şu anki veri setinde o konudan soru varsa o, yoksa sorusu olan ilk hazır veri seti.
+function konuHedefVS(k) {
+  if (!k.alistirma) return null;
+  const { dil, kategori } = k.alistirma;
+  const uygun = key => VS[key] && VS[key].sorular.some(q => q.dil === dil && q.kategori === kategori && !q.kaynak);
+  return uygun(S.veriSeti) ? S.veriSeti : (HAZIR.find(uygun) || null);
+}
+// Düğmede yazan sayı, tıklayınca açılacak veri setindeki soru sayısıdır.
 function konuAlistirmaSay(k) {
-  if (!k.alistirma) return 0;
-  return HAZIR.reduce((n, key) => n + VS[key].sorular.filter(q => q.dil === k.alistirma.dil && q.kategori === k.alistirma.kategori && !q.kaynak).length, 0);
+  const key = konuHedefVS(k); if (!key) return 0;
+  return VS[key].sorular.filter(q => q.dil === k.alistirma.dil && q.kategori === k.alistirma.kategori && !q.kaynak).length;
 }
 function konuYaziHTML(K, k) {
   const sira = K.gruplar.flatMap(g => K.konular.filter(x => x.grup === g.id));
@@ -4098,15 +4171,15 @@ function konuYaziHTML(K, k) {
     ${k.ozet ? `<p class="konu-giris">${esc(k.ozet)}</p>` : ''}
     ${k.bloklar.map(konuBlokHTML).join('')}
     <div class="konu-son">
-      ${n ? `<button class="btn birincil" id="konuAlistirma">Bu konuyla alıştırma yap · ${n} soru →</button>` : ''}
+      ${n ? `<button class="btn birincil" id="konuAlistirma">Bu konuyla alıştırma yap · ${esc(VS[konuHedefVS(k)].ad)} · ${n} soru →</button>` : ''}
       <span class="gezinme-btn">${once ? `<a class="btn" href="#konu/${encodeURIComponent(once.id)}">← ${esc(once.baslik)}</a>` : ''}${sonra ? `<a class="btn" href="#konu/${encodeURIComponent(sonra.id)}">${esc(sonra.baslik)} →</a>` : ''}</span>
     </div>`;
 }
-function konuAlistirmayaGit(k) {
+async function konuAlistirmayaGit(k) {
   const { dil, kategori } = k.alistirma;
-  const uygun = key => VS[key].sorular.some(q => q.dil === dil && q.kategori === kategori && !q.kaynak);
-  const key = uygun(S.veriSeti) ? S.veriSeti : HAZIR.find(uygun);
+  const key = konuHedefVS(k);
   if (!key) return;
+  if (!(await mulakatBirakilsinMi(key))) return;
   if (key !== S.veriSeti) { S.veriSeti = key; S.mulakat = null; S.serbestKod = varsayilanKod(key); veriHazirla(key).catch(() => { }); }
   S.filtre = { dil, seviye: 0, kategori, kaynak: '' };
   const ilk = filtreliSorular()[0]; if (ilk) S.aktifId[key] = ilk.id;
@@ -4129,8 +4202,9 @@ function sozlukHTML(K) {
   const iletisimIstendi = location.hash === '#iletisim';
   if (iletisimIstendi) history.replaceState(null, '', location.pathname + location.search);
   hashOku();
+  mulakatGeriYukle(false);
   veriHazirla(S.veriSeti).catch(() => { });
-  yukleneniGeriYukle();
+  yukleneniGeriYukle().then(() => { if (!S.mulakat && VS.yuklenen) { mulakatGeriYukle(true); if (S.mulakat) yenidenCiz(); } });
   if (iletisimIstendi) setTimeout(iletisimAc, 300);
   else setTimeout(() => tanitimAc(false), 400);
   yenidenCiz();

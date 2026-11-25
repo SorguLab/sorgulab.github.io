@@ -136,18 +136,19 @@ var Motor = (function () {
     }
     return pyTip;
   }
-  async function pyCalistir(key, kod) {
+  async function pyCalistir(key, kod, kalici) {
     var tip = await pyVeri(key);
     var t0 = performance.now();
     var f = py.globals.get('_calistir');
     var out;
-    try { out = JSON.parse(f(kod)); } finally { f.destroy(); }
+    try { out = JSON.parse(f(kod, !!kalici)); } finally { f.destroy(); }
     out.ms = Math.round(performance.now() - t0);
     out.tipler = tip;
     return out;
   }
 
-  var api = { veriVer: veriVer, sqlBaslat: sqlBaslat, sql: sql, dbHazirla: dbHazirla, sifirla: sifirla, pyBaslat: pyBaslat, pyVeri: pyVeri, py: pyCalistir,
+  async function pySifirla() { if (pyP) { await pyP; py.runPython('_serbest_sifirla()'); } return true; }
+  var api = { pySifirla: pySifirla, veriVer: veriVer, sqlBaslat: sqlBaslat, sql: sql, dbHazirla: dbHazirla, sifirla: sifirla, pyBaslat: pyBaslat, pyVeri: pyVeri, py: pyCalistir,
     ilerlemeAyarla: function (f) { ilerleme = f; } };
 
   if (isci) {

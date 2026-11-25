@@ -14,9 +14,9 @@ const bekle = ms => new Promise(r => setTimeout(r, ms));
 const DEPO_KEY = 'sorgu-atolyesi-v1';
 let depo = { cozuldu: {}, bakarak: {}, tahmin: {}, taslak: {} };
 try { const d = JSON.parse(localStorage.getItem(DEPO_KEY)); if (d) depo = Object.assign(depo, d); } catch (e) { }
-// Çözülen soru işareti: kendi çözdüysen ✓, cevaba bakıp çözdüysen soluk ✓ (üzerine gelince açıklama).
+// Çözülen soru işareti: kendi çözdüysen ✓, cevaba bakıp çözdüysen – (üzerine gelince açıklama).
 const bakildi = {};   // bu oturumda cevabına bakılan sorular
-const tikHTML = id => depo.bakarak[id] ? '<span class="tik bakarak" title="Cevaba bakarak çözüldü" aria-label="cevaba bakarak çözüldü">✓</span>' : '<span class="tik" aria-label="çözüldü">✓</span>';
+const tikHTML = id => depo.bakarak[id] ? '<span class="tik bakarak" title="Cevaba bakarak çözüldü" aria-label="cevaba bakarak çözüldü">–</span>' : '<span class="tik" aria-label="çözüldü">✓</span>';
 function kaydet() { try { localStorage.setItem(DEPO_KEY, JSON.stringify(depo)); } catch (e) { } }
 
 // ─── Veri setleri ───
@@ -594,8 +594,8 @@ function motorDurdur(neden, sure) {
   if (motorKip !== 'isci' || !isci) return;
   isci.terminate(); isci = null; motorKip = null; gonderilen = {};
   const m = neden === 'sure'
-    ? `Kod ${Math.round(sure / 1000)} saniyede bitmedi ve durduruldu. Sonsuz döngü ya da çok ağır bir işlem olabilir mi?`
-    : 'Çalıştırma durduruldu.';
+    ? `Kod ${Math.round(sure / 1000)} saniyede bitmedi ve durduruldu. Sonsuz döngü ya da çok ağır bir işlem olabilir mi? (Serbest Alan'daki Python değişkenlerin de sıfırlandı.)`
+    : 'Çalıştırma durduruldu. (Serbest Alan\'daki Python değişkenlerin de sıfırlandı.)';
   for (const [, b] of isBekleyen) { clearTimeout(b.zaman); const e = new Error(m); e.durduruldu = true; b.red(e); }
   isBekleyen.clear();
   // Motor yeniden kurulacak: SQL hızlı açılır, Python ortamı bir sonraki çalıştırmada yeniden hazırlanır.
@@ -668,7 +668,8 @@ async function calistir(dil, kod, temiz = false) {
     return r;
   }
   await pyHazirla(); await veriGonder(key);
-  const out = await motor('py', [key, kod], SURE.python);
+  // temiz=false sadece Serbest Alan'da: değişkenler çalıştırmalar arasında saklanır
+  const out = await motor('py', [key, kod, !temiz], SURE.python);
   pyTipler = out.tipler || pyTipler; pyYukluVS = key; delete out.tipler;
   if (out.ok && !out.table && !out.stdout) out.mesaj = 'Kod çalıştı ama gösterilecek bir sonuç yok. Sonucu sonuc değişkenine ata ya da son satıra ifadeyi yaz.';
   return out;
@@ -741,9 +742,17 @@ function renklendir(kod, dil) {
   return out;
 }
 const kodBlok = (kod, dil) => `<pre class="kod-blok"><code>${renklendir(kod, dil)}</code></pre>`;
-function hucre(v) {
-  if (v === null || v === undefined) return '<td class="null">NULL</td>';
-  if (typeof v === 'number') { const s = Number.isInteger(v) ? String(v) : String(+v.toFixed(4)); return `<td class="say">${s}</td>`; }
+// tur: Python sonuçlarında sütunun pandas türü (f, i, b, M, O…). Verilirse boş değerler ve ondalıklar pandas'taki gibi yazılır.
+function hucre(v, tur) {
+  if (v === null || v === undefined) {
+    if (!tur) return '<td class="null">NULL</td>';
+    return `<td class="null">${tur === 'f' || tur === 'c' ? 'NaN' : tur === 'M' || tur === 'm' ? 'NaT' : 'None'}</td>`;
+  }
+  if (typeof v === 'number') {
+    let s = Number.isInteger(v) ? String(v) : String(+v.toFixed(4));
+    if (tur === 'f' && Number.isInteger(v) && Math.abs(v) < 1e16) s += '.0';
+    return `<td class="say">${s}</td>`;
+  }
   if (typeof v === 'boolean') return `<td>${v ? 'True' : 'False'}</td>`;
   if (v === '') return '<td class="null">(boş)</td>';
   return `<td>${esc(v)}</td>`;
@@ -751,7 +760,7 @@ function hucre(v) {
 function tabloHTML(t, max = 200) {
   if (!t || !t.columns) return '';
   const satir = t.rows.slice(0, max);
-  return `<div class="tablo-kap"><table class="sonuc"><thead><tr>${t.columns.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${satir.map(r => `<tr>${r.map(hucre).join('')}</tr>`).join('')}</tbody></table></div>
+  return `<div class="tablo-kap"><table class="sonuc"><thead><tr>${t.columns.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${satir.map(r => `<tr>${r.map((v, j) => hucre(v, t.turler && t.turler[j])).join('')}</tr>`).join('')}</tbody></table></div>
   <div class="tablo-alt">${t.total ?? t.rows.length} satır × ${t.columns.length} sütun${(t.total ?? t.rows.length) > max ? ` · ilk ${max} satır gösteriliyor` : ''}</div>`;
 }
 // Dosya indirme: claude.ai içinde 'downloads' yeteneğiyle (izleyiciye onay sorulur), başka yerde normal indirme.
@@ -1034,7 +1043,57 @@ function ustCiz() {
   const ai = $('#aiBtn'); if (ai) { ai.textContent = 'Yapay zekâ: ' + aiDurumMetni(); ai.dataset.durum = aiTur() ? 'hazir' : 'yok'; }
 }
 $('#vsSec').addEventListener('change', e => { veriSetiDegistir(e.target.value); });
-function veriSetiDegistir(k) { S.veriSeti = k; S.mulakat = null; S.filtre.kategori = ''; S.filtre.kaynak = ''; S.serbestKod = varsayilanKod(k); veriHazirla(k).catch(() => { }); yenidenCiz(); }
+// ─── Onay penceresi (tarayıcının confirm'ü bazı ortamlarda engellenir) ───
+function onayIste(baslik, metin, evet = 'Evet', hayir = 'Vazgeç') {
+  return new Promise(ok => {
+    let d = $('#onayDialog');
+    if (!d) { d = document.createElement('dialog'); d.id = 'onayDialog'; d.className = 'ai-dialog onay'; document.body.appendChild(d); }
+    d.innerHTML = `<div class="yedek-ic"><h2>${esc(baslik)}</h2><p class="tg-metin">${metin}</p>
+      <div class="yedek-dugmeler" style="justify-content:flex-end"><button class="btn" id="onayHayir" type="button">${esc(hayir)}</button><button class="btn birincil" id="onayEvet" type="button">${esc(evet)}</button></div></div>`;
+    let sonuc = false;
+    $('#onayEvet', d).onclick = () => { sonuc = true; d.close(); };
+    $('#onayHayir', d).onclick = () => d.close();
+    d.onclose = () => ok(sonuc);
+    if (d.showModal) d.showModal(); else d.setAttribute('open', '');
+    setTimeout(() => $('#onayHayir', d).focus(), 20);
+  });
+}
+// Devam eden kod mülakatı varken veri seti değişecekse önce sor. true: geçilebilir.
+async function mulakatBirakilsinMi(k) {
+  if (k === S.veriSeti || !S.mulakat || S.mulakat.durum !== 'devam') return true;
+  const M = S.mulakat, kalan = Math.max(0, M.bitis - Date.now());
+  const ok = await onayIste('Mülakat devam ediyor', `<b>${esc(VS[S.veriSeti].ad)}</b> verisiyle başladığın kod mülakatı sürüyor (${M.sorular.length} soru, kalan süre ${sureYaz(kalan)}). Veri setini değiştirirsen mülakat yarıda biter ve kaydedilmez.`, 'Mülakatı bırak, veri setini değiştir', 'Mülakata devam et');
+  if (ok) { S.mulakat = null; clearInterval(sayacInterval); sayacInterval = null; }
+  return ok;
+}
+async function veriSetiDegistir(k) {
+  if (!(await mulakatBirakilsinMi(k))) { const sel = $('#vsSec'); if (sel) sel.value = S.veriSeti; return false; }
+  S.veriSeti = k; S.mulakat = null; S.filtre.kategori = ''; S.filtre.kaynak = ''; S.serbestKod = varsayilanKod(k); veriHazirla(k).catch(() => { }); yenidenCiz();
+  return true;
+}
+// ─── Mülakat kaydı: sayfa yenilense ya da kapanıp açılsa da yarım mülakat kaybolmasın ───
+const MULAKAT_KEY = 'sorgulab-mulakat';
+function mulakatKaydet() {
+  try {
+    const M = S.mulakat, T = S.teorik;
+    if (!M && !T) { localStorage.removeItem(MULAKAT_KEY); return; }
+    localStorage.setItem(MULAKAT_KEY, JSON.stringify({ veriSeti: M ? M.veriSeti : null, mulakat: M ? { ...M, sorular: M.sorular.map(q => q.id) } : null, teorik: T || null }));
+  } catch (e) { }
+}
+setInterval(mulakatKaydet, 2000);
+window.addEventListener('pagehide', mulakatKaydet);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') mulakatKaydet(); });
+function mulakatGeriYukle(sadeceYuklenen) {
+  let k; try { k = JSON.parse(localStorage.getItem(MULAKAT_KEY) || 'null'); } catch (e) { return; }
+  if (!k) return;
+  if (k.teorik && !sadeceYuklenen && !S.teorik) S.teorik = k.teorik;
+  const m = k.mulakat;
+  if (!m || S.mulakat || !VS[k.veriSeti] || (k.veriSeti === 'yuklenen') !== !!sadeceYuklenen) return;
+  const sorular = m.sorular.map(id => VS[k.veriSeti].sorular.find(q => q.id === id));
+  if (sorular.some(q => !q)) return;
+  S.veriSeti = k.veriSeti; S.serbestKod = varsayilanKod(k.veriSeti); veriHazirla(k.veriSeti).catch(() => { });
+  S.mulakat = { ...m, sorular };
+}
 $$('.nav-btn').forEach(b => b.addEventListener('click', () => git(b.dataset.view)));
 $('#aiBtn').addEventListener('click', aiPanelAc);
 
@@ -1377,7 +1436,7 @@ function mulakatCiz() {
     for (const l of plan) { const c = karistir(havuz.filter(q => q.seviye === l && !kul.has(q.id)))[0] || karistir(havuz.filter(q => !kul.has(q.id)))[0]; if (c) { secilen.push(c); kul.add(c.id); } }
     secilen.sort((a, b) => a.seviye - b.seviye);
     if (secilen.some(q => q.dil === 'python')) pyHazirla().catch(() => { });
-    S.mulakat = { durum: 'devam', sorular: secilen, i: 0, sonuc: {}, kod: {}, bitis: Date.now() + dk * 60000, baslangic: Date.now(), dk };
+    S.mulakat = { durum: 'devam', veriSeti: S.veriSeti, sorular: secilen, i: 0, sonuc: {}, kod: {}, bitis: Date.now() + dk * 60000, baslangic: Date.now(), dk };
     mulakatCiz();
   };
   $('#teoForm').onsubmit = e => {
@@ -1539,7 +1598,7 @@ function serbestCiz() {
       </div>
       <div class="editor-alan"><div id="ed"></div>
         <div class="arac-cubugu"><button class="btn birincil" id="sCalistir">Çalıştır <kbd>Ctrl</kbd><kbd>Enter</kbd></button>
-        ${d === 'sql' ? '<button class="btn hafif" id="sSifirla" title="CREATE/UPDATE/DELETE ile yaptığın değişiklikleri geri alır">Veriyi sıfırla</button>' : '<span class="kucuk">Her çalıştırmada tablolar orijinal haliyle gelir. Değişken saklamak için hepsini aynı hücrede yaz.</span>'}</div></div>
+        ${d === 'sql' ? '<button class="btn hafif" id="sSifirla" title="CREATE/UPDATE/DELETE ile yaptığın değişiklikleri geri alır">Veriyi sıfırla</button>' : '<button class="btn hafif" id="sSifirla" title="Tanımladığın değişkenleri siler, tabloları orijinal haline döndürür">Sıfırla</button><span class="kucuk">Değişkenlerin ve tablolarda yaptığın değişiklikler sonraki çalıştırmalarda da durur.</span>'}</div></div>
       <div class="cikti" id="cikti"><div class="cikti-bos">Serbest alan: istediğin sorguyu yaz, sonucu gör. Burada kontrol yok, sadece keşif.</div></div>
       ${gecmisBu.length ? `<div class="gecmis"><div class="ek-baslik">Son çalıştırdıkların</div><ul>${gecmisBu.slice(0, 8).map(g => `<li><button class="gecmis-btn" data-g="${S.gecmis.indexOf(g)}"><code>${esc(g.kod.replace(/\s+/g, ' ').slice(0, 90))}</code></button></li>`).join('')}</ul></div>` : ''}
     </section>
@@ -1556,7 +1615,10 @@ function serbestCiz() {
     } catch (e) { c.innerHTML = hataHTML(e); }
   }
   $('#sCalistir').onclick = run;
-  const sf = $('#sSifirla'); if (sf) sf.onclick = async () => { await sqlHazirla(); await motor('sifirla', [S.veriSeti]); $('#cikti').innerHTML = '<div class="bilgi">Veri orijinal haline döndü.</div>'; };
+  const sf = $('#sSifirla'); if (sf) sf.onclick = async () => {
+    if (d === 'sql') { await sqlHazirla(); await motor('sifirla', [S.veriSeti]); $('#cikti').innerHTML = '<div class="bilgi">Veri orijinal haline döndü.</div>'; }
+    else { if (pyHazirP) { await pyHazirla(); await motor('pySifirla', []); } $('#cikti').innerHTML = '<div class="bilgi">Python sıfırlandı: değişkenler silindi, tablolar orijinal haline döndü.</div>'; }
+  };
   $$('.seg-btn', ana).forEach(b => b.onclick = () => { S.serbestDil = b.dataset.dil; if (b.dataset.dil === 'python') pyHazirla().catch(() => { }); serbestCiz(); });
   $$('.chip[data-o]', ana).forEach(b => b.onclick = () => { ed.set(ornek[+b.dataset.o][1]); run(); });
   $$('.gecmis-btn', ana).forEach(b => b.onclick = () => { ed.set(S.gecmis[+b.dataset.g].kod); ed.odak(); });
@@ -1580,6 +1642,7 @@ function veriCiz() {
         <p>${Y ? `${Object.keys(Y.tablolar).length} tablo yüklendi. Her sayfa ayrı bir tablo oldu.${Y.kayitli ? ' Veri bu cihazda kayıtlı: sayfayı yenilesen ya da uygulamayı kapatıp açsan da burada olacak.' : Y.kayitli === false ? ' Veri bu tarayıcıya kaydedilemedi (gizli sekme ya da yer yetersiz olabilir), sayfayı yenileyince tekrar yüklemen gerekir.' : ''}` : 'Excel\'deki her sayfa ayrı bir tabloya dönüşür. İlk satır sütun adı olarak okunur. Veri sadece bu cihazda, tarayıcının içinde saklanır, hiçbir yere gönderilmez. Sayfayı yenilesen de kalır.'}</p></div>
         <label class="birak" id="birak" tabindex="0"><input type="file" id="dosya" accept=".xlsx,.xls,.csv,.tsv,.txt,.xlsm" hidden>
           <span class="birak-ic"><b>${Y ? 'Başka bir dosya yükle' : 'Dosyayı buraya bırak'}</b><span class="kucuk">ya da tıklayıp seç · .xlsx, .xls, .csv</span></span></label>
+        <p class="kucuk" style="margin:6px 0 0;color:var(--soluk)"><i>* Her sayfanın ilk satırında sütun adları olduğundan emin ol. Başlık satırı yoksa ilk veri satırı sütun adı sanılır.</i></p>
         <div id="yukDurum"></div>
         ${Y ? `<ul class="tablo-ozet">${Object.entries(Y.tablolar).map(([a, t]) => `<li><code>${esc(a)}</code><span>${t.columns.length} sütun · ${t.rows.length} satır</span></li>`).join('')}</ul>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${S.veriSeti === 'yuklenen' ? '<span class="aktif-etiket">Şu an bu veriyle çalışıyorsun</span>' : '<button class="btn" data-vs="yuklenen">Bu veriyle çalış</button>'}<button class="btn hafif" id="veriSil" type="button">Veriyi sil</button></div>
@@ -1590,7 +1653,7 @@ function veriCiz() {
     ${Y ? `<section class="onizleme"><h2>Yüklenen tablolar</h2>${Object.entries(Y.tablolar).map(([a, t], i) => onizlemeHTML(a, t, i === 0)).join('')}</section>` : ''}
   </div>`;
   $$('[data-vs]', ana).forEach(b => b.onclick = () => veriSetiDegistir(b.dataset.vs));
-  const sil = $('#veriSil'); if (sil) sil.onclick = () => { if (confirm('Yüklediğin veri ve ona özel ürettiğin sorular bu cihazdan silinsin mi?')) yukleneniSil(); };
+  const sil = $('#veriSil'); if (sil) sil.onclick = async () => { if (await onayIste('Veriyi sil', 'Yüklediğin veri ve ona özel ürettiğin sorular bu cihazdan silinsin mi?', 'Sil', 'Vazgeç')) yukleneniSil(); };
   const inp = $('#dosya'), bir = $('#birak');
   inp.onchange = () => inp.files[0] && dosyaYukle(inp.files[0]);
   bir.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inp.click(); } });
@@ -1606,7 +1669,7 @@ function onizlemeHTML(ad, t, acik) {
     <summary><code>${esc(ad)}</code><span class="kucuk">${t.rows.length} satır × ${t.columns.length} sütun</span></summary>
     <div class="onizleme-kap" tabindex="0" aria-label="${esc(ad)} tablosu önizlemesi">
       <table class="sonuc"><thead><tr>${t.columns.map((c, i) => `<th>${esc(c)}<span class="th-tip">${esc(t.types[i].toLowerCase())}</span></th>`).join('')}</tr></thead>
-      <tbody>${t.rows.slice(0, n).map(r => `<tr>${r.map(hucre).join('')}</tr>`).join('')}</tbody></table>
+      <tbody>${t.rows.slice(0, n).map(r => `<tr>${r.map(v => hucre(v)).join('')}</tr>`).join('')}</tbody></table>
     </div>
     <div class="tablo-alt">${t.rows.length > n ? `İlk ${n} satır gösteriliyor. Tamamı için Serbest Alan\'da sorgu yazabilirsin.` : 'Tüm satırlar gösteriliyor.'} Tablo kutusunun içinde yana ve aşağı kaydırabilirsin.</div>
   </details>`;
@@ -1792,7 +1855,8 @@ async function dosyaYukle(f, secenek = {}) {
     if (dd && (uyarilar.length || okuma)) {
       const AY = { ',': 'virgül', ';': 'noktalı virgül', '\t': 'sekme', '|': 'dik çizgi' };
       const OND = { virgul: 'virgül (3,5 · 1.250,50)', nokta: 'nokta (3.5 · 1,250.50)' };
-      const satir = okuma ? `Dosya ${okuma.kodlama} kodlamasıyla, sütunlar <b>${AY[okuma.ayirici]}</b> ile ayrılmış olarak okundu.` +
+      const cokSutun = okuma && Object.values(tablolar).some(t => t.columns.length > 1);
+      const satir = okuma ? `Dosya ${okuma.kodlama} kodlamasıyla${cokSutun ? `, sütunlar <b>${AY[okuma.ayirici]}</b> ile ayrılmış olarak` : ''} okundu.` +
         (okuma.onemli ? ` Sayılarda ondalık ayırıcı <b>${OND[okuma.ondalik]}</b> kabul edildi. <button class="btn kucuk-btn" id="ondalikDegistir">${okuma.ondalik === 'virgul' ? 'Nokta' : 'Virgül'} olarak yeniden oku</button>` : '') : '';
       dd.innerHTML = `<div class="bilgi">${[satir, ...uyarilar.map(esc)].filter(Boolean).join('<br>')}</div>`;
       const od = $('#ondalikDegistir'); if (od) od.onclick = () => dosyaYukle(f, { ondalik: okuma.ondalik === 'virgul' ? 'nokta' : 'virgul' });
@@ -1874,7 +1938,7 @@ async function soruUret(dil, adet) {
   const sayim = diller.length > 1 ? ` (${gecen.filter(q => q.dil === 'sql').length} SQL, ${gecen.filter(q => q.dil === 'python').length} Python)` : '';
   if (!gecen.length && hatalar.length) { yaz(`<div class="hata-kutu">${hatalar.map(esc).join('<br>')}</div>`); return; }
   yaz(`<div class="karar ${gecen.length ? 'dogru' : 'yanlis'}"><span class="karar-ikon">${gecen.length ? '✓' : '✕'}</span><div>${gecen.length} soru eklendi${sayim}.${elenen.length ? ` ${elenen.length} tanesinin çözümü veride çalışmadığı için elendi.` : ''}${hatalar.length ? ` Bir kısmı üretilemedi: ${esc(hatalar.join(' · '))}` : ''} ${gecen.length ? '<button class="btn kucuk-btn" data-git="alistirma">Alıştırmalara git</button>' : ''}</div></div>`);
-  $$('[data-git]').forEach(b => b.onclick = () => { if (S.veriSeti !== 'yuklenen') S.veriSeti = 'yuklenen'; S.filtre = { dil: gecen[0] ? gecen[0].dil : 'sql', seviye: 0, kategori: '' }; git(b.dataset.git); });
+  $$('[data-git]').forEach(b => b.onclick = async () => { if (!(await mulakatBirakilsinMi('yuklenen'))) return; if (S.veriSeti !== 'yuklenen') { S.veriSeti = 'yuklenen'; S.mulakat = null; } S.filtre = { dil: gecen[0] ? gecen[0].dil : 'sql', seviye: 0, kategori: '' }; git(b.dataset.git); });
 }
 
 
@@ -1932,7 +1996,7 @@ function konuListeCiz(K, aktif) {
   const kap = $('#konuListe');
   if (ara) {
     const bulunan = K.konular.filter(x => trKucuk(x.ara).includes(ara));
-    kap.innerHTML = bulunan.length ? `<div class="konu-grup-ad">${bulunan.length} sonuç</div>` + bulunan.map(x => `<a class="konu-link" href="#konu/${encodeURIComponent(x.id)}" ${aktif && aktif.id === x.id ? 'aria-current="page"' : ''}><span class="no">${esc(K.gruplar.find(g => g.id === x.grup).ad.slice(0, 3))}</span>${esc(x.baslik)}</a>`).join('') : '<div class="konu-bul">Bu kelimeyle konu bulunamadı.</div>';
+    kap.innerHTML = bulunan.length ? `<div class="konu-grup-ad">${bulunan.length} sonuç</div>` + bulunan.map(x => `<a class="konu-link" href="#konu/${encodeURIComponent(x.id)}" ${aktif && aktif.id === x.id ? 'aria-current="page"' : ''}><span class="no">${(g => g.dil === 'python' ? 'py' : g.dil === 'sql' ? 'SQL' : 'kavram')(K.gruplar.find(g => g.id === x.grup))}</span>${esc(x.baslik)}</a>`).join('') : '<div class="konu-bul">Bu kelimeyle konu bulunamadı.</div>';
     return;
   }
   kap.innerHTML = K.gruplar.filter(g => g.dil === S.konuDil).map(g => {
@@ -1956,9 +2020,17 @@ function konuBlokHTML(b) {
   }
   return `<div class="ornek"><pre class="kod-blok"><code>${renklendir(b.kod, b.dil)}</code></pre>${cikti}</div>`;
 }
+// Konudan alıştırmaya geçişte gidilecek veri seti: şu anki veri setinde o konudan soru varsa o, yoksa sorusu olan ilk hazır veri seti.
+function konuHedefVS(k) {
+  if (!k.alistirma) return null;
+  const { dil, kategori } = k.alistirma;
+  const uygun = key => VS[key] && VS[key].sorular.some(q => q.dil === dil && q.kategori === kategori && !q.kaynak);
+  return uygun(S.veriSeti) ? S.veriSeti : (HAZIR.find(uygun) || null);
+}
+// Düğmede yazan sayı, tıklayınca açılacak veri setindeki soru sayısıdır.
 function konuAlistirmaSay(k) {
-  if (!k.alistirma) return 0;
-  return HAZIR.reduce((n, key) => n + VS[key].sorular.filter(q => q.dil === k.alistirma.dil && q.kategori === k.alistirma.kategori && !q.kaynak).length, 0);
+  const key = konuHedefVS(k); if (!key) return 0;
+  return VS[key].sorular.filter(q => q.dil === k.alistirma.dil && q.kategori === k.alistirma.kategori && !q.kaynak).length;
 }
 function konuYaziHTML(K, k) {
   const sira = K.gruplar.flatMap(g => K.konular.filter(x => x.grup === g.id));
@@ -1970,15 +2042,15 @@ function konuYaziHTML(K, k) {
     ${k.ozet ? `<p class="konu-giris">${esc(k.ozet)}</p>` : ''}
     ${k.bloklar.map(konuBlokHTML).join('')}
     <div class="konu-son">
-      ${n ? `<button class="btn birincil" id="konuAlistirma">Bu konuyla alıştırma yap · ${n} soru →</button>` : ''}
+      ${n ? `<button class="btn birincil" id="konuAlistirma">Bu konuyla alıştırma yap · ${esc(VS[konuHedefVS(k)].ad)} · ${n} soru →</button>` : ''}
       <span class="gezinme-btn">${once ? `<a class="btn" href="#konu/${encodeURIComponent(once.id)}">← ${esc(once.baslik)}</a>` : ''}${sonra ? `<a class="btn" href="#konu/${encodeURIComponent(sonra.id)}">${esc(sonra.baslik)} →</a>` : ''}</span>
     </div>`;
 }
-function konuAlistirmayaGit(k) {
+async function konuAlistirmayaGit(k) {
   const { dil, kategori } = k.alistirma;
-  const uygun = key => VS[key].sorular.some(q => q.dil === dil && q.kategori === kategori && !q.kaynak);
-  const key = uygun(S.veriSeti) ? S.veriSeti : HAZIR.find(uygun);
+  const key = konuHedefVS(k);
   if (!key) return;
+  if (!(await mulakatBirakilsinMi(key))) return;
   if (key !== S.veriSeti) { S.veriSeti = key; S.mulakat = null; S.serbestKod = varsayilanKod(key); veriHazirla(key).catch(() => { }); }
   S.filtre = { dil, seviye: 0, kategori, kaynak: '' };
   const ilk = filtreliSorular()[0]; if (ilk) S.aktifId[key] = ilk.id;
@@ -2001,8 +2073,9 @@ function sozlukHTML(K) {
   const iletisimIstendi = location.hash === '#iletisim';
   if (iletisimIstendi) history.replaceState(null, '', location.pathname + location.search);
   hashOku();
+  mulakatGeriYukle(false);
   veriHazirla(S.veriSeti).catch(() => { });
-  yukleneniGeriYukle();
+  yukleneniGeriYukle().then(() => { if (!S.mulakat && VS.yuklenen) { mulakatGeriYukle(true); if (S.mulakat) yenidenCiz(); } });
   if (iletisimIstendi) setTimeout(iletisimAc, 300);
   else setTimeout(() => tanitimAc(false), 400);
   yenidenCiz();

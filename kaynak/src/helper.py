@@ -3,9 +3,15 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 import pandas as pd, numpy as np, json, io, sys, ast, traceback, re, datetime
 
 _BASE = {}
+_SERBEST = None   # Serbest Alan'ın kalıcı çalışma alanı (değişkenler çalıştırmalar arasında saklanır)
 _TARIH = re.compile(r'^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2})?)?$')
 
+def _serbest_sifirla():
+    global _SERBEST
+    _SERBEST = None
+
 def _yukle(js):
+    _serbest_sifirla()
     _BASE.clear()
     veri = json.loads(js)
     for ad, t in veri.items():
@@ -72,6 +78,10 @@ def _tablo(obj, limit=5000):
         df = pd.DataFrame(obj, columns=[f'sutun_{i+1}' for i in range(obj.shape[1])])
     elif isinstance(obj, tuple) and len(obj) > 0 and all(isinstance(x, np.ndarray) and x.ndim == 1 for x in obj) and len({len(x) for x in obj}) == 1:
         df = pd.DataFrame({f'deger_{i+1}': list(x) for i, x in enumerate(obj)})
+    elif isinstance(obj, list) and obj and all(isinstance(x, dict) for x in obj):
+        df = pd.DataFrame(obj)
+    elif isinstance(obj, (list, tuple)) and obj and all(isinstance(x, (list, tuple)) for x in obj) and len({len(x) for x in obj}) == 1 and all(not isinstance(y, (list, tuple, dict)) for x in obj for y in x):
+        df = pd.DataFrame([list(x) for x in obj], columns=[f'sutun_{i+1}' for i in range(len(obj[0]))])
     elif isinstance(obj, (tuple, list)) and all(not isinstance(x, (list, tuple, dict, pd.Series, pd.DataFrame, np.ndarray)) for x in obj):
         if isinstance(obj, tuple):
             df = pd.DataFrame([list(obj)], columns=[f'deger_{i+1}' for i in range(len(obj))])
@@ -90,17 +100,29 @@ def _tablo(obj, limit=5000):
         df.columns = ['_'.join(str(x) for x in c if str(x) != '') for c in df.columns]
     cols = [str(c) for c in df.columns]
     rows = [[_deger(v) for v in r] for r in df.head(limit).itertuples(index=False, name=None)]
-    return {'columns': cols, 'rows': rows, 'total': int(len(df)), 'tur': tur}
+    # Sütun türleri (f: ondalıklı, i/u: tam sayı, b: mantıksal, M: tarih, O: metin/karışık): ekranda NaN / None / NaT ve 3.0 gibi pandas'taki gibi göstermek için
+    turler = [d.kind for d in df.dtypes]
+    return {'columns': cols, 'rows': rows, 'total': int(len(df)), 'tur': tur, 'turler': turler}
 
-def _calistir(kod):
-    ns = {'pd': pd, 'np': np}
-    for k, v in _BASE.items():
-        ns[k] = v.copy()
+def _calistir(kod, kalici=False):
+    global _SERBEST
+    if kalici:
+        if _SERBEST is None:
+            _SERBEST = {'pd': pd, 'np': np}
+            for k, v in _BASE.items():
+                _SERBEST[k] = v.copy()
+        ns = _SERBEST
+    else:
+        ns = {'pd': pd, 'np': np}
+        for k, v in _BASE.items():
+            ns[k] = v.copy()
     buf = io.StringIO()
     eski = sys.stdout
     sys.stdout = buf
     try:
         agac = ast.parse(kod)
+        # Kalıcı alanda önceki çalıştırmadan kalan sonuc tekrar gösterilmesin: sadece bu kodda atanıyorsa kullan
+        atiyor = any(isinstance(n, ast.Name) and n.id == 'sonuc' and isinstance(n.ctx, ast.Store) for n in ast.walk(agac))
         son = None
         if agac.body and isinstance(agac.body[-1], ast.Expr):
             ifade = ast.Expression(agac.body.pop().value)
@@ -108,8 +130,13 @@ def _calistir(kod):
             son = eval(compile(ifade, '<kod>', 'eval'), ns)
         else:
             exec(compile(agac, '<kod>', 'exec'), ns)
-        deger = ns['sonuc'] if 'sonuc' in ns else son
-        return json.dumps({'ok': True, 'stdout': buf.getvalue()[-20000:], 'table': _tablo(deger), 'sonucVar': 'sonuc' in ns})
+        sonuc_yeni = 'sonuc' in ns and (atiyor or not kalici)
+        deger = ns['sonuc'] if sonuc_yeni else son
+        if isinstance(deger, np.ndarray) and deger.ndim > 2:
+            print(f'{deger.ndim} boyutlu dizi (shape={deger.shape}) tablo olarak gösterilemez, olduğu gibi yazdırıldı:')
+            print(np.array2string(deger))
+            deger = None
+        return json.dumps({'ok': True, 'stdout': buf.getvalue()[-20000:], 'table': _tablo(deger), 'sonucVar': sonuc_yeni})
     except Exception as e:
         satir = ''
         tb = traceback.extract_tb(sys.exc_info()[2])
