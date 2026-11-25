@@ -1255,7 +1255,7 @@ function veriCiz() {
           <p class="kucuk" style="margin:6px 0 0;color:var(--soluk)"><i>* Yeni bir dosya yüklersen bu veri ve ona özel ürettiğin sorular silinir. Aynı anda tek bir kendi veri setin saklanır.</i></p>` : ''}
       </article>
     </div>
-    ${Y ? uretPanelHTML() : ''}
+    ${Y && S.veriSeti === 'yuklenen' ? uretPanelHTML() : ''}
     ${Y ? `<section class="onizleme"><h2>Yüklenen tablolar</h2>${Object.entries(Y.tablolar).map(([a, t], i) => onizlemeHTML(a, t, i === 0)).join('')}</section>` : ''}
   </div>`;
   $$('[data-vs]', ana).forEach(b => b.onclick = () => veriSetiDegistir(b.dataset.vs));
