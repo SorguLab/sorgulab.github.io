@@ -25,3 +25,9 @@ Esra'nın sonraya bıraktığı istekler. Bir madde bitince buradan sil ve commi
 ## Ayarlar menüsü (ileride)
 Üst bar kalabalıklaşırsa bir "Ayarlar" düğmesi açıp bazı şeyleri onun altına toplayacağız (ör. Tanıtımı göster "?", Python/Yapay zekâ durumları, İletişim).
 - **Ayarlar eklenince mutlaka: Açık / Koyu tema seçimi** (Esra istedi). Seçenekler: Sistem (varsayılan) / Açık / Koyu; seçim localStorage'da saklansın, `<html data-theme="light|dark">` ile uygulanır (CSS bunu zaten destekliyor).
+
+
+## Konuşulan, bekleyen fikirler
+- İlerlemeyi kaydetme: e-posta ile giriş + bulutta kayıt (soru olarak konuşuldu, karar verilmedi). Alternatif: "İlerlememi indir / geri yükle" dosyası.
+- Yanlış cevapta farklı satırları gösterme (şimdilik kalsın).
+- Aynı sorunun diğer dildeki çözümü (şimdilik kalsın).

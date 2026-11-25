@@ -197,6 +197,24 @@ table.sonuc td.null { color: var(--h-yorum); font: italic 12px var(--f-kod); }
 .yukleniyor { color: var(--soluk); font-size: 14px; display: flex; gap: 10px; align-items: center; }
 .yukleniyor::before { content: ""; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--cizgi); border-top-color: var(--vurgu); animation: don .8s linear infinite; flex: none; }
 @keyframes don { to { transform: rotate(360deg); } }
+.cikti-arac { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.cikti-arac .btn.secili { background: var(--vurgu-acik); border-color: var(--vurgu); color: var(--vurgu); }
+.grafik-alan { margin-top: 12px; border: 1px solid var(--cizgi); border-radius: 10px; padding: 12px 14px; background: var(--yuzey); }
+.grafik-ayar { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; font-size: 13px; color: var(--soluk); }
+.grafik-ayar label { display: flex; gap: 6px; align-items: center; }
+.grafik-ayar select { font: inherit; color: var(--murekkep); background: var(--yuzey-2); border: 1px solid var(--cizgi); border-radius: 7px; padding: 4px 6px; max-width: 200px; }
+.grafik-kap { position: relative; overflow-x: auto; }
+svg.grafik { display: block; max-width: 100%; height: auto; font-family: var(--f-govde, inherit); }
+.g-izgara { stroke: var(--cizgi); stroke-width: 1; } .g-izgara.sifir { stroke: var(--soluk); }
+.g-eksen { fill: var(--soluk); font-size: 11px; font-family: var(--f-kod); }
+.g-etiket { fill: var(--murekkep); font-size: 12px; }
+.g-cubuk { fill: var(--vurgu); } .g-satir.aktif .g-cubuk { filter: brightness(1.15); }
+.g-hedef, .g-hedef-alan { fill: transparent; } .g-satir.aktif .g-hedef { fill: var(--yuzey-2); }
+.g-cizgi { fill: none; stroke: var(--vurgu); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.g-nokta-kucuk { fill: var(--vurgu); }
+.g-nokta { fill: var(--vurgu); stroke: var(--yuzey); stroke-width: 2; }
+.g-imlec { stroke: var(--soluk); stroke-width: 1; stroke-dasharray: 3 3; }
+.grafik-ipucu { position: absolute; pointer-events: none; background: var(--murekkep); color: var(--yuzey); font-size: 12.5px; line-height: 1.4; padding: 6px 9px; border-radius: 7px; white-space: nowrap; box-shadow: 0 4px 14px rgb(0 0 0 / .18); z-index: 2; }
 .calisiyor .durdur-btn { margin-left: 4px; }
 .hata-kutu.durduruldu { border-color: color-mix(in srgb, var(--vurgu) 35%, transparent); }
 .lehce-ipucu { margin-top: 10px; padding: 12px 14px; border-radius: 10px; background: var(--vurgu-acik); border: 1px solid color-mix(in srgb, var(--vurgu) 25%, transparent); color: var(--murekkep); font-size: 14px; }

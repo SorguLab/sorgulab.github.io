@@ -643,6 +643,160 @@ function tabloHTML(t, max = 200) {
   return `<div class="tablo-kap"><table class="sonuc"><thead><tr>${t.columns.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${satir.map(r => `<tr>${r.map(hucre).join('')}</tr>`).join('')}</tbody></table></div>
   <div class="tablo-alt">${t.total ?? t.rows.length} satır × ${t.columns.length} sütun${(t.total ?? t.rows.length) > max ? ` · ilk ${max} satır gösteriliyor` : ''}</div>`;
 }
+// ═══════════════ Sonuç araçları: grafik ve Excel'e indirme ═══════════════
+const CIKTILAR = new Map(); let ciktiNo = 0;
+const sayiSutun = (t, j) => { let n = 0; for (const r of t.rows) { const v = r[j]; if (v === null || v === undefined) continue; if (typeof v !== 'number' || !isFinite(v)) return false; n++; } return n > 0; };
+const tarihGibi = v => typeof v === 'string' && /^\d{4}(-\d{2}(-\d{2}([ T]\d{2}:\d{2}(:\d{2})?)?)?)?$/.test(v);
+function ciktiAracHTML(t, ctx) {
+  const id = ++ciktiNo;
+  CIKTILAR.set(id, { t, ctx, veri: S.veriSeti });
+  if (CIKTILAR.size > 40) CIKTILAR.delete(CIKTILAR.keys().next().value);
+  const grafikOlur = t.columns.some((_, j) => sayiSutun(t, j)) && t.rows.length > 1;
+  return `<div class="cikti-arac" data-cikti="${id}">
+    ${grafikOlur ? '<button class="btn kucuk-btn" data-grafik type="button">Grafik</button>' : ''}
+    <button class="btn kucuk-btn" data-indir type="button">Excel'e indir</button>
+    <span class="kucuk">${grafikOlur ? '' : 'Grafik için en az iki satır ve bir sayısal sütun gerekiyor. '}Excel dosyasında sonuç ve kodun ayrı sayfalarda.</span>
+  </div><div class="grafik-alan" hidden></div>`;
+}
+document.addEventListener('click', e => {
+  const kap = e.target.closest('.cikti-arac'); if (!kap) return;
+  const c = CIKTILAR.get(+kap.dataset.cikti); if (!c) return;
+  if (e.target.closest('[data-indir]')) excelIndir(c, e.target.closest('[data-indir]'));
+  else if (e.target.closest('[data-grafik]')) {
+    const alan = kap.nextElementSibling, b = e.target.closest('[data-grafik]');
+    if (!alan.hidden) { alan.hidden = true; b.classList.remove('secili'); return; }
+    alan.hidden = false; b.classList.add('secili');
+    if (!alan.dataset.kuruldu) { alan.dataset.kuruldu = '1'; grafikKur(alan, c.t); }
+  }
+});
+async function excelIndir(c, btn) {
+  const eski = btn.textContent; btn.disabled = true; btn.textContent = 'Hazırlanıyor…';
+  try {
+    if (!window.XLSX) await scriptYukle('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+    const { t, ctx, veri } = c, wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([t.columns, ...t.rows]), 'Sonuç');
+    const simdi = new Date(), p = n => String(n).padStart(2, '0');
+    const zaman = `${simdi.getFullYear()}-${p(simdi.getMonth() + 1)}-${p(simdi.getDate())} ${p(simdi.getHours())}:${p(simdi.getMinutes())}`;
+    const toplam = t.total ?? t.rows.length;
+    const bilgi = [['SorguLab'], ['Veri seti', VS[veri] ? VS[veri].ad : veri], ['Dil', DIL[ctx.dil] || ctx.dil], ...(ctx.baslik ? [['Soru', ctx.baslik]] : []), ['Tarih', zaman], ['Satır', toplam]];
+    if (toplam > t.rows.length) bilgi.push(['Not', `Sonuç ${toplam} satır; dosyada ilk ${t.rows.length} satır var.`]);
+    const ks = XLSX.utils.aoa_to_sheet([...bilgi, [], ['Kod'], ...ctx.kod.split('\n').map(l => [l])]);
+    ks['!cols'] = [{ wch: 14 }, { wch: 60 }];
+    XLSX.utils.book_append_sheet(wb, ks, 'Kod');
+    XLSX.writeFile(wb, `sorgulab-${adTemizle(veri, 'veri')}-${zaman.replace(/[: ]/g, '-')}.xlsx`);
+    btn.textContent = 'İndirildi ✓'; setTimeout(() => { btn.textContent = eski; btn.disabled = false; }, 1800);
+  } catch (e) { btn.textContent = eski; btn.disabled = false; alert('Dosya hazırlanamadı: ' + ((e && e.message) || e)); }
+}
+function grafikKur(alan, t) {
+  const sayisal = t.columns.map((_, j) => sayiSutun(t, j));
+  const yAday = t.columns.map((c, j) => j).filter(j => sayisal[j]);
+  let x = t.columns.findIndex((_, j) => !sayisal[j]); if (x < 0) x = 0;
+  let y = yAday.find(j => j !== x); if (y === undefined) y = yAday[0];
+  const xDegerleri = t.rows.map(r => r[x]);
+  let tur = (sayisal[x] || xDegerleri.every(v => v == null || tarihGibi(v))) ? 'cizgi' : 'cubuk';
+  const sec = (ad, secenekler, deger) => `<label>${ad}<select data-ayar="${ad}">${secenekler.map(([v, l]) => `<option value="${v}" ${v == deger ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
+  const ciz = () => {
+    alan.innerHTML = `<div class="grafik-ayar">
+      ${sec('Tür', [['cubuk', 'Çubuk'], ['cizgi', 'Çizgi']], tur)}
+      ${sec('Kategori / X', t.columns.map((c, j) => [j, c]), x)}
+      ${sec('Değer / Y', yAday.map(j => [j, t.columns[j]]), y)}
+    </div><div class="grafik-kap"></div>`;
+    $$('[data-ayar]', alan).forEach(s => s.onchange = () => { const v = s.value; if (s.dataset.ayar === 'Tür') tur = v; else if (s.dataset.ayar === 'Değer / Y') y = +v; else x = +v; ciz(); });
+    const kap = $('.grafik-kap', alan);
+    (tur === 'cubuk' ? cubukCiz : cizgiCiz)(kap, t, x, y);
+  };
+  ciz();
+}
+function guzelAdimlar(min, max, n = 5) {
+  if (min === max) { const d = Math.abs(min) || 1; min -= d / 2; max += d / 2; }
+  const ham = (max - min) / n, us = Math.pow(10, Math.floor(Math.log10(ham))), k = ham / us;
+  const adim = (k <= 1 ? 1 : k <= 2 ? 2 : k <= 2.5 ? 2.5 : k <= 5 ? 5 : 10) * us;
+  const bas = Math.floor(min / adim) * adim, son = Math.ceil(max / adim) * adim, out = [];
+  for (let v = bas; v <= son + adim / 2; v += adim) out.push(+v.toFixed(10));
+  return out;
+}
+// Eksen etiketleri: aynı eksendeki tüm etiketler aynı birimle (Mn / B / düz) yazılır.
+const eksenYazici = adimlar => {
+  const m = Math.max(...adimlar.map(Math.abs));
+  const [bol, ek] = m >= 1e6 ? [1e6, ' Mn'] : m >= 1e4 ? [1e3, ' B'] : [1, ''];
+  return v => (v / bol).toLocaleString('tr-TR', { maximumFractionDigits: 2 }) + (v === 0 ? '' : ek);
+};
+const tamSayiYaz = v => v == null ? '∅' : v.toLocaleString('tr-TR', { maximumFractionDigits: 4 });
+const svgEsc = s => esc(String(s ?? '∅'));
+function ipucuKur(kap) {
+  let ip = $('.grafik-ipucu', kap);
+  if (!ip) { ip = document.createElement('div'); ip.className = 'grafik-ipucu'; ip.hidden = true; kap.appendChild(ip); }
+  return {
+    goster(html, px, py) {
+      ip.innerHTML = html; ip.hidden = false;
+      const w = kap.clientWidth, iw = ip.offsetWidth;
+      ip.style.left = Math.min(Math.max(px - iw / 2, 4), w - iw - 4) + 'px'; ip.style.top = Math.max(py - ip.offsetHeight - 10, 4) + 'px';
+    }, gizle() { ip.hidden = true; }
+  };
+}
+function cubukCiz(kap, t, x, y) {
+  const SINIR = 30;
+  const satir = t.rows.filter(r => r[y] != null).slice(0, SINIR);
+  const W = Math.max(kap.clientWidth || 640, 320);
+  const etiket = r => String(r[x] ?? '∅');
+  const etiketW = Math.min(Math.max(...satir.map(r => etiket(r).length)) * 7 + 12, W * 0.38);
+  const sol = etiketW, sag = 24, ust = 8, satirH = 26, cubukH = 16, altH = 26;
+  const H = ust + satir.length * satirH + altH;
+  const degerler = satir.map(r => r[y]);
+  const adim = guzelAdimlar(Math.min(0, ...degerler), Math.max(0, ...degerler));
+  const sayiYaz = eksenYazici(adim), lo = adim[0], hi = adim[adim.length - 1], sx = v => sol + (v - lo) / (hi - lo) * (W - sol - sag);
+  const kes = s => s.length * 7 > etiketW - 10 ? s.slice(0, Math.max(3, Math.floor((etiketW - 10) / 7) - 1)) + '…' : s;
+  let g = adim.map(v => `<line class="g-izgara${v === 0 ? ' sifir' : ''}" x1="${sx(v)}" x2="${sx(v)}" y1="${ust}" y2="${H - altH}"/><text class="g-eksen" x="${sx(v)}" y="${H - 8}" text-anchor="middle">${sayiYaz(v)}</text>`).join('');
+  g += satir.map((r, i) => {
+    const v = r[y], y0 = ust + i * satirH + (satirH - cubukH) / 2, x0 = sx(Math.min(0, v)), x1 = sx(Math.max(0, v));
+    const w = Math.max(x1 - x0, 1), rr = Math.min(4, w / 2), neg = v < 0;
+    const yol = neg
+      ? `M${x1},${y0} H${x0 + rr} Q${x0},${y0} ${x0},${y0 + rr} V${y0 + cubukH - rr} Q${x0},${y0 + cubukH} ${x0 + rr},${y0 + cubukH} H${x1} Z`
+      : `M${x0},${y0} H${x1 - rr} Q${x1},${y0} ${x1},${y0 + rr} V${y0 + cubukH - rr} Q${x1},${y0 + cubukH} ${x1 - rr},${y0 + cubukH} H${x0} Z`;
+    return `<g class="g-satir" data-i="${i}"><rect class="g-hedef" x="0" y="${ust + i * satirH}" width="${W}" height="${satirH}"/><text class="g-etiket" x="${sol - 8}" y="${y0 + cubukH / 2 + 4}" text-anchor="end">${svgEsc(kes(etiket(r)))}</text><path class="g-cubuk" d="${yol}"/></g>`;
+  }).join('');
+  kap.innerHTML = `<svg class="grafik" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${svgEsc(t.columns[y])} çubuk grafiği">${g}</svg>` +
+    (t.rows.length > satir.length ? `<div class="kucuk">İlk ${satir.length} satır çiziliyor (toplam ${t.total ?? t.rows.length}). Sorguna sıralama ve LIMIT ekleyerek seçebilirsin.</div>` : '');
+  const ip = ipucuKur(kap);
+  $$('.g-satir', kap).forEach(el => {
+    el.onmouseenter = () => { const r = satir[+el.dataset.i], b = el.querySelector('.g-cubuk').getBBox(); el.classList.add('aktif'); ip.goster(`<b>${svgEsc(etiket(r))}</b><br>${esc(t.columns[y])}: ${tamSayiYaz(r[y])}`, b.x + b.width, b.y); };
+    el.onmouseleave = () => { el.classList.remove('aktif'); ip.gizle(); };
+  });
+}
+function cizgiCiz(kap, t, x, y) {
+  const sayisalX = sayiSutun(t, x), tarihX = !sayisalX && t.rows.every(r => r[x] == null || tarihGibi(r[x]));
+  const xDeger = r => sayisalX ? r[x] : tarihX ? Date.parse(String(r[x]).length === 4 ? r[x] + '-01-01' : String(r[x]).length === 7 ? r[x] + '-01' : String(r[x]).replace(' ', 'T')) : null;
+  let nokta = t.rows.map((r, i) => ({ r, xv: sayisalX || tarihX ? xDeger(r) : i, yv: r[y] })).filter(p => p.yv != null && p.xv != null && isFinite(p.xv));
+  if (sayisalX || tarihX) nokta.sort((a, b) => a.xv - b.xv);
+  const SINIR = 2000, kesildi = nokta.length > SINIR; nokta = nokta.slice(0, SINIR);
+  if (nokta.length < 2) { kap.innerHTML = '<div class="bilgi">Çizgi için en az iki nokta gerekiyor.</div>'; return; }
+  const W = Math.max(kap.clientWidth || 640, 320), H = 300, sol = 56, sag = 20, ust = 14, alt = 34;
+  const ys = guzelAdimlar(Math.min(...nokta.map(p => p.yv)), Math.max(...nokta.map(p => p.yv)));
+  const ylo = ys[0], yhi = ys[ys.length - 1], sayiYaz = eksenYazici(ys);
+  const xlo = nokta[0].xv, xhi = nokta[nokta.length - 1].xv;
+  const xmin = sayisalX || tarihX ? Math.min(...nokta.map(p => p.xv)) : 0, xmax = sayisalX || tarihX ? Math.max(...nokta.map(p => p.xv)) : nokta.length - 1;
+  const sx = v => sol + (xmax === xmin ? 0.5 : (v - xmin) / (xmax - xmin)) * (W - sol - sag), sy = v => ust + (1 - (v - ylo) / (yhi - ylo)) * (H - ust - alt);
+  const xEtiket = p => sayisalX ? tamSayiYaz(p.r[x]) : String(p.r[x] ?? '∅');
+  // X ekseninde en fazla ~6 etiket
+  const adet = Math.min(6, nokta.length), xi = [...new Set(Array.from({ length: adet }, (_, k) => Math.round(k * (nokta.length - 1) / (adet - 1 || 1))))];
+  let g = ys.map(v => `<line class="g-izgara${v === 0 ? ' sifir' : ''}" x1="${sol}" x2="${W - sag}" y1="${sy(v)}" y2="${sy(v)}"/><text class="g-eksen" x="${sol - 8}" y="${sy(v) + 4}" text-anchor="end">${sayiYaz(v)}</text>`).join('');
+  g += xi.map((k, n) => { const p = nokta[k]; return `<text class="g-eksen" x="${sx(p.xv)}" y="${H - 10}" text-anchor="${n === 0 ? 'start' : n === xi.length - 1 ? 'end' : 'middle'}">${svgEsc(xEtiket(p).slice(0, 16))}</text>`; }).join('');
+  g += `<path class="g-cizgi" d="${nokta.map((p, i) => (i ? 'L' : 'M') + sx(p.xv).toFixed(1) + ',' + sy(p.yv).toFixed(1)).join(' ')}"/>`;
+  if (nokta.length <= 40) g += nokta.map(p => `<circle class="g-nokta-kucuk" cx="${sx(p.xv)}" cy="${sy(p.yv)}" r="2.5"/>`).join('');
+  g += `<line class="g-imlec" y1="${ust}" y2="${H - alt}" x1="0" x2="0" visibility="hidden"/><circle class="g-nokta" r="5" visibility="hidden"/><rect class="g-hedef-alan" x="${sol}" y="${ust}" width="${W - sol - sag}" height="${H - ust - alt}"/>`;
+  kap.innerHTML = `<svg class="grafik" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${svgEsc(t.columns[y])} çizgi grafiği">${g}</svg>` +
+    (kesildi ? `<div class="kucuk">İlk ${SINIR} nokta çiziliyor.</div>` : '');
+  const svg = $('svg', kap), imlec = $('.g-imlec', svg), nk = $('.g-nokta', svg), ip = ipucuKur(kap);
+  $('.g-hedef-alan', svg).onmousemove = e => {
+    const kutu = svg.getBoundingClientRect(), mx = (e.clientX - kutu.left) * W / kutu.width;
+    let en = 0, ed = Infinity; nokta.forEach((p, i) => { const d = Math.abs(sx(p.xv) - mx); if (d < ed) { ed = d; en = i; } });
+    const p = nokta[en], px = sx(p.xv), py = sy(p.yv);
+    imlec.setAttribute('x1', px); imlec.setAttribute('x2', px); imlec.setAttribute('visibility', 'visible');
+    nk.setAttribute('cx', px); nk.setAttribute('cy', py); nk.setAttribute('visibility', 'visible');
+    ip.goster(`<b>${svgEsc(xEtiket(p))}</b><br>${esc(t.columns[y])}: ${tamSayiYaz(p.yv)}`, px * kutu.width / W, py * kutu.width / W);
+  };
+  $('.g-hedef-alan', svg).onmouseleave = () => { imlec.setAttribute('visibility', 'hidden'); nk.setAttribute('visibility', 'hidden'); ip.gizle(); };
+}
 // Başka veritabanlarından (SQL Server, Oracle, PostgreSQL, BigQuery, MySQL) gelen alışkanlıklar için SQLite karşılığı.
 // Sadece sorgu hata verdiğinde ve kodda ilgili kalıp varsa gösterilir.
 const LEHCE_KURALLARI = [
@@ -669,12 +823,13 @@ function lehceIpucu(kod, hata) {
   return bulunan.length ? bulunan : null;
 }
 const lehceHTML = r => r.ipucu ? `<div class="lehce-ipucu"><b>SQLite'ta farklı yazılıyor olabilir</b><ul>${r.ipucu.map(m => `<li>${m}</li>`).join('')}</ul><a href="#konu/sql-lehce-farklari">Lehçe farkları konusunu aç →</a></div>` : '';
-function ciktiHTML(r) {
+// ctx = { kod, dil }: verilirse tablonun altında Grafik ve Excel'e indir düğmeleri çıkar.
+function ciktiHTML(r, ctx) {
   if (!r) return '';
   let h = '';
   if (r.stdout) h += `<div class="konsol"><div class="konsol-baslik">print çıktısı</div><pre>${esc(r.stdout)}</pre></div>`;
   if (!r.ok) h += `<div class="hata-kutu"><b>Hata</b><pre>${esc(r.error)}</pre></div>` + lehceHTML(r);
-  else if (r.table) h += tabloHTML(r.table);
+  else if (r.table) h += tabloHTML(r.table) + (ctx && r.table.rows.length ? ciktiAracHTML(r.table, ctx) : '');
   else if (r.mesaj) h += `<div class="bilgi">${esc(r.mesaj)}</div>`;
   if (r.ms !== undefined && r.ok) h += `<div class="sure">${r.ms} ms</div>`;
   return h;
@@ -907,7 +1062,7 @@ function soruCalismaCiz(host, q, { mod, liste, onKontrol }) {
     if (!ed.get().trim()) { c.innerHTML = `<div class="bilgi">Editör boş. Önce ${q.dil === 'sql' ? 'sorgunu' : 'kodunu'} yaz.</div>`; return null; }
     c.innerHTML = q.dil === 'python' && pyDurum !== 'hazir' ? pyBekleHTML() : calisiyorHTML();
     await bekle(16);
-    try { sonCikti = await calistir(q.dil, ed.get(), true); c.innerHTML = ciktiHTML(sonCikti); }
+    try { const kod = ed.get(); sonCikti = await calistir(q.dil, kod, true); c.innerHTML = ciktiHTML(sonCikti, { kod, dil: q.dil, baslik: q.baslik }); }
     catch (e) { c.innerHTML = hataHTML(e); }
     return sonCikti;
   }
@@ -1268,7 +1423,7 @@ function serbestCiz() {
     const c = $('#cikti'); c.innerHTML = d === 'python' && pyDurum !== 'hazir' ? pyBekleHTML() : calisiyorHTML();
     await bekle(16);
     try {
-      const r = await calistir(d, ed.get(), false); c.innerHTML = ciktiHTML(r);
+      const kod = ed.get(); const r = await calistir(d, kod, false); c.innerHTML = ciktiHTML(r, { kod, dil: d });
       const k = ed.get().trim(); if (k) { S.gecmis = [{ dil: d, vs: S.veriSeti, kod: k }, ...S.gecmis.filter(g => !(g.dil === d && g.vs === S.veriSeti && g.kod === k))].slice(0, 60); }
       if (d === 'python') { const s = $('#sema'); if (s) s.innerHTML = semaHTML('python'); }
     } catch (e) { c.innerHTML = hataHTML(e); }
