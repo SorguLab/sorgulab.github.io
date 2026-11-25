@@ -362,6 +362,116 @@ function aiPanelCiz(d) {
   };
 }
 
+// ═══════════════ Ayarlar menüsü: tema, ilerleme kaydı, iletişim ═══════════════
+const TEMA_KEY = 'sorgulab-tema';
+function temaAl() { try { const t = localStorage.getItem(TEMA_KEY); return t === 'light' || t === 'dark' ? t : 'sistem'; } catch (e) { return 'sistem'; } }
+function temaAyarla(t) {
+  try { if (t === 'sistem') localStorage.removeItem(TEMA_KEY); else localStorage.setItem(TEMA_KEY, t); } catch (e) { }
+  if (t === 'sistem') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+  $$('[data-tema]').forEach(b => { const a = b.dataset.tema === t; b.classList.toggle('aktif', a); b.setAttribute('aria-checked', a); });
+}
+function ayarMenuAc(ac) {
+  const m = $('#ayarMenu'), b = $('#ayarBtn');
+  m.hidden = !ac; b.setAttribute('aria-expanded', ac);
+  if (ac) {
+    temaAyarla(temaAl());
+    // Dar ekranda menü sola taşmasın
+    m.style.right = ''; const r = m.getBoundingClientRect(); if (r.left < 8) m.style.right = (r.left - 8) + 'px';
+  }
+}
+$('#ayarBtn').addEventListener('click', e => { e.stopPropagation(); ayarMenuAc($('#ayarMenu').hidden); });
+document.addEventListener('click', e => { if (!$('#ayarMenu').hidden && !e.target.closest('.ayar-kap')) ayarMenuAc(false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#ayarMenu').hidden) { ayarMenuAc(false); $('#ayarBtn').focus(); } });
+$$('[data-tema]').forEach(b => b.addEventListener('click', () => temaAyarla(b.dataset.tema)));
+$('#ayarIletisim').addEventListener('click', () => { ayarMenuAc(false); iletisimAc(); });
+$('#ayarYedek').addEventListener('click', () => { ayarMenuAc(false); yedekAc(); });
+
+// ─── İlerleme kaydı (yedek dosyası) ───
+const SON_YEDEK_KEY = 'sorgulab-son-yedek';
+function yedekAc(mesaj) {
+  let d = $('#yedekDialog');
+  if (!d) { d = document.createElement('dialog'); d.id = 'yedekDialog'; d.className = 'ai-dialog'; document.body.appendChild(d); d.addEventListener('click', e => { if (e.target === d) d.close(); }); }
+  let son = null; try { son = localStorage.getItem(SON_YEDEK_KEY); } catch (e) { }
+  const cozulen = Object.keys(depo.cozuldu).length, Y = VS.yuklenen;
+  d.innerHTML = `<div class="yedek-ic">
+    <div class="tg-ust"><span class="tg-adim">Ayarlar</span><button class="btn hafif kucuk-btn" data-kapat type="button">Kapat</button></div>
+    <h2>İlerleme kaydı</h2>
+    <p class="tg-metin">SorguLab'de hesap yok; çözdüğün sorular ve yarım kalan kodların sadece bu tarayıcıda saklanır. Tarayıcı verisi silinirse ya da başka bir cihaza geçersen kaybolur. İlerleme kaydı bunları küçük bir dosyaya alır, istediğin yerde geri yüklersin.</p>
+    <ol class="yedek-adimlar">
+      <li><span><b>İlerlememi indir</b>'e bas. Cihazına <code>sorgulab-yedek-….json</code> dosyası iner.</span></li>
+      <li><span>Dosyayı sakla ya da diğer cihazına gönder (AirDrop, iCloud, mail…).</span></li>
+      <li><span>Diğer cihazda SorguLab'i aç, ⚙ → İlerleme kaydı → <b>Yedekten yükle</b> ile dosyayı seç. Mevcut ilerlemenle birleştirilir, hiçbir şey silinmez.</span></li>
+    </ol>
+    <div class="yedek-kutu">
+      <h3>Yedek al</h3>
+      <p class="yedek-not">Bu cihazda <b>${cozulen}</b> çözülmüş soru, <b>${Object.keys(depo.tahmin).length}</b> tahmin, <b>${Object.values(depo.taslak).filter(v => v && v.trim()).length}</b> taslak var.${son ? ` Son yedek: ${esc(new Date(+son).toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' }))}.` : ' Henüz yedek almadın.'}</p>
+      ${Y ? `<label class="yedek-tik"><input type="checkbox" id="yedekVeri"> Yüklediğim veriyi (${esc(Y.ad)}) ve ona özel soruları da ekle</label>` : ''}
+      <div class="yedek-dugmeler"><button class="btn birincil" id="yedekIndir" type="button">İlerlememi indir</button></div>
+    </div>
+    <div class="yedek-kutu">
+      <h3>Yedekten yükle</h3>
+      <div class="yedek-dugmeler"><label class="btn" tabindex="0">Yedek dosyası seç<input type="file" id="yedekDosya" accept=".json,application/json" hidden></label></div>
+      <div id="yedekDurum">${mesaj || ''}</div>
+    </div>
+    <p class="yedek-not">Yapay zekâ anahtarın yedeğe eklenmez; dosyayı biriyle paylaşsan bile anahtarın gitmez.</p>
+  </div>`;
+  $('[data-kapat]', d).onclick = () => d.close();
+  $('#yedekIndir', d).onclick = () => yedekIndir(!!($('#yedekVeri', d) || {}).checked);
+  const inp = $('#yedekDosya', d);
+  inp.onchange = () => inp.files[0] && yedekOku(inp.files[0]);
+  const lbl = inp.closest('label'); lbl.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inp.click(); } };
+  if (!d.open) { if (d.showModal) d.showModal(); else d.setAttribute('open', ''); }
+}
+function yedekIndir(veriDahil) {
+  const Y = VS.yuklenen;
+  const yedek = { uygulama: 'SorguLab', surum: 1, tarih: new Date().toISOString(), depo: { cozuldu: depo.cozuldu, bakarak: depo.bakarak, tahmin: depo.tahmin, taslak: depo.taslak } };
+  if (veriDahil && Y) yedek.yuklenen = { ad: Y.ad, tablolar: Y.tablolar, sorular: Y.sorular };
+  const p = n => String(n).padStart(2, '0'), z = new Date();
+  const url = URL.createObjectURL(new Blob([JSON.stringify(yedek)], { type: 'application/json' }));
+  const a = document.createElement('a'); a.href = url; a.download = `sorgulab-yedek-${z.getFullYear()}-${p(z.getMonth() + 1)}-${p(z.getDate())}.json`;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+  try { localStorage.setItem(SON_YEDEK_KEY, String(Date.now())); } catch (e) { }
+  yedekAc('<div class="bilgi">Yedek dosyası indirildi. Güvenli bir yerde sakla.</div>');
+}
+async function yedekOku(f) {
+  const durum = $('#yedekDurum');
+  let y;
+  try { y = JSON.parse(await f.text()); } catch (e) { durum.innerHTML = '<div class="hata-kutu">Bu dosya okunamadı. SorguLab\'den indirilen bir <code>.json</code> yedek dosyası seçmelisin.</div>'; return; }
+  if (!y || y.uygulama !== 'SorguLab' || !y.depo) { durum.innerHTML = '<div class="hata-kutu">Bu bir SorguLab yedek dosyası değil.</div>'; return; }
+  const yd = { cozuldu: {}, bakarak: {}, tahmin: {}, taslak: {}, ...y.depo };
+  const yeniCoz = Object.keys(yd.cozuldu).filter(id => !depo.cozuldu[id]).length;
+  const yukseltme = Object.keys(yd.cozuldu).filter(id => depo.cozuldu[id] && depo.bakarak[id] && !yd.bakarak[id]).length;
+  const yeniTahmin = Object.keys(yd.tahmin).filter(id => depo.tahmin[id] === undefined).length;
+  const yeniTaslak = Object.entries(yd.taslak).filter(([id, v]) => v && v.trim() && !(depo.taslak[id] || '').trim()).length;
+  const ortakTaslak = Object.entries(yd.taslak).filter(([id, v]) => v && v.trim() && (depo.taslak[id] || '').trim() && depo.taslak[id] !== v).length;
+  const veri = y.yuklenen && y.yuklenen.tablolar;
+  const tarih = y.tarih ? new Date(y.tarih).toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+  durum.innerHTML = `<div class="bilgi"><b>${esc(tarih)}</b> tarihli yedek. Yüklenirse:<ul>
+      <li>${yeniCoz} yeni çözülmüş soru eklenir${yukseltme ? `, ${yukseltme} soru soluk ✓'den normal ✓'ye geçer` : ''}</li>
+      <li>${yeniTahmin} tahmin, ${yeniTaslak} taslak eklenir${ortakTaslak ? ` (${ortakTaslak} soruda sende de taslak olduğu için seninki korunur)` : ''}</li>
+      ${veri ? `<li>Yedekte yüklenmiş bir veri var: <b>${esc(y.yuklenen.ad)}</b>${VS.yuklenen ? ` <label class="yedek-tik"><input type="checkbox" id="yedekVeriAl"> Şu anki verimin (${esc(VS.yuklenen.ad)}) yerine bunu koy</label>` : ' (eklenecek)'}</li>` : ''}
+    </ul>Hiçbir ilerleme silinmez.<div class="yedek-dugmeler" style="margin-top:8px"><button class="btn birincil" id="yedekUygula" type="button">Birleştir ve yükle</button><button class="btn hafif" id="yedekVazgec" type="button">Vazgeç</button></div></div>`;
+  $('#yedekVazgec').onclick = () => { durum.innerHTML = ''; };
+  $('#yedekUygula').onclick = async () => {
+    for (const id of Object.keys(yd.cozuldu)) {
+      if (!yd.cozuldu[id]) continue;
+      const normal = (depo.cozuldu[id] && !depo.bakarak[id]) || !yd.bakarak[id];
+      depo.cozuldu[id] = true;
+      if (normal) delete depo.bakarak[id]; else depo.bakarak[id] = true;
+    }
+    for (const [id, v] of Object.entries(yd.tahmin)) if (depo.tahmin[id] === undefined) depo.tahmin[id] = v;
+    for (const [id, v] of Object.entries(yd.taslak)) if (v && v.trim() && !(depo.taslak[id] || '').trim()) depo.taslak[id] = v;
+    kaydet();
+    if (veri && (!VS.yuklenen || ($('#yedekVeriAl') || {}).checked)) {
+      VS.yuklenen = { ad: y.yuklenen.ad, tablolar: y.yuklenen.tablolar, sorular: y.yuklenen.sorular || [], meta: metaHesapla(y.yuklenen.tablolar) };
+      delete gonderilen.yuklenen; Object.keys(beklenenCache).filter(k => k.startsWith('yuklenen:')).forEach(k => delete beklenenCache[k]);
+      if (pyYukluVS === 'yuklenen') pyYukluVS = null;
+      await yukleneniKaydet();
+    }
+    ustCiz(); yenidenCiz();
+    yedekAc('<div class="karar dogru"><span class="karar-ikon">✓</span><div>Yedek yüklendi ve ilerlemenle birleştirildi.</div></div>');
+  };
+}
 // ═══════════════ İlk açılış tanıtımı ═══════════════
 const TANITIM_KEY = 'sorgulab-tanitim-gizle';
 const TANITIM = [
@@ -373,8 +483,8 @@ const TANITIM = [
     gorsel: `<div class="tg-veri"><span class="tg-hap secili">İK Attrition</span><span class="tg-hap">Örnek Mağaza</span><span class="tg-hap">Northwind</span><span class="tg-hap">Titanic</span><span class="tg-hap">FLO Müşteri</span><span class="tg-hap kesik">+ Kendi verin</span></div>` },
   { ust: 'Diğer modlar', baslik: 'Sadece soru çözmek değil', metin: '',
     gorsel: `<ul class="tg-modlar"><li><b>Tahmin Et</b><span>Kodu çalıştırmadan çıktısını tahmin et.</span></li><li><b>Mülakat</b><span>Süreli, ipucusuz kod soruları ya da teorik sorularla prova.</span></li><li><b>Serbest Alan</b><span>Veriyle istediğin gibi oyna.</span></li><li><b>KonuLab</b><span>Üstteki SorguLab ⇄ KonuLab geçişiyle konu anlatımları.</span></li></ul>` },
-  { ust: 'Yapay zekâ', baslik: 'İstersen yanında bir yardımcı', metin: 'Üstteki <b>Yapay zekâ</b> düğmesinden ücretsiz bir Gemini anahtarı ekleyerek hatalarını açıklatabilir, kendi verine özel sorular ürettirebilirsin. Zorunlu değil, her şey onsuz da çalışır.<br><br>Bir önerin ya da bulduğun bir hata olursa <b>İletişim</b>\'ten yazabilirsin. Kolay gelsin!',
-    gorsel: `<div class="tg-veri"><span class="tg-hap ai">Yapay zekâ: kapalı</span><span class="tg-hap ai">İletişim</span></div>` },
+  { ust: 'Yapay zekâ', baslik: 'İstersen yanında bir yardımcı', metin: 'Üstteki <b>Yapay zekâ</b> düğmesinden ücretsiz bir Gemini anahtarı ekleyerek hatalarını açıklatabilir, kendi verine özel sorular ürettirebilirsin. Zorunlu değil, her şey onsuz da çalışır.<br><br>Bir önerin ya da bulduğun bir hata olursa sağ üstteki <b>⚙ Ayarlar</b> menüsündeki <b>İletişim</b>\'ten yazabilirsin. Tema seçimi ve ilerleme kaydı da orada. Kolay gelsin!',
+    gorsel: `<div class="tg-veri"><span class="tg-hap ai">Yapay zekâ: kapalı</span><span class="tg-hap ai">⚙ Ayarlar</span></div>` },
 ];
 function tanitimAc(zorla) {
   if (!zorla) { try { if (localStorage.getItem(TANITIM_KEY)) return; } catch (e) { return; } }
@@ -910,7 +1020,7 @@ $('#vsSec').addEventListener('change', e => { veriSetiDegistir(e.target.value); 
 function veriSetiDegistir(k) { S.veriSeti = k; S.mulakat = null; S.filtre.kategori = ''; S.filtre.kaynak = ''; S.serbestKod = varsayilanKod(k); veriHazirla(k).catch(() => { }); yenidenCiz(); }
 $$('.nav-btn').forEach(b => b.addEventListener('click', () => git(b.dataset.view)));
 $('#aiBtn').addEventListener('click', aiPanelAc);
-$('#iletisimBtn').addEventListener('click', iletisimAc);
+
 $('#tanitimBtn').addEventListener('click', () => tanitimAc(true));
 $$('#konuDil .seg-btn').forEach(b => b.addEventListener('click', () => { S.konuDil = b.dataset.kdil; const k = KONU_OZET.find(x => x.dil === S.konuDil); konuGit(k ? k.id : 'yakinda'); }));
 const VIEWLER = ['alistirma', 'tahmin', 'mulakat', 'serbest', 'veri'];
