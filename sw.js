@@ -1,10 +1,10 @@
 // SorguLab service worker: dosyaları cihaza kaydeder, sonra internetsiz çalışır.
 // Her dosya içeriğinin özetiyle (hash) saklanır: yeni sürümde sadece DEĞİŞEN dosyalar iner (Python motoru tekrar inmez).
-const SURUM = 'sa-1cb0808544';
+const SURUM = 'sa-87f49b683e';
 const DOSYALAR = {
  "index.html": "7d32a74320",
  "manifest.webmanifest": "2eb9d20212",
- "apple-touch-icon.png": "a597da367f",
+ "apple-touch-icon.png": "e4971ae0f2",
  "bricolage-grotesque-latin-600-normal.woff2": "b34fc8c1ef",
  "bricolage-grotesque-latin-700-normal.woff2": "4c373ce3c1",
  "bricolage-grotesque-latin-ext-600-normal.woff2": "9903537bd1",
@@ -16,9 +16,9 @@ const DOSYALAR = {
  "ibm-plex-sans-latin-ext-400-normal.woff2": "c93d2a12aa",
  "ibm-plex-sans-latin-ext-500-normal.woff2": "2846035d85",
  "ibm-plex-sans-latin-ext-600-normal.woff2": "b25dfd4f97",
- "icon-192.png": "084898eef7",
- "icon-512.png": "2206bd6e7f",
- "icon-maskable-512.png": "dbe7b6e7d5",
+ "icon-192.png": "af7c4b7464",
+ "icon-512.png": "016aa16528",
+ "icon-maskable-512.png": "88aa85aa88",
  "jetbrains-mono-latin-400-normal.woff2": "14425ba9c6",
  "jetbrains-mono-latin-500-normal.woff2": "cb182feeed",
  "jetbrains-mono-latin-ext-400-normal.woff2": "505dfba8ec",
