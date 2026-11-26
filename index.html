@@ -352,6 +352,21 @@ legend { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
 .karne-detay { padding: 0 16px 16px; display: grid; gap: 8px; }
 
 /* Serbest */
+.yz-btn { margin-left: auto; color: var(--vurgu); border-color: var(--vurgu); background: var(--yuzey); }
+.yz-btn.acik { background: var(--vurgu-acik); }
+.yz-panel { position: relative; background: var(--yuzey); border: 1px solid var(--vurgu); border-radius: var(--r); padding: 12px 44px 12px 12px; margin-bottom: 12px; }
+.yz-sor { display: flex; gap: 8px; }
+.yz-sor input { flex: 1; min-width: 0; font: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid var(--cizgi); border-radius: 8px; background: var(--yuzey-2); color: var(--murekkep); }
+.yz-sor input:focus { outline: 2px solid var(--vurgu-acik); border-color: var(--vurgu); }
+.yz-kulak { position: absolute; top: -1px; right: -1px; width: 34px; height: 40px; border: 1px solid var(--vurgu); border-radius: 0 var(--r) 0 10px; background: var(--vurgu-acik); color: var(--vurgu); cursor: pointer; font-size: 15px; }
+.yz-kulak:hover { background: var(--vurgu); color: #fff; }
+.yz-cevap { margin-top: 12px; font-size: 14px; line-height: 1.6; }
+.yz-cevap .kod-blok { margin: 10px 0 6px; }
+.yz-ipucu { background: var(--vurgu-acik); border-radius: 8px; padding: 8px 12px; }
+.yz-aciklama ul { margin: 6px 0; padding-left: 20px; } .yz-aciklama li { margin: 3px 0; }
+.yz-arac { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+.yz-seg { width: 220px; margin-bottom: 10px; }
+.yz-iyi { color: var(--iyi); } .yz-uyari { color: var(--py); }
 .serbest-ust { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .serbest-ust .seg { width: 220px; }
 .ornekler { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
@@ -2734,7 +2749,7 @@ const S = {
   filtre: { dil: 'sql', seviye: 0, kategori: '', kaynak: '' },
   aktifId: Object.fromEntries([...VERI_KATALOG.map(k => [k.key, k.ilk_soru]), ['yuklenen', null]]),
   tahminId: 't01', tahminDil: 'sql',
-  serbestDil: 'sql', serbestKod: null,
+  serbestDil: 'sql', serbestKod: null, yz: { acik: false, istek: '', vs: null, cevap: {}, goster: null, kodAcik: false, durum: '', hata: '' },
   gecmis: [], mulakat: null, teorik: null, claude: null, uretiliyor: false,
   lab: 'sorgu', konuId: null, konuDil: 'sql', konuAra: ''
 };
@@ -3256,7 +3271,7 @@ const TANITIM = [
   { ust: 'Veri setleri', baslik: 'Hangi veriyle çalışacağını sen seç', metin: 'Sağ üstteki <b>Veri seti</b> menüsünden İK, Örnek Mağaza, Northwind, Titanic, FLO ya da Telco\'ya geç. <b>Veri</b> sekmesinden kendi Excel ya da CSV dosyanı da yükleyebilirsin. Dosyan sadece senin cihazında kalır.',
     gorsel: `<div class="tg-veri"><span class="tg-hap secili">İK Attrition</span><span class="tg-hap">Örnek Mağaza</span><span class="tg-hap">Northwind</span><span class="tg-hap">Titanic</span><span class="tg-hap">FLO Müşteri</span><span class="tg-hap">Telco</span><span class="tg-hap kesik">+ Kendi verin</span></div>` },
   { ust: 'Diğer modlar', baslik: 'Sadece soru çözmek değil', metin: '',
-    gorsel: `<ul class="tg-modlar"><li><b>Tahmin Et</b><span>Kodu çalıştırmadan çıktısını tahmin et.</span></li><li><b>Mülakat</b><span>Süreli, ipucusuz kod soruları ya da teorik sorularla prova.</span></li><li><b>Serbest Alan</b><span>Veriyle istediğin gibi oyna.</span></li><li><b>KonuLab</b><span>Üstteki SorguLab ⇄ KonuLab geçişiyle konu anlatımları.</span></li></ul>` },
+    gorsel: `<ul class="tg-modlar"><li><b>Tahmin Et</b><span>Kodu çalıştırmadan çıktısını tahmin et.</span></li><li><b>Mülakat</b><span>Süreli, ipucusuz kod soruları ya da teorik sorularla prova.</span></li><li><b>Serbest Alan</b><span>Veriyle istediğin gibi oyna. Takılınca yapay zekâya Türkçe sor: önce ipucu, istersen kod.</span></li><li><b>KonuLab</b><span>Üstteki SorguLab ⇄ KonuLab geçişiyle konu anlatımları.</span></li></ul>` },
   { ust: 'Yapay zekâ', baslik: 'İstersen yanında bir yardımcı', metin: 'Üstteki <b>Yapay zekâ</b> düğmesinden ücretsiz bir Gemini anahtarı ekleyerek hatalarını açıklatabilir, kendi verine özel sorular ürettirebilirsin. Zorunlu değil, her şey onsuz da çalışır.<br><br>Bir önerin ya da bulduğun bir hata olursa sağ üstteki <b>⚙ Ayarlar</b> menüsündeki <b>İletişim</b>\'ten yazabilirsin. Tema seçimi ve ilerleme kaydı da orada. Kolay gelsin!',
     gorsel: `<div class="tg-veri"><span class="tg-hap ai">Yapay zekâ: kapalı</span><span class="tg-hap ai">⚙ Ayarlar</span></div>` },
 ];
@@ -4376,6 +4391,124 @@ function teorikSonucCiz() {
 }
 
 // ═══════════════ SERBEST ALAN ═══════════════
+// ═══════════════ Serbest Alan: yapay zekâya sor ═══════════════
+// Kullanıcı ne yapmak istediğini Türkçe yazar. Önce ipucu gelir, "Kodu göster" deyince kod ve açıklama açılır.
+// Kod göstermeden önce arka planda taze veriyle bir kez çalıştırılır; hata verirse hata mesajıyla bir kez düzelttirilir.
+function yzHTMLTemiz(h) {
+  return esc(String(h || '')).replace(/&lt;(\/?)(p|ul|ol|li|code|b|strong|i|em|br)\s*\/?&gt;/gi, '<$1$2>');
+}
+function yzPrompt(dil, istek, edKod, onceki) {
+  const vs = VS[S.veriSeti];
+  const kurallar = dil === 'sql'
+    ? `- SQLite lehçesinde tek bir sorgu yaz (tarih için strftime/julianday; QUALIFY, ILIKE, DATE_TRUNC yok). Tablo ve sütun adlarını aynen kullan; boşluk ya da özel karakter içerenleri çift tırnakla yaz. Metin değerleri tek tırnakla yaz.`
+    : `- Her tablo aynı isimde bir pandas DataFrame olarak hazır; pd ve np import edilmiş. YYYY-MM-DD biçimindeki tarih sütunları datetime tipinde gelir. Sonucu mutlaka \`sonuc\` değişkenine ata.
+- SADECE pandas ve NumPy kullan (ve Python'un yerleşik özellikleri). scipy, sklearn, matplotlib, seaborn gibi kütüphaneler ortamda yok. Arka planda scipy isteyen pandas yöntemlerini de kullanma (ör. corr(method="spearman") yerine a.rank().corr(b.rank())).`;
+  return `SQL ve Python (pandas) öğrenen bir veri analistine yardım ediyorsun. Kullanıcı veriyle ne yapmak istediğini Türkçe yazdı; bunu yapan ${dil === 'sql' ? 'SQL' : 'Python (pandas)'} kodunu yaz. Tüm metinler Türkçe olsun.
+
+VERİ (${vs.ad}):
+${veriOzetiPrompt(vs.tablolar)}
+
+KURALLAR:
+${kurallar}
+- Kısa, okunaklı, öğretici kod yaz; sadece isteneni yap. Kategorik değerleri veride göründüğü gibi yaz (büyük/küçük harf dahil).
+- Kodun içine yorum satırı koyma; açıklamayı aciklama alanına yaz.
+- İstek bu veriyle yapılamıyorsa (gerekli sütun yoksa) kod alanını boş bırak, ipucunda nedenini ve yapılabilecek en yakın şeyi söyle.
+- ipucu: kodu vermeden yön gösteren 1-2 cümle (hangi fonksiyon ya da ifade, mantık ne). Kod satırı yazma, fonksiyon adlarını <code> içinde yazabilirsin.
+- aciklama: kodun adımlarını anlatan 2-5 kısa madde, HTML olarak <ul><li>…</li></ul>; adları <code> içinde yaz.
+${edKod ? `\nKULLANICININ EDİTÖRDEKİ KODU (istek bununla ilgiliyse üzerine kur, değilse yok say):\n${edKod}\n` : ''}${onceki ? `\nÖNCEKİ DENEMEN ÇALIŞMADI.\nKod:\n${onceki.kod}\nHata: ${onceki.hata}\nHatayı düzelt.\n` : ''}
+KULLANICININ İSTEĞİ: ${istek}
+
+Sadece şu JSON'u döndür:
+{"ipucu":"...","kod":"...","aciklama":"<ul><li>...</li></ul>"}`;
+}
+async function yzUret(dil, istek, edKod) {
+  await veriHazirla(S.veriSeti);
+  let c = await aiJson(yzPrompt(dil, istek, edKod));
+  const temizle = x => ({ ipucu: String(x.ipucu || ''), kod: String(x.kod || '').trim().replace(/^```\w*\n?|```$/g, '').trim(), aciklama: String(x.aciklama || '') });
+  c = temizle(c);
+  if (!c.kod) return { ...c, durum: 'kodsuz' };
+  const dene = async kod => { try { const r = await calistir(dil, kod, true); return r.ok ? null : String(r.error || 'hata'); } catch (e) { return String((e && (e.message || e.error)) || e); } };
+  let hata = await dene(c.kod);
+  if (!hata) return { ...c, durum: 'calisti' };
+  try {
+    const d = temizle(await aiJson(yzPrompt(dil, istek, edKod, { kod: c.kod, hata })));
+    if (d.kod) { const h2 = await dene(d.kod); if (!h2) return { ...d, durum: 'duzeltildi' }; hata = h2; c = d; }
+  } catch (e) { }
+  return { ...c, durum: 'hatali', hata };
+}
+function yzKur(ed, run) {
+  const Y = S.yz, d = S.serbestDil;
+  if (Y.vs !== S.veriSeti) { Object.assign(Y, { vs: S.veriSeti, cevap: {}, goster: null, kodAcik: false, durum: '', hata: '' }); }
+  const panel = $('#yzPanel'), btn = $('#yzAc');
+  const ciz = () => {
+    btn.setAttribute('aria-expanded', Y.acik); btn.classList.toggle('acik', Y.acik);
+    if (!Y.acik) { panel.innerHTML = ''; return; }
+    const g = Y.goster && Y.cevap[Y.goster], diger = d === 'sql' ? 'python' : 'sql';
+    const ikiDil = Y.cevap.sql && Y.cevap.python;
+    const durumSatir = !g ? '' : g.durum === 'calisti' ? '<span class="yz-iyi">✓ Denendi, hatasız çalıştı</span>'
+      : g.durum === 'duzeltildi' ? '<span class="yz-iyi">✓ İlk deneme hata verdi, düzeltildi ve çalıştı</span>'
+      : g.durum === 'hatali' ? `<span class="yz-uyari">Bu kod denenirken hata verdi: ${esc(String(g.hata).slice(0, 160))}. Yine de fikir verebilir; editörde düzeltmeyi dene.</span>` : '';
+    panel.innerHTML = `<div class="yz-panel">
+      <form class="yz-sor" id="yzForm">
+        <input id="yzIstek" type="text" autocomplete="off" maxlength="500" value="${esc(Y.istek)}" placeholder="Ne yapmak istiyorsun? Örn: ${S.veriSeti === 'hr' ? 'cinsiyete göre ortalama maaş' : 'en çok tekrar eden 5 değer'}" aria-label="Yapay zekâya ne yapmak istediğini yaz">
+        <button class="btn birincil" type="submit" ${Y.durum === 'yukleniyor' ? 'disabled' : ''}>${Y.durum === 'yukleniyor' ? 'Düşünüyor…' : 'Sor'}</button>
+      </form>
+      <button class="yz-kulak" id="yzKapat" title="Kapat (cevap saklanır, düğmeyle tekrar açılır)" aria-label="Yapay zekâ kutusunu kapat">▴</button>
+      ${Y.durum === 'yukleniyor' ? `<div class="yz-cevap kucuk">${esc(aiAd())} kodu yazıyor ve deniyor…</div>`
+      : Y.durum === 'hata' ? `<div class="yz-cevap">${Y.hata}</div>`
+      : g ? `<div class="yz-cevap">
+        ${ikiDil ? `<div class="seg yz-seg">${['sql', 'python'].map(x => `<button class="seg-btn dil-${x}" data-yzg="${x}" aria-selected="${Y.goster === x}">${DIL[x]}</button>`).join('')}</div>` : ''}
+        <div class="yz-ipucu"><b>İpucu:</b> ${yzHTMLTemiz(g.ipucu)}</div>
+        ${g.kod ? (Y.kodAcik ? `${kodBlok(g.kod, Y.goster)}
+          <div class="yz-durum kucuk">${durumSatir}</div>
+          <div class="yz-aciklama">${yzHTMLTemiz(g.aciklama)}</div>
+          <div class="yz-arac">
+            <button class="btn" data-yz="koy">↓ Editöre koy</button>
+            <button class="btn" data-yz="calistir">▶ Koy ve çalıştır</button>
+            ${Y.goster === d && !Y.cevap[diger] ? `<button class="btn hafif" data-yz="diger">${DIL[diger]} ile göster</button>` : ''}
+          </div>` : `<div class="yz-arac"><button class="btn" data-yz="kodGoster">Kodu göster</button><span class="kucuk">Önce ipucuyla kendin yazmayı dene.</span></div>`) : ''}
+      </div>` : `<div class="yz-cevap kucuk">Veriyle ne yapmak istediğini kendi cümlelerinle yaz. Önce bir ipucu, istersen kodun kendisi ve açıklaması gelir. ${aiTur() ? '' : 'Bunun için bir yapay zekâ bağlantısı gerekiyor; ücretsiz Gemini anahtarı ekleyerek açabilirsin.'}</div>`}
+    </div>`;
+    const inp = $('#yzIstek');
+    inp.oninput = () => { Y.istek = inp.value; };
+    $('#yzForm').onsubmit = e => { e.preventDefault(); sor(d); };
+    $('#yzKapat').onclick = () => { Y.acik = false; ciz(); };
+    $$('[data-yzg]', panel).forEach(b => b.onclick = () => { Y.goster = b.dataset.yzg; ciz(); });
+    $$('[data-yz]', panel).forEach(b => b.onclick = () => islem(b.dataset.yz));
+  };
+  const sor = async dil => {
+    const istek = (Y.istek || '').trim();
+    if (!istek) { $('#yzIstek').focus(); return; }
+    if (!aiTur()) { aiPanelAc(); return; }
+    const ilk = dil === d, vs = S.veriSeti;
+    if (ilk) Y.cevap = {};
+    Y.durum = 'yukleniyor'; Y.hata = ''; ciz();
+    try {
+      const c = await yzUret(dil, istek, dil === d ? ed.get().trim().slice(0, 3000) : '');
+      if (S.veriSeti !== vs) return;   // bu arada veri seti değiştiyse cevap eski veriye ait
+      Y.cevap[dil] = c; Y.goster = dil; Y.durum = ''; Y.kodAcik = !ilk;
+    } catch (e) { Y.durum = 'hata'; Y.hata = esc(aiHata(e)); }
+    if (S.view === 'serbest' && Y.ciz) Y.ciz();   // bu arada dil değiştiyse yeni çizilen panel güncellenir
+  };
+  const islem = async n => {
+    const g = Y.cevap[Y.goster];
+    if (n === 'kodGoster') { Y.kodAcik = true; ciz(); return; }
+    if (n === 'diger') { sor(d === 'sql' ? 'python' : 'sql'); return; }
+    if (Y.goster !== d) {   // diğer dildeki kodu editöre koymak: o dile geç
+      S.serbestKod[Y.goster] = g.kod; S.serbestDil = Y.goster;
+      if (Y.goster === 'python') pyHazirla().catch(() => { });
+      serbestCiz();
+      if (n === 'calistir') $('#sCalistir').click();
+      return;
+    }
+    ed.set(g.kod);
+    if (n === 'calistir') run(); else ed.odak();
+  };
+  Y.ciz = ciz;
+  btn.onclick = () => { Y.acik = !Y.acik; ciz(); if (Y.acik) { const i = $('#yzIstek'); if (i && !Y.istek) i.focus(); } };
+  ciz();
+}
+
 function serbestCiz() {
   const ana = $('#ana'), d = S.serbestDil, vs = VS[S.veriSeti];
   const gecmisBu = S.gecmis.filter(g => g.dil === d && g.vs === S.veriSeti);
@@ -4391,7 +4524,9 @@ function serbestCiz() {
       </div>
       <div class="editor-alan"><div id="ed"></div>
         <div class="arac-cubugu"><button class="btn birincil" id="sCalistir">Çalıştır <kbd>Ctrl</kbd><kbd>Enter</kbd></button>
-        ${d === 'sql' ? '<button class="btn hafif" id="sSifirla" title="CREATE/UPDATE/DELETE ile yaptığın değişiklikleri geri alır">Veriyi sıfırla</button>' : '<button class="btn hafif" id="sSifirla" title="Tanımladığın değişkenleri siler, tabloları orijinal haline döndürür">Sıfırla</button><span class="kucuk">Değişkenlerin ve tablolarda yaptığın değişiklikler sonraki çalıştırmalarda da durur.</span>'}</div></div>
+        ${d === 'sql' ? '<button class="btn hafif" id="sSifirla" title="CREATE/UPDATE/DELETE ile yaptığın değişiklikleri geri alır">Veriyi sıfırla</button>' : '<button class="btn hafif" id="sSifirla" title="Tanımladığın değişkenleri siler, tabloları orijinal haline döndürür">Sıfırla</button><span class="kucuk">Değişkenlerin ve tablolarda yaptığın değişiklikler sonraki çalıştırmalarda da durur.</span>'}
+        <button class="btn yz-btn" id="yzAc" aria-expanded="${S.yz.acik}">✦ Yapay zekâya sor</button></div></div>
+      <div id="yzPanel"></div>
       <div class="cikti" id="cikti"><div class="cikti-bos">Serbest alan: istediğin sorguyu yaz, sonucu gör. Burada kontrol yok, sadece keşif.</div></div>
       ${gecmisBu.length ? `<div class="gecmis"><div class="ek-baslik">Son çalıştırdıkların</div><ul>${gecmisBu.slice(0, 8).map(g => `<li><button class="gecmis-btn" data-g="${S.gecmis.indexOf(g)}"><code>${esc(g.kod.replace(/\s+/g, ' ').slice(0, 90))}</code></button></li>`).join('')}</ul></div>` : ''}
     </section>
@@ -4408,6 +4543,7 @@ function serbestCiz() {
     } catch (e) { c.innerHTML = hataHTML(e); }
   }
   $('#sCalistir').onclick = run;
+  yzKur(ed, run);
   const sf = $('#sSifirla'); if (sf) sf.onclick = async () => {
     if (d === 'sql') { await sqlHazirla(); await motor('sifirla', [S.veriSeti]); $('#cikti').innerHTML = '<div class="bilgi">Veri orijinal haline döndü.</div>'; }
     else { if (pyHazirP) { await pyHazirla(); await motor('pySifirla', []); } $('#cikti').innerHTML = '<div class="bilgi">Python sıfırlandı: değişkenler silindi, tablolar orijinal haline döndü.</div>'; }
@@ -4663,7 +4799,7 @@ function veriOzetiPrompt(tablolar) {
     const sut = t.columns.map((c, i) => {
       const deg = t.rows.map(r => r[i]); const dolu = deg.filter(v => v !== null);
       let ek = `boş: ${deg.length - dolu.length}`;
-      if (t.types[i] !== 'TEXT' && dolu.length) ek += `, min: ${Math.min(...dolu)}, max: ${Math.max(...dolu)}`;
+      if (t.types[i] !== 'TEXT' && dolu.length) { let en = Infinity, eb = -Infinity; for (const v of dolu) { if (v < en) en = v; if (v > eb) eb = v; } ek += `, min: ${en}, max: ${eb}`; }
       else { const farkli = [...new Set(dolu)]; ek += `, farklı değer: ${farkli.length}${farkli.length <= 12 ? ` (${farkli.slice(0, 12).join(' / ')})` : `, örnek: ${farkli.slice(0, 4).join(' / ')}`}`; }
       return `  - ${c} ${t.types[i]} [${ek}]`;
     }).join('\n');
