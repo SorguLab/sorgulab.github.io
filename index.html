@@ -2783,14 +2783,23 @@ async function geminiFetch(url, ayar, ms) {
 async function geminiIstek(prompt, { json = false, onText } = {}) {
   const key = geminiAnahtar(); if (!key) throw { code: 'yok' };
   if (navigator.onLine === false) throw { code: 'internet' };
-  const govde = JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: json ? { responseMimeType: 'application/json' } : {} });
+  // Yeni Gemini modelleri varsayılan olarak cevap vermeden önce uzun uzun "düşünüyor"; bu da 30-60 sn bekleme ve zaman aşımı demek.
+  // Açıklama ve soru üretme için derin düşünme gerekmiyor: 3.x modellerinde düşünme seviyesi "low", 2.5'te kapalı.
+  // Model bu ayarı kabul etmezse (400) ayarsız tekrar denenir.
+  const dusunme = m => /^gemini-2\.5/.test(m) ? { thinkingBudget: 0 } : { thinkingLevel: 'low' };
+  const govde = (m, ayarli = true) => JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    generationConfig: { ...(json ? { responseMimeType: 'application/json' } : {}), ...(ayarli ? { thinkingConfig: dusunme(m) } : {}) } });
   const akis = !!onText && !json && !!(window.ReadableStream && window.TextDecoder);
   let sonHata = { code: 'model_yok' };
   for (const m of geminiModel ? [geminiModel] : GEMINI_MODELLER) {
     let r;
-    const sure = json ? 120000 : 45000;
-    const ayar = { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: govde };
-    r = await geminiFetch(GEMINI_URL + m + (akis ? ':streamGenerateContent?alt=sse' : ':generateContent'), ayar, sure);
+    const sure = json ? 90000 : 30000;
+    const ayar = { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: govde(m) };
+    const adres = GEMINI_URL + m + (akis ? ':streamGenerateContent?alt=sse' : ':generateContent');
+    // İlk model süre içinde cevap vermezse bir kez sıradakini dene
+    try { r = await geminiFetch(adres, ayar, sure); }
+    catch (e) { if (e && e.code === 'zaman' && !geminiModel && m === GEMINI_MODELLER[0]) { sonHata = e; continue; } if (e && e.code === 'zaman') geminiModel = null; throw e; }
+    if (r.status === 400) { ayar.body = govde(m, false); r = await geminiFetch(adres, ayar, sure); }
     if (r.status === 404) { sonHata = { code: 'model_yok' }; continue; }
     if (r.status >= 500) { await bekle(1500); r = await geminiFetch(r.url, ayar, sure); }
     if (!r.ok) {
