@@ -259,5 +259,52 @@
     ]
    ]
   }
+ },
+ {
+  "key": "telco",
+  "ad": "Telco Müşteri Kaybı",
+  "etiket": "Hazır veri",
+  "dosyalar": [
+   "tc_bank.js"
+  ],
+  "bankalar": [
+   "TC_SORULAR"
+  ],
+  "ilk_soru": "tc01",
+  "aciklama": "Bir telekom şirketinin 7.043 müşterisi (IBM örnek verisi). Her satır bir müşteri: cinsiyet, yaşlı olup olmadığı, eş ve bakmakla yükümlü olduğu kişi, abonelik süresi (ay), telefon ve internet hizmetleri, ek paketler, sözleşme türü, ödeme yöntemi, aylık ve toplam ücret, şirketten ayrılıp ayrılmadığı (Churn). Müşteri kaybı analizi, segmentasyon ve veri temizleme alıştırmaları için.",
+  "varsayilan": {
+   "sql": "SELECT customerID, gender, tenure, Contract, InternetService,\n       MonthlyCharges, TotalCharges, Churn\nFROM telco\nLIMIT 20;",
+   "python": "# DataFrame hazır: telco\ntelco.head(10)"
+  },
+  "ornekler": {
+   "sql": [
+    [
+     "İlk 20 müşteri",
+     "SELECT * FROM telco LIMIT 20;"
+    ],
+    [
+     "Ayrılan müşteriler",
+     "SELECT Churn, COUNT(*) AS musteri\nFROM telco\nGROUP BY Churn;"
+    ],
+    [
+     "Sözleşme türleri",
+     "SELECT Contract, COUNT(*) AS musteri\nFROM telco\nGROUP BY Contract;"
+    ]
+   ],
+   "python": [
+    [
+     "İlk 10 müşteri",
+     "telco.head(10)"
+    ],
+    [
+     "Veri tipleri",
+     "telco.dtypes"
+    ],
+    [
+     "Özet",
+     "telco.describe().T"
+    ]
+   ]
+  }
  }
 ]

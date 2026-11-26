@@ -1,8 +1,8 @@
 // SorguLab service worker: dosyaları cihaza kaydeder, sonra internetsiz çalışır.
 // Her dosya içeriğinin özetiyle (hash) saklanır: yeni sürümde sadece DEĞİŞEN dosyalar iner (Python motoru tekrar inmez).
-const SURUM = 'sa-96fa4bfa31';
+const SURUM = 'sa-e7f33e969a';
 const DOSYALAR = {
- "index.html": "593ac8810c",
+ "index.html": "5088dcb749",
  "manifest.webmanifest": "2eb9d20212",
  "apple-touch-icon.png": "a597da367f",
  "bricolage-grotesque-latin-600-normal.woff2": "b34fc8c1ef",
@@ -41,6 +41,7 @@ const DOSYALAR = {
  "veri-hr.json": "e7bd21d63f",
  "veri-northwind.json": "14c4818147",
  "veri-ornek.json": "81be6babc3",
+ "veri-telco.json": "55e7363b09",
  "veri-titanic.json": "6265debcc7",
  "xlsx.full.min.js": "c9506197ca"
 };   // { yol: hash }

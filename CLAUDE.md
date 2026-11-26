@@ -10,7 +10,7 @@ Repo: `sorgulab/sorgulab.github.io` (GitHub organizasyonu SorguLab). Site: https
 - `kaynak/src/` = tek doğruluk kaynağı:
   - `bank.js` — Örnek Mağaza soruları (`SORULAR`), Tahmin Et (`TAHMINLER`), teorik mülakat (`TEORIK_TEST`, `TEORIK_ACIK`)
   - `hr_bank.js` — İK Attrition SQL/pandas soruları, `np_bank.js` — NumPy soruları
-  - `nw_bank.js` (Northwind), `tt_bank.js` (Titanic), `flo_bank.js` (FLO), `miuul_bank.js` (Miuul Bitirme, İK)
+  - `nw_bank.js` (Northwind), `tt_bank.js` (Titanic), `flo_bank.js` (FLO), `tc_bank.js` (Telco Churn; veri bilerek temizlenmedi, TotalCharges metin), `miuul_bank.js` (Miuul Bitirme, İK)
 - `kaynak/veri_setleri.json` = veri seti kataloğu (anahtar, ad, açıklama, banka dosyaları/değişkenleri, ilk soru, varsayılan kod, örnekler). Yeni veri seti = buraya kayıt + `kaynak/veri/<anahtar>.json` + banka dosyası.
 - `kaynak/veri/<anahtar>.json` = veri setleri (`{tablo: {columns, types, rows}}`). Build bunları köke `veri-<anahtar>.json` olarak kopyalar; uygulama sadece seçilen veri setini indirir (lazy). Ham veriler `kaynak/ham/`, dönüştürücüler `kaynak/araclar/`.
   - `app.js` (arayüz), `helper.py` (Pyodide içinde çalışan çıktı dönüştürücü), `template.html` (CSS + iskelet)
