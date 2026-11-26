@@ -118,7 +118,9 @@ const S = {
 })();
 const GEMINI_KEY = 'sorgulab-gemini-anahtar';
 // Sırayla denenir; ilk çalışan oturum boyunca kullanılır. Yoğunluk (5xx), modele özel kota (429) ya da model yok (404) olursa sıradakine geçilir.
-const GEMINI_MODELLER = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-flash-latest', 'gemini-3.5-flash-lite', 'gemini-2.5-flash'];
+// Sıra bağlantı testine göre (2026-11-26, ücretsiz katman): 3.5 Flash-Lite ~4 sn'de cevap verdi; 3.8 / 3.6 Flash 25 sn'de cevap vermedi,
+// 2.5 Flash kaldırılmış (404). Bu yüzden hızlı model başta, büyükler yedekte.
+const GEMINI_MODELLER = ['gemini-3.5-flash-lite', 'gemini-flash-latest', 'gemini-3.6-flash', 'gemini-3.8-flash'];
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/';
 let geminiModel = null;
 function geminiAnahtar() { try { return localStorage.getItem(GEMINI_KEY) || ''; } catch (e) { return ''; } }
