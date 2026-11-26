@@ -2920,8 +2920,12 @@ async function geminiTest(kutu) {
   const sonuc = (await Promise.all((await geminiModelleriAl(true)).map(dene)))
     .sort((a, b) => (b[2].startsWith('✓') - a[2].startsWith('✓')) || (a[1] - b[1]));   // çalışanlar üstte, hızlıdan yavaşa
   const calisan = sonuc.filter(x => x[2].startsWith('✓')).length;
+  // Bu anahtarla hiç kullanılamayan modeller (kaldırılmış ya da ücretsiz kotası 0) tabloyu kalabalıklaştırmasın
+  const kapali = x => /model yok|ücretsiz kullanımda kapalı/.test(x[2]);
+  const gizli = sonuc.filter(kapali).length, gorunen = sonuc.filter(x => !kapali(x));
   kutu.innerHTML = `<div class="bilgi"><b>Bağlantı testi</b> ${calisan ? `· ${calisan} model çalışıyor` : '· hiçbir model cevap vermedi'}
-    <table class="ai-test"><tr><th>Model</th><th>Süre</th><th>Sonuç</th></tr>${sonuc.map(([m, sn, d]) => `<tr><td><code>${esc(m)}</code></td><td>${sn} sn</td><td>${esc(d)}</td></tr>`).join('')}</table>
+    <table class="ai-test"><tr><th>Model</th><th>Süre</th><th>Sonuç</th></tr>${gorunen.map(([m, sn, d]) => `<tr><td><code>${esc(m)}</code></td><td>${sn} sn</td><td>${esc(d)}</td></tr>`).join('')}</table>
+    ${gizli ? `<p class="kucuk">Bu anahtarla kullanılamayan ${gizli} model (kaldırılmış ya da ücretli) gösterilmedi.</p>` : ''}
     ${!calisan && sonuc.every(x => /cevap yok|kurulamadı/.test(x[2])) ? '<p class="kucuk">Hiçbir istek Google\'a ulaşamıyor gibi: bir tarayıcı eklentisi (reklam engelleyici, gizlilik eklentisi, VPN) ya da ağ ayarı istekleri bekletiyor olabilir. Gizli sekmede deneyip farkı karşılaştır.</p>' : ''}</div>`;
   // Sonuçlar model istatistiğine yazıldı; sonraki isteklerde en hızlı çalışan model önce denenir.
 }
