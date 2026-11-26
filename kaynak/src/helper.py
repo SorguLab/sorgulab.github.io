@@ -6,6 +6,9 @@ _BASE = {}
 _SERBEST = None   # Serbest Alan'ın kalıcı çalışma alanı (değişkenler çalıştırmalar arasında saklanır)
 _TARIH = re.compile(r'^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2})?)?$')
 
+def _input_yok(*a, **k):
+    raise RuntimeError('input() SorguLab\'de çalışmaz: kod arka planda çalıştığı için klavyeden değer okunamıyor. Değeri doğrudan değişkene yaz, ör. ad = "Esra"')
+
 def _serbest_sifirla():
     global _SERBEST
     _SERBEST = None
@@ -108,12 +111,12 @@ def _calistir(kod, kalici=False):
     global _SERBEST
     if kalici:
         if _SERBEST is None:
-            _SERBEST = {'pd': pd, 'np': np}
+            _SERBEST = {'pd': pd, 'np': np, 'input': _input_yok}
             for k, v in _BASE.items():
                 _SERBEST[k] = v.copy()
         ns = _SERBEST
     else:
-        ns = {'pd': pd, 'np': np}
+        ns = {'pd': pd, 'np': np, 'input': _input_yok}
         for k, v in _BASE.items():
             ns[k] = v.copy()
     buf = io.StringIO()

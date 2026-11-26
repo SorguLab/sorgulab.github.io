@@ -41,6 +41,25 @@ ORDER BY UnitPrice DESC;
 SQL Server'daki `CHARINDEX`'te argümanların sırası terstir: önce aranan, sonra metin. `INSTR(Name, ',')` → `CHARINDEX(',', Name)`.
 :::
 
+## Metinler tek tırnakla
+
+Her veritabanında metin değeri **tek tırnakla** yazılır: `WHERE Sex = 'female'`. Çift tırnak (SQL Server'da köşeli parantez, BigQuery'de ters tırnak) sütun ya da tablo adı içindir.
+
+SQLite eski bir uyumluluk yüzünden `WHERE Sex = "female"` yazınca da çalışır: `female` adında bir sütun bulamayınca onu metin sanar. Diğer veritabanları burada hata verir. Yanlış alışkanlık olmasın diye SorguLab da bu durumda hata verir ve tek tırnağı hatırlatır.
+
+## Türkçe harfler: büyük/küçük harf
+
+SQLite'ın `UPPER`, `LOWER` fonksiyonları ve `LIKE`'ın büyük/küçük harf ayrımı yapmaması sadece İngilizce harflerde (A-Z) çalışır. ç, ğ, ı, İ, ö, ş, ü olduğu gibi kalır:
+
+```sql titanic
+SELECT UPPER('ışık') AS buyuk,
+       LOWER('İSTANBUL') AS kucuk,
+       'Şule' LIKE 'şule' AS like_esit,
+       'Ali' LIKE 'ali' AS ingilizce_harf;
+```
+
+PostgreSQL, SQL Server ve BigQuery bu harfleri tanır. Ama Türkçe i/İ ve ı/I çiftinin doğru dönmesi için orada da Türkçe dil ayarı (collation) gerekir; yoksa `UPPER('i')` sonucu `İ` değil `I` olur. Türkçe metinlerde karşılaştırma yaparken en güvenlisi değerleri olduğu gibi (aynı büyük/küçük harfle) yazmaktır.
+
 ## Tablo ve sütun adlarında boşluk
 
 | SQLite / PostgreSQL | SQL Server | BigQuery / MySQL |

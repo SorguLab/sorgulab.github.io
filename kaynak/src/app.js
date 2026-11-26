@@ -664,7 +664,7 @@ async function calistir(dil, kod, temiz = false) {
   if (dil === 'sql') {
     await sqlHazirla(); await veriGonder(key);
     const r = await motor('sql', [key, kod, temiz], SURE.sql);
-    if (!r.ok) r.ipucu = lehceIpucu(kod, r.error);
+    if (!r.ok && !r.ciftTirnak) r.ipucu = lehceIpucu(kod, r.error);
     return r;
   }
   await pyHazirla(); await veriGonder(key);
@@ -692,7 +692,8 @@ function nk(v) {
 }
 function karsilastir(bek, gel, sirali) {
   if (!gel || !gel.columns) return { dogru: false, mesaj: 'Çıktı yok. SQL\'de sorgunun bir SELECT ile bitmesi, Python\'da sonucun <code>sonuc</code> değişkeninde olması gerekiyor.' };
-  if (bek.rows.length !== gel.rows.length) return { dogru: false, mesaj: `Satır sayısı tutmuyor: beklenen <b>${bek.rows.length}</b>, senin çıktında <b>${gel.rows.length}</b>.` };
+  const nBek = bek.total ?? bek.rows.length, nGel = gel.total ?? gel.rows.length;
+  if (nBek !== nGel || bek.rows.length !== gel.rows.length) return { dogru: false, mesaj: `Satır sayısı tutmuyor: beklenen <b>${nBek}</b>, senin çıktında <b>${nGel}</b>.` };
   if (bek.columns.length !== gel.columns.length) return { dogru: false, mesaj: `Sütun sayısı tutmuyor: beklenen <b>${bek.columns.length}</b> (${bek.columns.map(c => `<code>${esc(c)}</code>`).join(', ')}), senin çıktında <b>${gel.columns.length}</b>.` };
   const sutunAnahtar = (t, j) => t.rows.map(r => nk(r[j])).sort().join('\u0001');
   const bA = bek.columns.map((_, j) => sutunAnahtar(bek, j));
@@ -1775,7 +1776,7 @@ function tarihCevir(s, gunOnce) {
 }
 // Metin hücrelerinden oluşan tabloyu sütun sütun sayıya / ISO tarihe çevirir.
 function metinSutunlariniCevir(satirlar, ondalik) {
-  const n = Math.max(0, ...satirlar.map(r => r.length));
+  let n = 0; for (const r of satirlar) if (r.length > n) n = r.length;   // (spread büyük dosyada yığın taşırır)
   for (let j = 0; j < n; j++) {
     const dolu = satirlar.map(r => r[j]).filter(v => v !== null && v !== undefined).map(v => String(v).trim()).filter(Boolean);
     if (!dolu.length) continue;
@@ -1798,6 +1799,7 @@ function metinSutunlariniCevir(satirlar, ondalik) {
   return satirlar;
 }
 let sonYuklenenDosya = null;
+const SATIR_SINIRI_YUKLE = 100000;   // yüklenen her tablo için (Excel ve CSV)
 async function dosyaYukle(f, secenek = {}) {
   const d = $('#yukDurum');
   d.innerHTML = '<div class="yukleniyor">Dosya okunuyor…</div>';
@@ -1810,8 +1812,9 @@ async function dosyaYukle(f, secenek = {}) {
     if (metinMi) {
       const { metin, kodlama } = metinCoz(await f.arrayBuffer());
       const ayirici = ayiriciBul(metin);
-      const ham = csvAyristir(metin, ayirici);
+      let ham = csvAyristir(metin, ayirici);
       if (ham.length < 2) throw new Error('Dosyada okunabilir bir tablo bulunamadı. İlk satırın sütun adları olduğundan emin ol.');
+      if (ham.length - 1 > SATIR_SINIRI_YUKLE) { uyarilar.push(`İlk ${SATIR_SINIRI_YUKLE.toLocaleString('tr-TR')} satır alındı (dosyada ${(ham.length - 1).toLocaleString('tr-TR')} satır var).`); ham = ham.slice(0, SATIR_SINIRI_YUKLE + 1); }
       const sayiGibi = ham.slice(1).flat().map(v => v.trim()).filter(v => /^[-+]?[\d.,]*\d$/.test(v) && /[.,]/.test(v));
       const ondalik = secenek.ondalik || ondalikTahmin(sayiGibi, ayirici);
       metinSutunlariniCevir(ham.slice(1), ondalik);
@@ -1833,7 +1836,7 @@ async function dosyaYukle(f, secenek = {}) {
       const gor = {}; baslik = baslik.map(h => { if (gor[h]) { gor[h]++; return `${h}_${gor[h]}`; } gor[h] = 1; return h; });
       let satirlar = ham.slice(1).map(r => baslik.map((_, i) => { let v = r[i]; if (v === undefined || v === '') v = null; if (v instanceof Date) v = tarihYaz(v); if (typeof v === 'boolean') v = v ? 1 : 0; return v; }));
       satirlar = satirlar.filter(r => r.some(v => v !== null));
-      if (satirlar.length > 100000) { uyarilar.push(`${sn}: ilk 100.000 satır alındı (toplam ${satirlar.length}).`); satirlar = satirlar.slice(0, 100000); }
+      if (satirlar.length > SATIR_SINIRI_YUKLE) { uyarilar.push(`${sn}: ilk ${SATIR_SINIRI_YUKLE.toLocaleString('tr-TR')} satır alındı (toplam ${satirlar.length.toLocaleString('tr-TR')}).`); satirlar = satirlar.slice(0, SATIR_SINIRI_YUKLE); }
       const tipler = baslik.map((_, i) => { const dolu = satirlar.map(r => r[i]).filter(v => v !== null); if (!dolu.length) return 'TEXT'; if (dolu.every(v => typeof v === 'number')) return dolu.every(Number.isInteger) ? 'INTEGER' : 'REAL'; return 'TEXT'; });
       satirlar = satirlar.map(r => r.map((v, i) => tipler[i] === 'TEXT' && v !== null ? String(v) : v));
       let tad = adTemizle(metinMi || sayfalar.length === 1 && /\.csv$/i.test(f.name) ? f.name.replace(/\.[^.]+$/, '') : sn, 'tablo');
@@ -1995,8 +1998,9 @@ function konuListeCiz(K, aktif) {
   const ara = trKucuk(S.konuAra).trim();
   const kap = $('#konuListe');
   if (ara) {
-    const bulunan = K.konular.filter(x => trKucuk(x.ara).includes(ara));
-    kap.innerHTML = bulunan.length ? `<div class="konu-grup-ad">${bulunan.length} sonuç</div>` + bulunan.map(x => `<a class="konu-link" href="#konu/${encodeURIComponent(x.id)}" ${aktif && aktif.id === x.id ? 'aria-current="page"' : ''}><span class="no">${(g => g.dil === 'python' ? 'py' : g.dil === 'sql' ? 'SQL' : 'kavram')(K.gruplar.find(g => g.id === x.grup))}</span>${esc(x.baslik)}</a>`).join('') : '<div class="konu-bul">Bu kelimeyle konu bulunamadı.</div>';
+    const aranabilir = new Set(K.gruplar.filter(g => g.dil === 'sql' || g.dil === 'python').map(g => g.id));
+    const bulunan = K.konular.filter(x => aranabilir.has(x.grup) && trKucuk(x.ara).includes(ara));
+    kap.innerHTML = bulunan.length ? `<div class="konu-grup-ad">${bulunan.length} sonuç</div>` + bulunan.map(x => `<a class="konu-link" href="#konu/${encodeURIComponent(x.id)}" ${aktif && aktif.id === x.id ? 'aria-current="page"' : ''}><span class="no">${K.gruplar.find(g => g.id === x.grup).dil === 'python' ? 'py' : 'SQL'}</span>${esc(x.baslik)}</a>`).join('') : '<div class="konu-bul">Bu kelimeyle konu bulunamadı.</div>';
     return;
   }
   kap.innerHTML = K.gruplar.filter(g => g.dil === S.konuDil).map(g => {

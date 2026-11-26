@@ -68,14 +68,55 @@ var Motor = (function () {
     if (!v.bytes) { var db = olustur(v.tablolar); v.bytes = db.export(); v.oyun = db; }
     return v;
   }
+  // Sonucun en fazla bu kadar satırı belleğe alınır (ekranda zaten 200 satır görünür). Sorgu yine tüm veri üzerinde çalışır,
+  // toplam satır sayısı da tam sayılır. Çok büyük sonuçlar (ör. 2 milyon satırlık çapraz birleştirme) iPad'de sekmeyi çökertmesin diye.
+  var SATIR_SINIRI = 50000;
+  // Metin değerini çift tırnakla yazmak ("Sales") SQLite'ta tesadüfen çalışır, diğer veritabanlarında hata verir.
+  // Çift tırnak içindeki ad hiçbir tablo, sütun ya da sorgudaki takma adla eşleşmiyorsa hata veririz.
+  function ciftTirnakDenetle(db, kod) {
+    var temiz = String(kod).replace(/'(?:[^']|'')*'/g, "''").replace(/--[^\n]*/g, ' ').replace(/\/\*[\s\S]*?\*\//g, ' ');
+    var re = /"((?:[^"]|"")*)"/g, m, adaylar = [];
+    while ((m = re.exec(temiz))) adaylar.push({ ad: m[1].replace(/""/g, '"'), i: m.index, son: re.lastIndex });
+    if (!adaylar.length) return null;
+    var bilinen = {};
+    var ekle = function (a) { bilinen[String(a).toLowerCase()] = true; };
+    try {
+      var t = db.exec("SELECT name FROM sqlite_master WHERE type IN ('table','view')");
+      (t[0] ? t[0].values : []).forEach(function (r) {
+        ekle(r[0]);
+        var c = db.exec('PRAGMA table_info("' + String(r[0]).replace(/"/g, '""') + '")');
+        (c[0] ? c[0].values : []).forEach(function (x) { ekle(x[1]); });
+      });
+    } catch (e) { return null; }
+    // Sorgunun kendisinde tanımlanan adlar: takma adlar (AS "x"), CTE adları ("x" AS (...)), oluşturulan tablo/sütunlar
+    adaylar.forEach(function (a) {
+      var once = temiz.slice(Math.max(0, a.i - 40), a.i), sonra = temiz.slice(a.son, a.son + 12);
+      if (/\bAS\s*$/i.test(once) || /^\s*AS\s*\(/i.test(sonra) || /\b(TABLE|VIEW|INDEX|EXISTS|COLUMN|INTO)\s*$/i.test(once) || /\(\s*$|,\s*$/.test(once) && /\bCREATE\b/i.test(temiz)) ekle(a.ad);
+      // FROM tablo "t" / JOIN tablo "t" biçimindeki takma adlar
+      if (/\b(FROM|JOIN)\s+[\w"]+\s*$/i.test(once)) ekle(a.ad);
+    });
+    for (var i = 0; i < adaylar.length; i++) {
+      var a = adaylar[i];
+      if (!bilinen[a.ad.toLowerCase()]) return 'Çift tırnak sütun ya da tablo adı içindir; "' + a.ad + '" adında bir sütun ya da tablo yok. Metin değerleri tek tırnakla yazılır: \'' + a.ad + '\'';
+    }
+    return null;
+  }
   function exec(db, kod) {
     var t0 = performance.now();
     try {
-      var r = db.exec(kod);
+      var cift = ciftTirnakDenetle(db, kod);
+      if (cift) return { ok: false, error: cift, ms: Math.round(performance.now() - t0), ciftTirnak: true };
+      var son = null, it = db.iterateStatements(kod), st;
+      for (st of it) {
+        var sutun = st.getColumnNames();
+        if (!sutun.length) { while (st.step()) { } continue; }
+        var satir = [], n = 0;
+        while (st.step()) { if (n < SATIR_SINIRI) satir.push(st.get()); n++; }
+        son = { columns: sutun, rows: satir, total: n };
+      }
       var ms = Math.round(performance.now() - t0);
-      var son = r[r.length - 1];
       if (!son) return { ok: true, table: null, ms: ms, mesaj: 'Sorgu çalıştı, sonuç tablosu dönmedi (' + db.getRowsModified() + ' satır etkilendi).' };
-      return { ok: true, table: { columns: son.columns, rows: son.values, total: son.values.length }, ms: ms };
+      return { ok: true, table: son, ms: ms };
     } catch (e) { return { ok: false, error: e.message, ms: Math.round(performance.now() - t0) }; }
   }
   async function sql(key, kod, temiz) {

@@ -30,11 +30,6 @@ Esra'nın sonraya bıraktığı istekler. Bir madde bitince buradan sil ve commi
 - Yanlış cevapta farklı satırları gösterme (şimdilik kalsın).
 - Aynı sorunun diğer dildeki çözümü (şimdilik kalsın).
 
-## Teknik kontrol (2026-11-25) — Esra'nın tekrar bakacağı maddeler
-- 1: 100 bin+ satırlı CSV "Maximum call stack size exceeded" ile yüklenemiyor (metinSutunlariniCevir'de Math.max(...spread)). CSV'ye de 100.000 satır sınırı konacak.
-- 2: SQL sonucunda satır sınırı yok (2 milyon satır ~800 MB bellek; iPad'de sekme çökebilir). Python'da 5.000 sınırı var.
-- 7: SQLite Türkçe harflerde UPPER/LOWER/LIKE yapmıyor (sadece A-Z). İstenirse Lehçe farkları konusuna not.
-- 8: Çift tırnaklı metin (WHERE x="Sales") kabul ediliyor; plan: sorgu öncesi tarama, sütun/tablo adı değilse hata + tek tırnak ipucu.
-- 10: input() → anlaşılır mesaj ("input() burada çalışmaz; değeri doğrudan değişkene yaz").
-- Dokunulmayacak: 6 (ilk ziyarette ~29,5 MB indirme), 12, 15, 18.
-- KonuLab araması (Esra, sonra yapılacak): arama sadece SQL ve Python konularında yapılsın; Kavramlar konuları arama sonuçlarına girmesin ("kavram" etiketi de olmasın), Kavramlar bölümü sol listede en altta eskisi gibi dursun.
+## Teknik kontrol (2026-11-25) — TAMAMLANDI (2026-11-26)
+Yapıldı: büyük CSV hatası + 100.000 satır sınırı (Excel ve CSV), SQL sonucunda 50.000 satır bellek sınırı (toplam yine tam sayılır), çift tırnaklı metin hatası, input() mesajı, Lehçe farkları konusuna Türkçe harfler ve tek tırnak notu, KonuLab araması sadece SQL/Python.
+Dokunulmayacak: 6 (ilk ziyarette ~29,5 MB indirme), 12, 15, 18.
