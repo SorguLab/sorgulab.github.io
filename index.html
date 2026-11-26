@@ -530,8 +530,12 @@ body:not([data-lab="konu"]) .konu-ozel, body[data-lab="konu"] .sorgu-ozel { disp
 .konu-tablo th { background: var(--yuzey-2); font-weight: 600; }
 .konu-son { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 36px !important; padding-top: 20px; border-top: 1px solid var(--cizgi); }
 .konu-son .gezinme-btn { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
-.konu-sag { position: sticky; top: 76px; font-size: 13.5px; display: grid; gap: 6px; }
-.konu-sag a { color: var(--soluk); text-decoration: none; } .konu-sag a:hover { color: var(--vurgu); }
+.konu-sag { position: sticky; top: 76px; align-self: start; font-size: 13.5px; display: grid; background: var(--yuzey); border: 1px solid var(--cizgi); border-radius: var(--r); overflow: hidden; }
+.konu-sag:empty { display: none; }
+.konu-sag .konu-grup-ad { padding: 9px 12px !important; background: var(--yuzey-2); border-bottom: 1px solid var(--cizgi); }
+.konu-sag a { color: var(--murekkep); text-decoration: none; padding: 8px 12px; line-height: 1.4; border-left: 3px solid transparent; }
+.konu-sag a + a { border-top: 1px solid var(--cizgi); }
+.konu-sag a:hover { color: var(--vurgu); background: var(--vurgu-acik); border-left-color: var(--vurgu); }
 .konu-bul { color: var(--soluk); font-size: 14px; padding: 6px 10px; }
 .konu-oku { font-size: 13px; font-weight: 500; color: var(--vurgu); text-decoration: none; } .konu-oku:hover { text-decoration: underline; }
 .konu-acilir { display: none; }
