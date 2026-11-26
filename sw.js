@@ -1,8 +1,8 @@
 // SorguLab service worker: dosyaları cihaza kaydeder, sonra internetsiz çalışır.
 // Her dosya içeriğinin özetiyle (hash) saklanır: yeni sürümde sadece DEĞİŞEN dosyalar iner (Python motoru tekrar inmez).
-const SURUM = 'sa-3aed5bfd4e';
+const SURUM = 'sa-4529b4145c';
 const DOSYALAR = {
- "index.html": "9fa4723dbc",
+ "index.html": "35c6298b47",
  "manifest.webmanifest": "2eb9d20212",
  "apple-touch-icon.png": "a597da367f",
  "bricolage-grotesque-latin-600-normal.woff2": "b34fc8c1ef",
@@ -30,6 +30,7 @@ const DOSYALAR = {
  "paket-python_dateutil.wasm": "cd2f76132e",
  "paket-pytz.wasm": "0a56642bb5",
  "paket-six.wasm": "132e601473",
+ "paylasim.png": "a5c738eb6f",
  "pyodide-lock.json": "832bef56fd",
  "pyodide.asm.js": "919560652e",
  "pyodide.asm.wasm": "b7e66a1942",

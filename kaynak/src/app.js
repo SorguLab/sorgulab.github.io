@@ -14,6 +14,17 @@ const bekle = ms => new Promise(r => setTimeout(r, ms));
 const DEPO_KEY = 'sorgu-atolyesi-v1';
 let depo = { cozuldu: {}, bakarak: {}, tahmin: {}, tahminSonra: {}, taslak: {} };
 try { const d = JSON.parse(localStorage.getItem(DEPO_KEY)); if (d) depo = Object.assign(depo, d); } catch (e) { }
+// Tekrar ettiği için çıkarılan sorular (eski Miuul m01, m04, m06): çözülmüş işareti aynı konudaki İK sorusuna geçer.
+const ESKI_SORU = { m01: 'h07', m04: 'h11', m06: 'h08' };
+for (const [eski, yeni] of Object.entries(ESKI_SORU)) {
+  if (depo.cozuldu[eski]) {
+    const normal = (depo.cozuldu[yeni] && !depo.bakarak[yeni]) || !depo.bakarak[eski];
+    depo.cozuldu[yeni] = true;
+    if (normal) delete depo.bakarak[yeni]; else depo.bakarak[yeni] = true;
+  }
+  if (depo.taslak && depo.taslak[eski] && !(depo.taslak[yeni] || '').trim()) depo.taslak[yeni] = depo.taslak[eski];
+  delete depo.cozuldu[eski]; delete depo.bakarak[eski]; if (depo.taslak) delete depo.taslak[eski];
+}
 // Çözülen soru işareti: kendi çözdüysen ✓, cevaba bakıp çözdüysen – (üzerine gelince açıklama).
 const bakildi = {};   // bu oturumda cevabına bakılan sorular
 const tikHTML = id => depo.bakarak[id] ? '<span class="tik bakarak" title="Cevaba bakarak çözüldü" aria-label="cevaba bakarak çözüldü">–</span>' : '<span class="tik" aria-label="çözüldü">✓</span>';
@@ -385,6 +396,35 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#ayarM
 $$('[data-tema]').forEach(b => b.addEventListener('click', () => temaAyarla(b.dataset.tema)));
 $('#ayarIletisim').addEventListener('click', () => { ayarMenuAc(false); iletisimAc(); });
 $('#ayarYedek').addEventListener('click', () => { ayarMenuAc(false); yedekAc(); });
+$('#ayarGizlilik').addEventListener('click', () => { ayarMenuAc(false); gizlilikAc(); });
+function gizlilikAc() {
+  let d = $('#gizlilikDialog');
+  if (!d) { d = document.createElement('dialog'); d.id = 'gizlilikDialog'; d.className = 'ai-dialog'; document.body.appendChild(d); d.addEventListener('click', e => { if (e.target === d) d.close(); }); }
+  d.innerHTML = `<div class="gizlilik-ic">
+    <div class="tg-ust"><span class="tg-adim">Ayarlar</span><button class="btn hafif kucuk-btn" data-kapat type="button">Kapat</button></div>
+    <h2>Gizlilik ve veri kaynakları</h2>
+    <p>SorguLab'de hesap ya da üyelik yok; senden kişisel bilgi istemiyoruz.</p>
+    <section><h3>Senin cihazında kalanlar</h3>
+      <p>Çözdüğün sorular, yarım kalan kodların, tahminlerin, tema seçimin ve yüklediğin Excel/CSV dosyaları sadece bu cihazdaki tarayıcıda saklanır. Hiçbiri bir sunucuya gönderilmez ve başkası tarafından görülemez. Tarayıcı verilerini silersen bunlar da silinir; korumak için ⚙ → <b>İlerleme kaydı</b> ile yedek alabilirsin.</p></section>
+    <section><h3>Ziyaretçi sayısı</h3>
+      <p>Sitenin kaç kez ve hangi bölümlerinin açıldığını görmek için GoatCounter kullanılıyor. Çerez kullanmaz, seni tanımlayacak bir bilgi toplamaz; sadece sayfa açılış sayıları tutulur.</p></section>
+    <section><h3>İletişim formu</h3>
+      <p>Formdan gönderdiğin mesaj ve yazarsan e-posta adresin, Web3Forms hizmeti aracılığıyla SorguLab'in e-posta kutusuna iletilir. Sadece sana cevap vermek için kullanılır, başka bir amaçla kullanılmaz ve kimseyle paylaşılmaz.</p></section>
+    <section><h3>Yapay zekâ (isteğe bağlı)</h3>
+      <p>Yapay zekâ özelliklerini kullanırsan; soru, yazdığın kod ve gerekiyorsa tablolarının yapısıyla birkaç örnek satır, cevabı hazırlaması için yapay zekâ hizmetine gönderilir: kendi anahtarınla Google Gemini'ye, claude.ai içinde Claude'a (Anthropic). Bu gönderim ilgili hizmetin kendi koşullarına tabidir. Gemini anahtarın sadece bu cihazda saklanır. Kişisel ya da gizli veri içeren bir dosya yüklediysen yapay zekâ özelliklerini kullanmadan önce bunu göz önünde bulundur.</p></section>
+    <section><h3>Veri kaynakları</h3>
+      <p>Hazır veri setleri eğitim amaçlı, herkese açık kaynaklardan alındı:</p>
+      <ul>
+        <li><b>İK Attrition</b> ve <b>Telco Müşteri Kaybı:</b> IBM'in örnek veri setleri (Kaggle'da herkese açık).</li>
+        <li><b>Titanic:</b> Kaggle'ın "Titanic" yarışmasının eğitim verisi.</li>
+        <li><b>Northwind:</b> Microsoft'un örnek veritabanı.</li>
+        <li><b>FLO Müşteri:</b> veri bilimi eğitimlerinde kullanılan, herkese açık FLO müşteri veri seti.</li>
+        <li><b>Örnek Mağaza:</b> SorguLab için üretilmiş sentetik (gerçek olmayan) veri.</li>
+      </ul></section>
+  </div>`;
+  $('[data-kapat]', d).onclick = () => d.close();
+  if (!d.open) { if (d.showModal) d.showModal(); else d.setAttribute('open', ''); }
+}
 
 // ─── İlerleme kaydı (yedek dosyası) ───
 const SON_YEDEK_KEY = 'sorgulab-son-yedek';
@@ -1025,6 +1065,17 @@ function semaHTML(dil) {
 document.addEventListener('click', e => { const b = e.target.closest('.ekle-btn'); if (b && aktifEditor) { e.preventDefault(); aktifEditor.ekle(b.dataset.ekle); } });
 
 // ═══════════════ Üst bar ═══════════════
+// Alıştırmalar listesinin üstündeki ilerleme: seçili veri setinde SQL ve Python için ayrı ayrı çözülen / toplam.
+function ilerlemeHTML(vs) {
+  const satir = d => {
+    const l = vs.sorular.filter(q => q.dil === d);
+    if (!l.length) return '';
+    const coz = l.filter(q => depo.cozuldu[q.id]), bak = coz.filter(q => depo.bakarak[q.id]).length;
+    const yuzde = Math.round(100 * coz.length / l.length);
+    return `<div class="ilerleme-satir" title="${bak ? `${bak} tanesi cevaba bakarak çözüldü` : ''}"><span class="ilerleme-ad dil-${d}">${DIL[d]}</span><span class="ilerleme-cubuk" aria-hidden="true"><span style="width:${yuzde}%"></span></span><span class="ilerleme-sayi"><b>${coz.length}</b>/${l.length}</span></div>`;
+  };
+  return `<div class="ilerleme" aria-label="Bu veri setinde çözdüğün sorular">${satir('sql')}${satir('python')}</div>`;
+}
 function ilerlemeMetni() {
   const qs = VS[S.veriSeti] ? VS[S.veriSeti].sorular : [];
   const say = d => { const l = qs.filter(q => q.dil === d); return `${l.filter(q => depo.cozuldu[q.id]).length}/${l.length}`; };
@@ -1151,7 +1202,7 @@ function alistirmaCiz() {
   <div class="uc-kolon">
     <aside class="soru-liste" aria-label="Soru listesi">
       <div class="seg" role="tablist">${['sql', 'python'].map(d => `<button role="tab" class="seg-btn dil-${d}" aria-selected="${S.filtre.dil === d}" data-dil="${d}">${DIL[d]}</button>`).join('')}</div>
-      ${kaynaklar.length ? `<div class="seg kaynak-seg" role="tablist" aria-label="Soru kaynağı">${['', ...kaynaklar].map(k => `<button role="tab" class="seg-btn kaynak-btn" aria-selected="${(S.filtre.kaynak || '') === k}" data-kaynak="${k}">${k ? esc(KAYNAK_AD[k] || k) : 'Uygulama soruları'}</button>`).join('')}</div>` : ''}
+      ${ilerlemeHTML(vs)}
       <div class="filtreler">
         <div class="chipler">${[0, 1, 2, 3].map(l => `<button class="chip ${S.filtre.seviye === l ? 'secili' : ''}" data-seviye="${l}">${l ? SEVIYE[l] : 'Tümü'}</button>`).join('')}</div>
         <label class="gizli" for="katSec">Kategori</label>
@@ -1167,7 +1218,6 @@ function alistirmaCiz() {
   </div>`;
   $$('.seg-btn', ana).forEach(b => b.onclick = () => { S.filtre.dil = b.dataset.dil; S.filtre.kategori = ''; if (b.dataset.dil === 'python') pyVeriHazirla(S.veriSeti).then(() => { const s = $('#sema'); if (s && S.view === 'alistirma') s.innerHTML = semaHTML('python'); }).catch(() => { }); alistirmaCiz(); });
   $$('.chip[data-seviye]', ana).forEach(b => b.onclick = () => { S.filtre.seviye = +b.dataset.seviye; alistirmaCiz(); });
-  $$('.kaynak-btn', ana).forEach(b => b.onclick = () => { S.filtre.kaynak = b.dataset.kaynak; S.filtre.kategori = ''; S.filtre.seviye = 0; alistirmaCiz(); });
   $('#katSec').onchange = e => { S.filtre.kategori = e.target.value; alistirmaCiz(); };
   $$('.soru-satir', ana).forEach(b => b.onclick = () => soruSec(b.dataset.id));
   if (aktif) soruCalismaCiz($('#calisma'), aktif, { mod: 'alistirma', liste });
@@ -1268,6 +1318,7 @@ function soruCalismaCiz(host, q, { mod, liste, onKontrol }) {
       else if (!depo.cozuldu[q.id] || depo.bakarak[q.id]) depo.bakarak[q.id] = true;
       depo.cozuldu[q.id] = true; kaydet(); ustCiz();
       const li = $(`.soru-satir[data-id="${q.id}"] .no`); if (li) li.innerHTML = tikHTML(q.id);
+      const il = $('.ilerleme'); if (il && VS[S.veriSeti]) il.outerHTML = ilerlemeHTML(VS[S.veriSeti]);
     }
     k.innerHTML = `<div class="karar ${sonuc.dogru ? 'dogru' : 'yanlis'}" role="status"><span class="karar-ikon" aria-hidden="true">${sonuc.dogru ? '✓' : '✕'}</span><div>${sonuc.mesaj}
       ${!sonuc.dogru && !mulakat ? `<div><button class="btn kucuk-btn" id="btnHata">${aiAd()} hatamı açıklasın</button></div>` : ''}</div></div>`;
