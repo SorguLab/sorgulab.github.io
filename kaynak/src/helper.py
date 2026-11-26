@@ -148,6 +148,16 @@ def _calistir(kod, kalici=False):
                 satir = f' (satır {f.lineno})'
         if isinstance(e, SyntaxError):
             satir = f' (satır {e.lineno})'
-        return json.dumps({'ok': False, 'stdout': buf.getvalue()[-20000:], 'error': f'{type(e).__name__}: {e}{satir}'})
+        mesaj = f'{type(e).__name__}: {e}{satir}'
+        if isinstance(e, ModuleNotFoundError) and e.name:
+            ad = e.name.split('.')[0]
+            mesaj = (f"ModuleNotFoundError: '{ad}' kütüphanesi SorguLab'de yok{satir}. Python tarafında pandas (pd), NumPy (np) "
+                     "ve Python'un kendi modülleri (math, statistics, datetime, re, collections, itertools, json, random…) kullanılabilir; "
+                     "başka kütüphane yüklenemez.")
+            if ad in ('matplotlib', 'seaborn', 'plotly'):
+                mesaj += ' Grafik için sonucu sonuc değişkenine ata ve tablonun altındaki Grafik düğmesini kullan.'
+            elif ad == 'scipy':
+                mesaj += ' Sık kullanılanların karşılığı: Spearman için a.rank().corr(b.rank()), z-skoru için (x - x.mean()) / x.std().'
+        return json.dumps({'ok': False, 'stdout': buf.getvalue()[-20000:], 'error': mesaj})
     finally:
         sys.stdout = eski
