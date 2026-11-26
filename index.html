@@ -2750,13 +2750,12 @@ const S = {
 })();
 const GEMINI_KEY = 'sorgulab-gemini-anahtar';
 // Sırayla denenir; ilk çalışan oturum boyunca kullanılır. Yoğunluk (5xx), modele özel kota (429) ya da model yok (404) olursa sıradakine geçilir.
-// Sıra bağlantı testine göre (2026-11-26, ücretsiz katman): 3.5 Flash-Lite ~4 sn'de cevap verdi; 3.8 / 3.6 Flash 25 sn'de cevap vermedi,
-// 2.5 Flash kaldırılmış (404). Bu yüzden hızlı model başta, büyükler yedekte.
+// Yedek liste: Google'dan model listesi alınamazsa kullanılır. Asıl liste ve sıra geminiModelleriAl / modelSirala'da, kendiliğinden.
 const GEMINI_MODELLER = ['gemini-3.5-flash-lite', 'gemini-flash-latest', 'gemini-3.6-flash', 'gemini-3.8-flash'];
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/';
 let geminiModel = null;
 function geminiAnahtar() { try { return localStorage.getItem(GEMINI_KEY) || ''; } catch (e) { return ''; } }
-function geminiAnahtarYaz(k) { try { if (k) localStorage.setItem(GEMINI_KEY, k); else localStorage.removeItem(GEMINI_KEY); } catch (e) { } geminiModel = null; }
+function geminiAnahtarYaz(k) { try { if (k !== localStorage.getItem(GEMINI_KEY)) { localStorage.removeItem('sorgulab-gemini-modeller'); localStorage.removeItem('sorgulab-gemini-istatistik'); } if (k) localStorage.setItem(GEMINI_KEY, k); else localStorage.removeItem(GEMINI_KEY); } catch (e) { } geminiModel = null; }
 function aiTur() { return S.claude ? 'claude' : geminiAnahtar() ? 'gemini' : null; }
 function aiAd() { return { claude: 'Claude', gemini: 'Gemini' }[aiTur()] || 'Yapay zekâ'; }
 function aiIyelik() { return { claude: 'Claude\'un', gemini: 'Gemini\'nin' }[aiTur()] || 'Yapay zekânın'; }
@@ -2783,53 +2782,115 @@ async function geminiFetch(url, ayar, ms) {
   catch (e) { throw kontrol.signal.aborted ? { code: 'zaman' } : { code: 'internet' }; }
   finally { clearTimeout(t); }
 }
+// ─── Model seçimi: her kullanıcının kendi tarayıcısında, kendiliğinden ───
+// 1) Kullanılabilir modeller Google'dan alınır (günde bir kez); kaldırılan model listeden düşer, yeni çıkan kendiliğinden eklenir.
+// 2) Her istekte modelin cevap süresi ve hataları bu cihazda tutulur; sonraki isteklerde en hızlı ve sorunsuz model önce denenir.
+// 3) İlk model YEDEK_MS içinde cevap vermezse ikinci model de aynı anda başlatılır; hangisi önce cevap verirse o kullanılır.
+const GEMINI_LISTE_KEY = 'sorgulab-gemini-modeller', GEMINI_IST_KEY = 'sorgulab-gemini-istatistik';
+const YEDEK_MS = 8000, CEZA_MS = 30 * 60000, LISTE_OMRU = 24 * 3600000;
+function jsAl(k, v) { try { return JSON.parse(localStorage.getItem(k)) || v; } catch (e) { return v; } }
+function jsYaz(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } }
+// Sohbet/metin için uygun olmayan modelleri ayıkla (ses, canlı, görsel, gömme, deneysel…)
+function geminiUygun(ad) { return /^gemini-/.test(ad) && /flash/.test(ad) && !/tts|live|image|audio|embed|native|robot|computer|exp|thinking/.test(ad); }
+function modelSurum(ad) { const m = ad.match(/gemini-(\d+(?:\.\d+)?)/); return m ? parseFloat(m[1]) : 0; }
+async function geminiModelleriAl(zorla) {
+  const kayit = jsAl(GEMINI_LISTE_KEY, null);
+  if (!zorla && kayit && Date.now() - kayit.zaman < LISTE_OMRU && kayit.liste && kayit.liste.length) return kayit.liste;
+  try {
+    const r = await geminiFetch(GEMINI_URL.replace(/\/$/, '') + '?pageSize=200', { headers: { 'x-goog-api-key': geminiAnahtar() } }, 10000);
+    if (!r.ok) throw new Error(r.status);
+    const d = await r.json();
+    const liste = (d.models || []).filter(x => (x.supportedGenerationMethods || []).includes('generateContent'))
+      .map(x => String(x.name || '').replace(/^models\//, '')).filter(geminiUygun);
+    if (liste.length) { jsYaz(GEMINI_LISTE_KEY, { zaman: Date.now(), liste }); return liste; }
+  } catch (e) { }
+  return kayit && kayit.liste && kayit.liste.length ? kayit.liste : GEMINI_MODELLER;
+}
+function modelIstat() { return jsAl(GEMINI_IST_KEY, {}); }
+function modelKaydet(m, sonuc) {   // sonuc: { sn } başarı, { hata: 'kota'|'yogun'|'zaman' } sorun, { ayarsiz: true } düşünme ayarını kabul etmiyor
+  const ist = modelIstat(), x = ist[m] || {};
+  if (sonuc.sn != null) { x.sure = x.sure == null ? sonuc.sn : +(0.6 * x.sure + 0.4 * sonuc.sn).toFixed(2); x.basari = (x.basari || 0) + 1; delete x.ceza; }
+  if (sonuc.hata) { x.ceza = Date.now(); x.sonHata = sonuc.hata; }
+  if (sonuc.ayarsiz) x.ayarsiz = true;
+  ist[m] = x; jsYaz(GEMINI_IST_KEY, ist);
+}
+// Denenecek sıra: yakın zamanda hata vermemiş olanlar önce, aralarında ölçülen süreye göre (ölçülmemişse lite modeller hızlı varsayılır)
+function modelSirala(liste) {
+  const ist = modelIstat(), simdi = Date.now();
+  const tahmin = m => (ist[m] && ist[m].sure != null) ? ist[m].sure : (/lite/.test(m) ? 5 : 12) - modelSurum(m) / 100;
+  const cezali = m => ist[m] && ist[m].ceza && simdi - ist[m].ceza < CEZA_MS;
+  return [...liste].sort((a, b) => (cezali(a) - cezali(b)) || (tahmin(a) - tahmin(b)));
+}
 async function geminiIstek(prompt, { json = false, onText } = {}) {
   const key = geminiAnahtar(); if (!key) throw { code: 'yok' };
   if (navigator.onLine === false) throw { code: 'internet' };
-  // Yeni Gemini modelleri varsayılan olarak cevap vermeden önce uzun uzun "düşünüyor"; bu da 30-60 sn bekleme ve zaman aşımı demek.
-  // Açıklama ve soru üretme için derin düşünme gerekmiyor: 3.x modellerinde düşünme seviyesi "low", 2.5'te kapalı.
-  // Model bu ayarı kabul etmezse (400) ayarsız tekrar denenir.
-  const dusunme = m => /^gemini-2\.5/.test(m) ? { thinkingBudget: 0 } : { thinkingLevel: 'low' };
-  const govde = (m, ayarli = true) => JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: { ...(json ? { responseMimeType: 'application/json' } : {}), ...(ayarli ? { thinkingConfig: dusunme(m) } : {}) } });
   const akis = !!onText && !json && !!(window.ReadableStream && window.TextDecoder);
-  let sonHata = { code: 'model_yok' };
-  for (const m of geminiModel ? [geminiModel] : GEMINI_MODELLER) {
-    let r;
-    const sure = json ? 90000 : 30000;
-    const ayar = { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: govde(m) };
+  const sure = json ? 90000 : 30000;
+  const ist = modelIstat();
+  // Yeni modeller varsayılan olarak cevaptan önce uzun "düşünüyor"; açıklama ve soru üretme için düşük seviye yeterli.
+  const govde = (m, ayarli) => JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    generationConfig: { ...(json ? { responseMimeType: 'application/json' } : {}), ...(ayarli ? { thinkingConfig: /^gemini-2\.5/.test(m) ? { thinkingBudget: 0 } : { thinkingLevel: 'low' } } : {}) } });
+  const sira = modelSirala(await geminiModelleriAl());
+  // Tek bir modele istek: başarılıysa { m, r }, değilse hata nesnesi fırlatır
+  const dene = async (m, iptal) => {
+    const t0 = performance.now();
     const adres = GEMINI_URL + m + (akis ? ':streamGenerateContent?alt=sse' : ':generateContent');
-    // İlk model süre içinde cevap vermezse bir kez sıradakini dene
-    try { r = await geminiFetch(adres, ayar, sure); }
-    catch (e) { if (e && e.code === 'zaman' && !geminiModel && m === GEMINI_MODELLER[0]) { sonHata = e; continue; } if (e && e.code === 'zaman') geminiModel = null; throw e; }
-    if (r.status === 400) { ayar.body = govde(m, false); r = await geminiFetch(adres, ayar, sure); }
-    if (r.status === 404) { sonHata = { code: 'model_yok' }; continue; }
-    if (r.status >= 500) { await bekle(1500); r = await geminiFetch(r.url, ayar, sure); }
-    if (!r.ok) {
-      const h = await geminiHata(r);
-      if ((h.code === 'yogun' || h.code === 'kota') && !geminiModel) { sonHata = h; continue; }
-      if (h.code === 'yogun' || h.code === 'kota') { geminiModel = null; }
-      throw h;
-    }
-    geminiModel = m;
-    let text = '';
-    if (akis) {
-      const okuyucu = r.body.getReader(), dec = new TextDecoder(); let tampon = '';
-      for (;;) {
-        const { done, value } = await okuyucu.read(); if (done) break;
-        tampon += dec.decode(value, { stream: true });
-        let i;
-        while ((i = tampon.indexOf('\n')) >= 0) {
-          const satir = tampon.slice(0, i).trim(); tampon = tampon.slice(i + 1);
-          if (!satir.startsWith('data:')) continue;
-          try { const parca = geminiMetin(JSON.parse(satir.slice(5))); if (parca) { text += parca; onText({ text }); } } catch (e) { }
-        }
+    const ayar = ayarli => ({ method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: govde(m, ayarli), signal: iptal.signal });
+    const getir = async ayarli => {
+      const t = setTimeout(() => iptal.abort('zaman'), sure);
+      try { return await fetch(adres, ayar(ayarli)); }
+      catch (e) { throw iptal.signal.aborted ? { code: iptal.signal.reason === 'zaman' ? 'zaman' : 'iptal' } : { code: 'internet' }; }
+      finally { clearTimeout(t); }
+    };
+    let ayarli = !(ist[m] && ist[m].ayarsiz);
+    let r = await getir(ayarli);
+    if (r.status === 400 && ayarli) { ayarli = false; r = await getir(false); if (r.ok) modelKaydet(m, { ayarsiz: true }); }
+    if (r.status >= 500) { await bekle(1000); r = await getir(ayarli); }
+    if (r.ok) { modelKaydet(m, { sn: (performance.now() - t0) / 1000 }); return { m, r }; }
+    if (r.status === 404) { const k = jsAl(GEMINI_LISTE_KEY, null); if (k && k.liste) jsYaz(GEMINI_LISTE_KEY, { ...k, liste: k.liste.filter(x => x !== m) }); throw { code: 'model_yok', m }; }
+    const h = await geminiHata(r);
+    if (h.code === 'kota' || h.code === 'yogun') modelKaydet(m, { hata: h.code });
+    throw h;
+  };
+  // Yarış: ilk model başlar; YEDEK_MS içinde sonuç yoksa ya da hata verirse sıradaki de başlar. İlk başarılı cevap kazanır.
+  const kazanan = await new Promise((coz, red) => {
+    let i = 0, bitti = false, sonHata = { code: 'model_yok' }, yedekZaman = null;
+    const kosan = new Map();
+    const bitir = (hata, sonuc) => { if (bitti) return; bitti = true; clearTimeout(yedekZaman); for (const [, c] of kosan) c.abort('kazanan'); hata ? red(hata) : coz(sonuc); };
+    const baslat = () => {
+      if (bitti) return;
+      if (i >= sira.length) { if (!kosan.size) bitir(sonHata); return; }
+      const m = sira[i++], c = new AbortController(); kosan.set(m, c);
+      clearTimeout(yedekZaman); yedekZaman = setTimeout(baslat, YEDEK_MS);
+      dene(m, c).then(x => { kosan.delete(m); bitir(null, x); }, h => {
+        kosan.delete(m);
+        if (bitti) return;
+        if (h.code === 'zaman') modelKaydet(m, { hata: 'zaman' });
+        if (['anahtar_gecersiz', 'yetki', 'bolge'].includes(h.code)) return bitir(h);
+        if (h.code !== 'iptal') sonHata = h.code === 'model_yok' && sonHata.code !== 'model_yok' ? sonHata : h;
+        if (!kosan.size || i < sira.length) baslat(); else if (!kosan.size) bitir(sonHata);
+      });
+    };
+    baslat();
+  });
+  geminiModel = kazanan.m;
+  const r = kazanan.r;
+  let text = '';
+  if (akis) {
+    const okuyucu = r.body.getReader(), dec = new TextDecoder(); let tampon = '';
+    for (;;) {
+      const { done, value } = await okuyucu.read(); if (done) break;
+      tampon += dec.decode(value, { stream: true });
+      let k;
+      while ((k = tampon.indexOf('\n')) >= 0) {
+        const satir = tampon.slice(0, k).trim(); tampon = tampon.slice(k + 1);
+        if (!satir.startsWith('data:')) continue;
+        try { const parca = geminiMetin(JSON.parse(satir.slice(5))); if (parca) { text += parca; onText({ text }); } } catch (e) { }
       }
-    } else text = geminiMetin(await r.json());
-    if (!text.trim()) throw { code: 'bos' };
-    return { text };
-  }
-  throw sonHata;
+    }
+  } else text = geminiMetin(await r.json());
+  if (!text.trim()) throw { code: 'bos' };
+  return { text };
 }
 // Bağlantı testi: her modele aynı anda küçük bir istek atar, süreyi ve sonucu tabloya yazar. Gemini yavaşsa sorunun nerede olduğunu gösterir.
 async function geminiTest(kutu) {
@@ -2841,20 +2902,21 @@ async function geminiTest(kutu) {
     try {
       const r = await geminiFetch(GEMINI_URL + m + ':generateContent', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: govde(m) }, 25000);
       const sn = ((performance.now() - t0) / 1000).toFixed(1);
-      if (r.ok) return [m, sn, '✓ çalışıyor'];
+      if (r.ok) { modelKaydet(m, { sn: +sn }); return [m, sn, '✓ çalışıyor']; }
       const h = await geminiHata(r);
+      if (h.code === 'kota' || h.code === 'yogun') modelKaydet(m, { hata: h.code });
       return [m, sn, { kota: 'kota dolu (429)', yogun: 'sunucu yoğun (5xx)', anahtar_gecersiz: 'anahtar geçersiz', yetki: 'yetki yok', bolge: 'bölge desteklenmiyor' }[h.code] || (r.status === 404 ? 'model yok (404)' : `hata ${r.status}`)];
     } catch (e) {
+      if (e && e.code === 'zaman') modelKaydet(m, { hata: 'zaman' });
       return [m, ((performance.now() - t0) / 1000).toFixed(1), e && e.code === 'zaman' ? '25 sn içinde cevap yok' : 'bağlantı kurulamadı'];
     }
   };
-  const sonuc = await Promise.all(GEMINI_MODELLER.map(dene));
+  const sonuc = await Promise.all((await geminiModelleriAl(true)).map(dene));
   const calisan = sonuc.filter(x => x[2].startsWith('✓')).length;
   kutu.innerHTML = `<div class="bilgi"><b>Bağlantı testi</b> ${calisan ? `· ${calisan} model çalışıyor` : '· hiçbir model cevap vermedi'}
     <table class="ai-test"><tr><th>Model</th><th>Süre</th><th>Sonuç</th></tr>${sonuc.map(([m, sn, d]) => `<tr><td><code>${esc(m)}</code></td><td>${sn} sn</td><td>${esc(d)}</td></tr>`).join('')}</table>
     ${!calisan && sonuc.every(x => /cevap yok|kurulamadı/.test(x[2])) ? '<p class="kucuk">Hiçbir istek Google\'a ulaşamıyor gibi: bir tarayıcı eklentisi (reklam engelleyici, gizlilik eklentisi, VPN) ya da ağ ayarı istekleri bekletiyor olabilir. Gizli sekmede deneyip farkı karşılaştır.</p>' : ''}</div>`;
-  // Sonraki isteklerde en hızlı çalışan model kullanılsın
-  if (calisan) geminiModel = sonuc.filter(x => x[2].startsWith('✓')).sort((a, b) => a[1] - b[1])[0][0];
+  // Sonuçlar model istatistiğine yazıldı; sonraki isteklerde en hızlı çalışan model önce denenir.
 }
 function jsonCoz(t) {
   const s = String(t).trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
