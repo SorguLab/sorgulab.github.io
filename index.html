@@ -133,7 +133,9 @@ blockquote.odev { margin: 2px 0 10px; padding: 8px 12px; border-left: 3px solid 
 .soru-satir .no { font: 500 12px var(--f-kod); color: var(--soluk); text-align: center; font-variant-numeric: tabular-nums; }
 .soru-satir .ad { font-size: 14px; line-height: 1.3; display: grid; }
 .soru-satir .kat { font-size: 12px; color: var(--soluk); }
-.tik { color: var(--iyi); font-weight: 700; } .tik.bakarak { color: var(--soluk); font-weight: 800; cursor: help; } .soluk-not { color: var(--soluk); font-weight: 400; } .carpi { color: var(--kotu); font-weight: 700; }
+.tik { color: var(--iyi); font-weight: 700; } .sifirla-btn { display: inline-grid; place-items: center; width: 24px; height: 24px; margin-left: 6px; vertical-align: middle; border: 1px solid var(--cizgi); border-radius: 50%; background: var(--yuzey); color: var(--soluk); cursor: pointer; padding: 0; }
+.sifirla-btn:hover, .sifirla-btn:focus-visible { color: var(--vurgu); border-color: var(--vurgu); }
+.tik.bakarak { color: var(--soluk); font-weight: 800; cursor: help; } .soluk-not { color: var(--soluk); font-weight: 400; } .carpi { color: var(--kotu); font-weight: 700; }
 .sev { font-size: 11.5px; font-weight: 600; padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
 .sev-1 { color: var(--iyi); background: var(--iyi-acik); } .sev-2 { color: var(--uyari); background: color-mix(in srgb, var(--uyari) 14%, transparent); } .sev-3 { color: var(--kotu); background: var(--kotu-acik); }
 .bos-not { padding: 10px; }
@@ -2638,7 +2640,7 @@ const bekle = ms => new Promise(r => setTimeout(r, ms));
 
 // ─── Kalıcı ilerleme (bu tarayıcıda) ───
 const DEPO_KEY = 'sorgu-atolyesi-v1';
-let depo = { cozuldu: {}, bakarak: {}, tahmin: {}, taslak: {} };
+let depo = { cozuldu: {}, bakarak: {}, tahmin: {}, tahminSonra: {}, taslak: {} };
 try { const d = JSON.parse(localStorage.getItem(DEPO_KEY)); if (d) depo = Object.assign(depo, d); } catch (e) { }
 // Çözülen soru işareti: kendi çözdüysen ✓, cevaba bakıp çözdüysen – (üzerine gelince açıklama).
 const bakildi = {};   // bu oturumda cevabına bakılan sorular
@@ -3050,7 +3052,7 @@ function yedekAc(mesaj) {
 }
 async function yedekIndir(veriDahil) {
   const Y = VS.yuklenen;
-  const yedek = { uygulama: 'SorguLab', surum: 1, tarih: new Date().toISOString(), depo: { cozuldu: depo.cozuldu, bakarak: depo.bakarak, tahmin: depo.tahmin, taslak: depo.taslak } };
+  const yedek = { uygulama: 'SorguLab', surum: 1, tarih: new Date().toISOString(), depo: { cozuldu: depo.cozuldu, bakarak: depo.bakarak, tahmin: depo.tahmin, tahminSonra: depo.tahminSonra, taslak: depo.taslak } };
   if (veriDahil && Y) yedek.yuklenen = { ad: Y.ad, tablolar: Y.tablolar, sorular: Y.sorular };
   const p = n => String(n).padStart(2, '0'), z = new Date();
   let ok;
@@ -3086,7 +3088,7 @@ async function yedekOku(f) {
       depo.cozuldu[id] = true;
       if (normal) delete depo.bakarak[id]; else depo.bakarak[id] = true;
     }
-    for (const [id, v] of Object.entries(yd.tahmin)) if (depo.tahmin[id] === undefined) depo.tahmin[id] = v;
+    for (const [id, v] of Object.entries(yd.tahmin)) if (depo.tahmin[id] === undefined) { depo.tahmin[id] = v; if (yd.tahminSonra && yd.tahminSonra[id]) depo.tahminSonra[id] = true; }
     for (const [id, v] of Object.entries(yd.taslak)) if (v && v.trim() && !(depo.taslak[id] || '').trim()) depo.taslak[id] = v;
     kaydet();
     if (veri && (!VS.yuklenen || ($('#yedekVeriAl') || {}).checked)) {
@@ -3971,13 +3973,17 @@ function tahminCiz() {
   let t = liste.find(x => x.id === S.tahminId) || liste[0];
   S.tahminId = t.id;
   const dogruSay = TAHMINLER.filter(x => depo.tahmin[x.id] === true).length;
+  // İlk tahmin sayaçta kalır; ilk tahmini yanlış olup sonra doğru bilinen soru listede gri – ile gösterilir.
+  const tahminIsaret = id => depo.tahmin[id] === true ? '<span class="tik">✓</span>'
+    : depo.tahmin[id] === false ? (depo.tahminSonra[id] ? '<span class="tik bakarak" title="İlk tahmin yanlış, sonra doğru bildin" aria-label="ilk tahmin yanlış, sonra doğru bilindi">–</span>' : '<span class="carpi">✕</span>') : null;
+  const cevaplanan = Object.keys(depo.tahmin).length;
   ana.innerHTML = `
   <div class="iki-kolon">
     <aside class="soru-liste">
       <div class="seg" role="tablist">${['sql', 'python'].map(d => `<button role="tab" class="seg-btn dil-${d}" aria-selected="${S.tahminDil === d}" data-dil="${d}">${DIL[d]}</button>`).join('')}</div>
-      <p class="kucuk liste-not">Kodu çalıştırmadan, sonucunu tahmin et. Küçük, kendi içinde verisi olan örnekler. Doğru tahmin: <b>${dogruSay}/${TAHMINLER.length}</b></p>
+      <p class="kucuk liste-not">Kodu çalıştırmadan, sonucunu tahmin et. Küçük, kendi içinde verisi olan örnekler. Doğru tahmin: <b>${dogruSay}/${TAHMINLER.length}</b>${cevaplanan ? '<button class="sifirla-btn" id="tSifirla" type="button" title="Baştan başla" aria-label="Tahminleri sıfırla, baştan başla"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M20 12a8 8 0 1 1-2.34-5.66"/><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M20 4v5h-5"/></svg></button>' : ''}</p>
       <ol class="sorular">${liste.map((x, i) => `<li><button class="soru-satir ${x.id === t.id ? 'aktif' : ''}" data-id="${x.id}">
-        <span class="no">${depo.tahmin[x.id] === true ? '<span class="tik">✓</span>' : depo.tahmin[x.id] === false ? '<span class="carpi">✕</span>' : i + 1}</span>
+        <span class="no">${tahminIsaret(x.id) || i + 1}</span>
         <span class="ad">${esc(x.konu)}</span></button></li>`).join('')}</ol>
     </aside>
     <section class="calisma">
@@ -4002,12 +4008,18 @@ function tahminCiz() {
     calismaAlaninaGit($('#ana .calisma'));
   };
   $$('.soru-satir', ana).forEach(b => b.onclick = () => tahminSec(b.dataset.id));
+  const sf = $('#tSifirla');
+  if (sf) sf.onclick = async () => {
+    if (!(await onayIste('Baştan başla', `Tahmin Et'teki ${cevaplanan} cevabın ve sayaç sıfırlanacak; bütün sorular cevaplanmamış hale gelecek.`, 'Sıfırla', 'Vazgeç'))) return;
+    depo.tahmin = {}; depo.tahminSonra = {}; kaydet(); tahminCiz();
+  };
   const i = liste.indexOf(t);
   $('#tOnceki').onclick = () => tahminSec(liste[i - 1].id);
   $('#tSonraki').onclick = () => tahminSec(liste[i + 1].id);
   $$('.secenek', ana).forEach(b => b.onclick = async () => {
     const sec = +b.dataset.i, dogru = sec === t.dogru;
     if (depo.tahmin[t.id] === undefined) { depo.tahmin[t.id] = dogru; kaydet(); }
+    else if (depo.tahmin[t.id] === false && dogru && !depo.tahminSonra[t.id]) { depo.tahminSonra[t.id] = true; kaydet(); }
     $$('.secenek', ana).forEach(x => { x.disabled = true; const k = +x.dataset.i; if (k === t.dogru) x.classList.add('dogru'); else if (k === sec) x.classList.add('yanlis'); });
     const s = $('#tahminSonuc');
     s.innerHTML = `<div class="karar ${dogru ? 'dogru' : 'yanlis'}"><span class="karar-ikon">${dogru ? '✓' : '✕'}</span><div>${dogru ? 'Doğru tahmin!' : `Doğru cevap: <b>${esc(t.secenekler[t.dogru])}</b>`}</div></div>
@@ -4016,7 +4028,9 @@ function tahminCiz() {
     await bekle(16);
     try { const r = await calistir(t.dil, t.kod, true); const c = $('#tCikti'); if (c) c.innerHTML = ciktiHTML(r); }
     catch (e) { const c = $('#tCikti'); if (c) c.innerHTML = hataHTML(e); }
-    const li = $(`.soru-satir[data-id="${t.id}"] .no`); if (li) li.innerHTML = depo.tahmin[t.id] ? '<span class="tik">✓</span>' : '<span class="carpi">✕</span>';
+    const li = $(`.soru-satir[data-id="${t.id}"] .no`); if (li) li.innerHTML = tahminIsaret(t.id);
+    // İlk cevaptan sonra sayaç ve "Baştan başla" düğmesi hemen görünsün
+    if (!$('#tSifirla') || TAHMINLER.filter(x => depo.tahmin[x.id] === true).length !== dogruSay) { const ls = $('.soru-liste'), y = ls ? ls.scrollTop : 0, sy = window.scrollY, sonuc = $('#tahminSonuc').innerHTML, secHTML = $('.secenekler').innerHTML; tahminCiz(); $('.secenekler').innerHTML = secHTML; $('#tahminSonuc').innerHTML = sonuc; const ls2 = $('.soru-liste'); if (ls2) ls2.scrollTop = y; window.scrollTo(0, sy); }
   });
 }
 
