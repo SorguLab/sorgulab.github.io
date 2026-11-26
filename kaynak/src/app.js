@@ -516,7 +516,7 @@ async function yedekOku(f) {
 // ═══════════════ İlk açılış tanıtımı ═══════════════
 const TANITIM_KEY = 'sorgulab-tanitim-gizle';
 const TANITIM = [
-  { ust: 'Hoş geldin', baslik: 'SorguLab\'e hoş geldin 👋', metin: 'SQL, pandas ve NumPy\'ı gerçek veri setleri üzerinde, yazarak öğrenmek için bir alıştırma alanı. Kurulum yok, üyelik yok: her şey tarayıcında çalışır.',
+  { ust: 'Hoş geldin', baslik: 'SorguLab\'e hoş geldin 👋', metin: 'SQL ve Python\'u gerçek veri setleri üzerinde, yazarak öğrenmek için bir alıştırma alanı. Kurulum yok, üyelik yok: her şey tarayıcında çalışır.',
     gorsel: `<div class="tg-kartlar"><div class="tg-kart"><b>300+</b><span>soru</span></div><div class="tg-kart"><b>6</b><span>hazır veri seti</span></div><div class="tg-kart"><b>40+</b><span>konu anlatımı</span></div></div>` },
   { ust: 'Alıştırmalar', baslik: 'Yaz, çalıştır, kontrol et', metin: 'Soldan bir soru seç, kodunu yaz. <b>Çalıştır</b> ile çıktını gör, emin olunca <b>Kontrol et</b>. Beklenen çıktıyla karşılaştırılır. Takılırsan İpucu, Cevabı göster ve Neden böyle? düğmeleri seni bekliyor.',
     gorsel: `<div class="tg-editor"><div class="tg-kod"><span class="kw">SELECT</span> Department, <span class="fn">COUNT</span>(*)<br><span class="kw">FROM</span> hr<br><span class="kw">GROUP BY</span> Department;</div><div class="tg-dugmeler"><span class="tg-btn birincil">Çalıştır</span><span class="tg-btn vurgu">Kontrol et</span><span class="tg-btn">İpucu</span></div><div class="tg-karar">✓ Doğru! Çıktın beklenenle aynı.</div></div>` },

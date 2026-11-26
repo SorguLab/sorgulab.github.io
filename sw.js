@@ -1,8 +1,8 @@
 // SorguLab service worker: dosyaları cihaza kaydeder, sonra internetsiz çalışır.
 // Her dosya içeriğinin özetiyle (hash) saklanır: yeni sürümde sadece DEĞİŞEN dosyalar iner (Python motoru tekrar inmez).
-const SURUM = 'sa-4529b4145c';
+const SURUM = 'sa-a6b1d4bffb';
 const DOSYALAR = {
- "index.html": "35c6298b47",
+ "index.html": "1b83929864",
  "manifest.webmanifest": "2eb9d20212",
  "apple-touch-icon.png": "a597da367f",
  "bricolage-grotesque-latin-600-normal.woff2": "b34fc8c1ef",
@@ -23,14 +23,14 @@ const DOSYALAR = {
  "jetbrains-mono-latin-500-normal.woff2": "cb182feeed",
  "jetbrains-mono-latin-ext-400-normal.woff2": "505dfba8ec",
  "jetbrains-mono-latin-ext-500-normal.woff2": "879df9319f",
- "konular.json": "a64aa51fbe",
+ "konular.json": "dfbea23cc0",
  "motor.js": "378886dd5b",
  "paket-numpy.wasm": "41c1f62e8b",
  "paket-pandas.wasm": "8705e2e378",
  "paket-python_dateutil.wasm": "cd2f76132e",
  "paket-pytz.wasm": "0a56642bb5",
  "paket-six.wasm": "132e601473",
- "paylasim.png": "a5c738eb6f",
+ "paylasim.png": "fcfcca59a7",
  "pyodide-lock.json": "832bef56fd",
  "pyodide.asm.js": "919560652e",
  "pyodide.asm.wasm": "b7e66a1942",
