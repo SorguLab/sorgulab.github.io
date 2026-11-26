@@ -197,6 +197,31 @@ async function geminiIstek(prompt, { json = false, onText } = {}) {
   }
   throw sonHata;
 }
+// Bağlantı testi: her modele aynı anda küçük bir istek atar, süreyi ve sonucu tabloya yazar. Gemini yavaşsa sorunun nerede olduğunu gösterir.
+async function geminiTest(kutu) {
+  const key = geminiAnahtar(); if (!key) return;
+  kutu.innerHTML = '<div class="yukleniyor">Modeller deneniyor (en fazla 25 sn)…</div>';
+  const govde = m => JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Sadece "tamam" yaz.' }] }], generationConfig: { thinkingConfig: /^gemini-2\.5/.test(m) ? { thinkingBudget: 0 } : { thinkingLevel: 'low' } } });
+  const dene = async m => {
+    const t0 = performance.now();
+    try {
+      const r = await geminiFetch(GEMINI_URL + m + ':generateContent', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: govde(m) }, 25000);
+      const sn = ((performance.now() - t0) / 1000).toFixed(1);
+      if (r.ok) return [m, sn, '✓ çalışıyor'];
+      const h = await geminiHata(r);
+      return [m, sn, { kota: 'kota dolu (429)', yogun: 'sunucu yoğun (5xx)', anahtar_gecersiz: 'anahtar geçersiz', yetki: 'yetki yok', bolge: 'bölge desteklenmiyor' }[h.code] || (r.status === 404 ? 'model yok (404)' : `hata ${r.status}`)];
+    } catch (e) {
+      return [m, ((performance.now() - t0) / 1000).toFixed(1), e && e.code === 'zaman' ? '25 sn içinde cevap yok' : 'bağlantı kurulamadı'];
+    }
+  };
+  const sonuc = await Promise.all(GEMINI_MODELLER.map(dene));
+  const calisan = sonuc.filter(x => x[2].startsWith('✓')).length;
+  kutu.innerHTML = `<div class="bilgi"><b>Bağlantı testi</b> ${calisan ? `· ${calisan} model çalışıyor` : '· hiçbir model cevap vermedi'}
+    <table class="ai-test"><tr><th>Model</th><th>Süre</th><th>Sonuç</th></tr>${sonuc.map(([m, sn, d]) => `<tr><td><code>${esc(m)}</code></td><td>${sn} sn</td><td>${esc(d)}</td></tr>`).join('')}</table>
+    ${!calisan && sonuc.every(x => /cevap yok|kurulamadı/.test(x[2])) ? '<p class="kucuk">Hiçbir istek Google\'a ulaşamıyor gibi: bir tarayıcı eklentisi (reklam engelleyici, gizlilik eklentisi, VPN) ya da ağ ayarı istekleri bekletiyor olabilir. Gizli sekmede deneyip farkı karşılaştır.</p>' : ''}</div>`;
+  // Sonraki isteklerde en hızlı çalışan model kullanılsın
+  if (calisan) geminiModel = sonuc.filter(x => x[2].startsWith('✓')).sort((a, b) => a[1] - b[1])[0][0];
+}
 function jsonCoz(t) {
   const s = String(t).trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
   try { return JSON.parse(s); } catch (e) { }
@@ -354,7 +379,7 @@ function aiPanelCiz(d) {
     <label class="ai-etiket" for="aiAnahtar">Gemini API anahtarı</label>
     <div class="ai-satir"><input id="aiAnahtar" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…" value="${esc(k)}">
       <button class="btn kucuk-btn" type="button" id="aiGoster">Göster</button></div>
-    <div class="ai-satir"><button class="btn birincil" type="button" id="aiKaydet">Kaydet ve dene</button>${k ? '<button class="btn" type="button" id="aiSil">Anahtarı sil</button>' : ''}</div>
+    <div class="ai-satir"><button class="btn birincil" type="button" id="aiKaydet">Kaydet ve dene</button>${k ? '<button class="btn" type="button" id="aiTest">Bağlantıyı test et</button><button class="btn" type="button" id="aiSil">Anahtarı sil</button>' : ''}</div>
     <div id="aiSonuc">${k ? '<div class="bilgi">Anahtar kayıtlı. Yapay zekâ özellikleri <b>Gemini</b> ile çalışıyor.</div>' : ''}</div>
     <p class="kucuk">Anahtar sadece bu cihazdaki tarayıcıda saklanır, başka bir yere gönderilmez (sadece Google\'a, isteklerle birlikte). iPad ve bilgisayarda ayrı ayrı girmen gerekir. Anahtarı şifre gibi sakla. Paylaştıysan AI Studio\'dan silip yenisini oluştur.</p>
     <p class="kucuk">Ücretsiz katmanda Google, gönderilen içeriği ürünlerini geliştirmek için kullanabilir. Gönderilen içerik: soru, kodun ve tabloların yapısı ile ilk birkaç satırı. Kendi yüklediğin veride gizli bilgi varsa bu özellikleri o veriyle kullanma.</p>`}
@@ -363,6 +388,7 @@ function aiPanelCiz(d) {
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#aiKaydet', d).click(); } });
   $('#aiGoster', d).onclick = e => { const g = inp.type === 'password'; inp.type = g ? 'text' : 'password'; e.target.textContent = g ? 'Gizle' : 'Göster'; };
   const sil = $('#aiSil', d); if (sil) sil.onclick = () => { geminiAnahtarYaz(''); aiPanelCiz(d); aiGuncelle(); };
+  const test = $('#aiTest', d); if (test) test.onclick = async () => { test.disabled = true; await geminiTest($('#aiSonuc', d)); test.disabled = false; };
   $('#aiKaydet', d).onclick = async e => {
     const deger = inp.value.trim().replace(/\s+/g, '');
     const sonuc = $('#aiSonuc', d);
