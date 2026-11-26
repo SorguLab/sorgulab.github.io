@@ -135,7 +135,7 @@ async function geminiHata(r) {
   let e = {}; try { e = (await r.json()).error || {}; } catch (x) { }
   const m = String(e.message || ''), neden = JSON.stringify(e.details || '');
   const detay = `${r.status}${e.status ? ' ' + e.status : ''}${m ? ': ' + m.slice(0, 200) : ''}`;
-  if (r.status === 429) return { code: 'kota', detay };
+  if (r.status === 429) return { code: 'kota', detay, sifir: /limit:\s*0\b/.test(m) };   // limit: 0 → bu modelin ücretsiz kotası hiç yok
   if (r.status >= 500) return { code: 'yogun', detay };
   if (/API_KEY_INVALID|API key not valid|API key expired/i.test(neden + m)) return { code: 'anahtar_gecersiz' };
   if (/location is not supported/i.test(m)) return { code: 'bolge' };
@@ -155,7 +155,7 @@ async function geminiFetch(url, ayar, ms) {
 // 2) Her istekte modelin cevap süresi ve hataları bu cihazda tutulur; sonraki isteklerde en hızlı ve sorunsuz model önce denenir.
 // 3) İlk model YEDEK_MS içinde cevap vermezse ikinci model de aynı anda başlatılır; hangisi önce cevap verirse o kullanılır.
 const GEMINI_LISTE_KEY = 'sorgulab-gemini-modeller', GEMINI_IST_KEY = 'sorgulab-gemini-istatistik';
-const YEDEK_MS = 8000, CEZA_MS = 30 * 60000, LISTE_OMRU = 24 * 3600000;
+const YEDEK_MS = 8000, CEZA_MS = 30 * 60000, LISTE_OMRU = 24 * 3600000, GUN = 24 * 3600000;
 function jsAl(k, v) { try { return JSON.parse(localStorage.getItem(k)) || v; } catch (e) { return v; } }
 function jsYaz(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } }
 // Sohbet/metin için uygun olmayan modelleri ayıkla (ses, canlı, görsel, gömme, deneysel…)
@@ -175,10 +175,13 @@ async function geminiModelleriAl(zorla) {
   return kayit && kayit.liste && kayit.liste.length ? kayit.liste : GEMINI_MODELLER;
 }
 function modelIstat() { return jsAl(GEMINI_IST_KEY, {}); }
-function modelKaydet(m, sonuc) {   // sonuc: { sn } başarı, { hata: 'kota'|'yogun'|'zaman' } sorun, { ayarsiz: true } düşünme ayarını kabul etmiyor
+// sonuc: { sn } başarı · { hata: 'kota'|'yogun'|'zaman' } sorun · { kapat: ms } bir süre hiç deneme (404: listede var ama çalışmıyor, kota 0) · { ayarsiz: true }
+function modelKaydet(m, sonuc) {
   const ist = modelIstat(), x = ist[m] || {};
-  if (sonuc.sn != null) { x.sure = x.sure == null ? sonuc.sn : +(0.6 * x.sure + 0.4 * sonuc.sn).toFixed(2); x.basari = (x.basari || 0) + 1; delete x.ceza; }
-  if (sonuc.hata) { x.ceza = Date.now(); x.sonHata = sonuc.hata; }
+  const sureEkle = sn => { x.sure = x.sure == null ? sn : +(0.6 * x.sure + 0.4 * sn).toFixed(2); };
+  if (sonuc.sn != null) { sureEkle(sonuc.sn); x.basari = (x.basari || 0) + 1; delete x.ceza; delete x.kapali; }
+  if (sonuc.hata) { x.ceza = Date.now(); x.sonHata = sonuc.hata; if (sonuc.hata === 'zaman') sureEkle(25); }
+  if (sonuc.kapat) x.kapali = Date.now() + sonuc.kapat;
   if (sonuc.ayarsiz) x.ayarsiz = true;
   ist[m] = x; jsYaz(GEMINI_IST_KEY, ist);
 }
@@ -187,7 +190,8 @@ function modelSirala(liste) {
   const ist = modelIstat(), simdi = Date.now();
   const tahmin = m => (ist[m] && ist[m].sure != null) ? ist[m].sure : (/lite/.test(m) ? 5 : 12) - modelSurum(m) / 100;
   const cezali = m => ist[m] && ist[m].ceza && simdi - ist[m].ceza < CEZA_MS;
-  return [...liste].sort((a, b) => (cezali(a) - cezali(b)) || (tahmin(a) - tahmin(b)));
+  const acik = liste.filter(m => !(ist[m] && ist[m].kapali > simdi));
+  return [...(acik.length ? acik : liste)].sort((a, b) => (cezali(a) - cezali(b)) || (tahmin(a) - tahmin(b)));
 }
 async function geminiIstek(prompt, { json = false, onText } = {}) {
   const key = geminiAnahtar(); if (!key) throw { code: 'yok' };
@@ -215,9 +219,9 @@ async function geminiIstek(prompt, { json = false, onText } = {}) {
     if (r.status === 400 && ayarli) { ayarli = false; r = await getir(false); if (r.ok) modelKaydet(m, { ayarsiz: true }); }
     if (r.status >= 500) { await bekle(1000); r = await getir(ayarli); }
     if (r.ok) { modelKaydet(m, { sn: (performance.now() - t0) / 1000 }); return { m, r }; }
-    if (r.status === 404) { const k = jsAl(GEMINI_LISTE_KEY, null); if (k && k.liste) jsYaz(GEMINI_LISTE_KEY, { ...k, liste: k.liste.filter(x => x !== m) }); throw { code: 'model_yok', m }; }
+    if (r.status === 404) { modelKaydet(m, { kapat: 7 * GUN }); const k = jsAl(GEMINI_LISTE_KEY, null); if (k && k.liste) jsYaz(GEMINI_LISTE_KEY, { ...k, liste: k.liste.filter(x => x !== m) }); throw { code: 'model_yok', m }; }
     const h = await geminiHata(r);
-    if (h.code === 'kota' || h.code === 'yogun') modelKaydet(m, { hata: h.code });
+    if (h.code === 'kota' || h.code === 'yogun') modelKaydet(m, h.sifir ? { hata: h.code, kapat: GUN } : { hata: h.code });
     throw h;
   };
   // Yarış: ilk model başlar; YEDEK_MS içinde sonuç yoksa ya da hata verirse sıradaki de başlar. İlk başarılı cevap kazanır.
@@ -272,14 +276,17 @@ async function geminiTest(kutu) {
       const sn = ((performance.now() - t0) / 1000).toFixed(1);
       if (r.ok) { modelKaydet(m, { sn: +sn }); return [m, sn, '✓ çalışıyor']; }
       const h = await geminiHata(r);
-      if (h.code === 'kota' || h.code === 'yogun') modelKaydet(m, { hata: h.code });
+      if (h.code === 'kota' || h.code === 'yogun') modelKaydet(m, h.sifir ? { hata: h.code, kapat: GUN } : { hata: h.code });
+      if (r.status === 404) modelKaydet(m, { kapat: 7 * GUN });
+      if (h.sifir) return [m, sn, 'ücretsiz kullanımda kapalı (429)'];
       return [m, sn, { kota: 'kota dolu (429)', yogun: 'sunucu yoğun (5xx)', anahtar_gecersiz: 'anahtar geçersiz', yetki: 'yetki yok', bolge: 'bölge desteklenmiyor' }[h.code] || (r.status === 404 ? 'model yok (404)' : `hata ${r.status}`)];
     } catch (e) {
       if (e && e.code === 'zaman') modelKaydet(m, { hata: 'zaman' });
       return [m, ((performance.now() - t0) / 1000).toFixed(1), e && e.code === 'zaman' ? '25 sn içinde cevap yok' : 'bağlantı kurulamadı'];
     }
   };
-  const sonuc = await Promise.all((await geminiModelleriAl(true)).map(dene));
+  const sonuc = (await Promise.all((await geminiModelleriAl(true)).map(dene)))
+    .sort((a, b) => (b[2].startsWith('✓') - a[2].startsWith('✓')) || (a[1] - b[1]));   // çalışanlar üstte, hızlıdan yavaşa
   const calisan = sonuc.filter(x => x[2].startsWith('✓')).length;
   kutu.innerHTML = `<div class="bilgi"><b>Bağlantı testi</b> ${calisan ? `· ${calisan} model çalışıyor` : '· hiçbir model cevap vermedi'}
     <table class="ai-test"><tr><th>Model</th><th>Süre</th><th>Sonuç</th></tr>${sonuc.map(([m, sn, d]) => `<tr><td><code>${esc(m)}</code></td><td>${sn} sn</td><td>${esc(d)}</td></tr>`).join('')}</table>
