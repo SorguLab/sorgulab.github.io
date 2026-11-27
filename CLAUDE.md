@@ -15,6 +15,7 @@ Repo: `sorgulab/sorgulab.github.io` (GitHub organizasyonu SorguLab). Site: https
 - `kaynak/veri/<anahtar>.json` = veri setleri (`{tablo: {columns, types, rows}}`). Build bunları köke `veri-<anahtar>.json` olarak kopyalar; uygulama sadece seçilen veri setini indirir (lazy). Ham veriler `kaynak/ham/`, dönüştürücüler `kaynak/araclar/`.
   - `app.js` (arayüz), `helper.py` (Pyodide içinde çalışan çıktı dönüştürücü), `template.html` (CSS + iskelet)
 - **KonuLab** (konu anlatımı, üst bardaki "SorguLab ⇄ KonuLab" geçişi): içerik `kaynak/konular/<grup>/NN-ad.md` (gruplar: sql, temel, pandas, numpy, kavram; sözlük `kaynak/konular/sozluk.json`). Biçim `kaynak/konu_derle.py` başındaki açıklamada. Kod örnekleri derlemede gerçekten çalıştırılır, çıktılar köke `konular.json` olarak yazılır (uygulama KonuLab açılınca indirir). Örnek hata verirse derleme durur. `alistirma: dil | Kategori` üst bilgisi konuyu SorguLab kategorisine bağlar (her dil+kategori tek konuya). Tek başına derlemek: `python3 kaynak/konu_derle.py`.
+- **İstatistik:** GoatCounter (sorgulab.goatcounter.com, şifreli panel, sitede link yok). Sayfa sayımı `sayfaSay()`, isimsiz olaylar `olay('soru/<vs>/<id>/dogru')` gibi (soru, tahmin, mülakat, yapay-zeka, arac, veri). Kod, metin ya da kişisel bilgi gönderilmez. Script sadece sorgulab.com sürümünde (build ekler), claude.ai sürümünde yok.
 - `index.html`, `sw.js`, `manifest.webmanifest` **üretilir** — elle düzenleme, `kaynak/build.py` çalıştır.
 
 ## Yapılacaklar

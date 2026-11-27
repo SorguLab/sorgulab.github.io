@@ -3601,6 +3601,7 @@ document.addEventListener('click', e => {
   }
 });
 async function excelIndir(c, btn) {
+  olay('arac/excel-indir');
   const eski = btn.textContent; btn.disabled = true; btn.textContent = 'Hazırlanıyor…';
   try {
     if (!window.XLSX) await scriptYukle('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
@@ -3620,6 +3621,7 @@ async function excelIndir(c, btn) {
   } catch (e) { btn.textContent = eski; btn.disabled = false; alert('Dosya hazırlanamadı: ' + ((e && e.message) || e)); }
 }
 function grafikKur(alan, t) {
+  olay('arac/grafik');
   const sayisal = t.columns.map((_, j) => sayiSutun(t, j));
   const yAday = t.columns.map((c, j) => j).filter(j => sayisal[j]);
   let x = t.columns.findIndex((_, j) => !sayisal[j]); if (x < 0) x = 0;
@@ -3918,6 +3920,11 @@ window.addEventListener('hashchange', () => { if (hashOku()) { yenidenCiz(); if 
 let sayacInterval = null;
 // Ziyaretçi sayacı: sadece sorgulab.com sürümünde yüklenir. Sayfa adı olarak bölüm, veri seti ve KonuLab konusu gönderilir (soru içeriği ya da kişisel bilgi değil).
 let sonSayilan = null;
+// Kullanım istatistiği (isimsiz, çerezsiz): GoatCounter panelinde "olay" olarak görünür. Kişisel bilgi, kod ya da yazılan metin gönderilmez.
+function olay(yol) {
+  try { if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path: yol, title: yol, event: true }); } catch (e) { }
+}
+const vsAd = () => S.veriSeti === 'yuklenen' ? 'kendi-verisi' : S.veriSeti;
 window.sayfaSay = function () {
   if (S.lab === 'konu' && (typeof KONULAR === 'undefined' || !KONULAR)) return;
   const yol = S.lab === 'konu' ? '/konulab/' + (S.konuId || 'giris') : '/sorgulab/' + S.view + (['alistirma', 'serbest', 'mulakat'].includes(S.view) ? '/' + (S.veriSeti === 'yuklenen' ? 'kendi-verisi' : S.veriSeti) : '');
@@ -4078,6 +4085,7 @@ function soruCalismaCiz(host, q, { mod, liste, onKontrol }) {
     k.innerHTML = `<div class="karar ${sonuc.dogru ? 'dogru' : 'yanlis'}" role="status"><span class="karar-ikon" aria-hidden="true">${sonuc.dogru ? '✓' : '✕'}</span><div>${sonuc.mesaj}
       ${!sonuc.dogru && !mulakat ? `<div><button class="btn kucuk-btn" id="btnHata">${aiAd()} hatamı açıklasın</button></div>` : ''}</div></div>`;
     const hb = $('#btnHata', host); if (hb) hb.onclick = () => hataAcikla(q, ed.get(), gel, bek, sonuc);
+    olay(`${mulakat ? 'mulakat' : 'soru'}/${vsAd()}/${q.id}/${sonuc.dogru ? 'dogru' : 'yanlis'}`);
     onKontrol && onKontrol(sonuc.dogru);
   }
   function kutu(id, baslik, ic) {
@@ -4089,6 +4097,7 @@ function soruCalismaCiz(host, q, { mod, liste, onKontrol }) {
     return el;
   }
   function cevapGoster() {
+    if (!bakildi[q.id]) olay(`soru/${vsAd()}/${q.id}/cevaba-bakti`);
     bakildi[q.id] = true;
     const el = kutu('kCevap', 'Örnek çözüm', kodBlok(q.cozum, q.dil) + '<button class="btn kucuk-btn" data-kopyala>Editöre aktar</button>');
     $('[data-kopyala]', el).onclick = () => { ed.set(q.cozum); ed.odak(); };
@@ -4096,7 +4105,7 @@ function soruCalismaCiz(host, q, { mod, liste, onKontrol }) {
   $('#btnCalistir', host).onclick = calistirTik;
   $('#btnKontrol', host).onclick = kontrolTik;
   if (!mulakat) {
-    $('#btnIpucu', host).onclick = () => kutu('kIpucu', 'İpucu', `<p>${q.ipucu || 'Bu soru için ipucu yok.'}</p>`);
+    $('#btnIpucu', host).onclick = () => olay(`soru/${vsAd()}/${q.id}/ipucu`) || kutu('kIpucu', 'İpucu', `<p>${q.ipucu || 'Bu soru için ipucu yok.'}</p>`);
     $('#btnCevap', host).onclick = cevapGoster;
     $('#btnNeden', host).onclick = () => { cevapGoster(); kutu('kNeden', 'Neden böyle yazıldı?', `<div class="aciklama">${q.aciklama || '<p>Açıklama yok.</p>'}</div>`); };
     const o = $('#onceki', host), s = $('#sonraki', host);
@@ -4128,6 +4137,7 @@ async function hataAcikla(q, kod, gel, bek, sonuc) {
   const el = document.createElement('div');
   el.className = 'ek-kutu kClaude';
   if (!aiTur()) { aiPanelAc(); return; }
+  olay(`yapay-zeka/hata-acikla/${aiTur()}`);
   el.innerHTML = '<div class="ek-baslik">' + aiIyelik() + ' yorumu</div><div class="claude-metin"><div class="yukleniyor">Kodun inceleniyor…</div></div>';
   kulakEkle(el);
   const ek = $('#ekKutular'); const eski = $('.kClaude', ek); if (eski) eski.remove(); ek.prepend(el);
@@ -4211,6 +4221,7 @@ function tahminCiz() {
   $('#tSonraki').onclick = () => tahminSec(liste[i + 1].id);
   $$('.secenek', ana).forEach(b => b.onclick = async () => {
     const sec = +b.dataset.i, dogru = sec === t.dogru;
+    olay(`tahmin/${t.id}/${dogru ? 'dogru' : 'yanlis'}`);
     if (depo.tahmin[t.id] === undefined) { depo.tahmin[t.id] = dogru; kaydet(); }
     else if (depo.tahmin[t.id] === false && dogru && !depo.tahminSonra[t.id]) { depo.tahminSonra[t.id] = true; kaydet(); }
     $$('.secenek', ana).forEach(x => { x.disabled = true; const k = +x.dataset.i; if (k === t.dogru) x.classList.add('dogru'); else if (k === sec) x.classList.add('yanlis'); });
@@ -4266,6 +4277,7 @@ function mulakatCiz() {
     for (const l of plan) { const c = karistir(havuz.filter(q => q.seviye === l && !kul.has(q.id)))[0] || karistir(havuz.filter(q => !kul.has(q.id)))[0]; if (c) { secilen.push(c); kul.add(c.id); } }
     secilen.sort((a, b) => a.seviye - b.seviye);
     if (secilen.some(q => q.dil === 'python')) pyHazirla().catch(() => { });
+    olay(`mulakat/${vsAd()}/basladi`);
     S.mulakat = { durum: 'devam', veriSeti: S.veriSeti, sorular: secilen, i: 0, sonuc: {}, kod: {}, bitis: Date.now() + dk * 60000, baslangic: Date.now(), dk };
     mulakatCiz();
   };
@@ -4301,6 +4313,7 @@ function kodMulakatCiz() {
 function mulakatBitir(sureDoldu) {
   const M = S.mulakat; if (!M || M.durum !== 'devam') return;
   clearInterval(sayacInterval); sayacInterval = null;
+  if (M.durum !== 'bitti') olay(`mulakat/${M.veriSeti}/bitti${sureDoldu ? '-sure-doldu' : ''}`);
   M.durum = 'bitti'; M.gecen = Math.min(Date.now(), M.bitis) - M.baslangic; M.sureDoldu = !!sureDoldu;
   M.sorular.forEach(q => { if (M.sonuc[q.id] === true) { depo.cozuldu[q.id] = true; delete depo.bakarak[q.id]; } }); kaydet();
   mulakatCiz();
@@ -4505,6 +4518,7 @@ function yzKur(ed, run) {
     const ilk = dil === d, vs = S.veriSeti;
     if (ilk) Y.cevap = {};
     Y.durum = 'yukleniyor'; Y.hata = ''; ciz();
+    olay(`yapay-zeka/serbest-sor/${ilk ? dil : 'diger-dil'}/${aiTur()}`);
     try {
       const c = await yzUret(dil, istek, dil === d ? ed.get().trim().slice(0, 3000) : '');
       if (S.veriSeti !== vs) return;   // bu arada veri seti değiştiyse cevap eski veriye ait
@@ -4514,7 +4528,7 @@ function yzKur(ed, run) {
   };
   const islem = async n => {
     const g = Y.cevap[Y.goster];
-    if (n === 'kodGoster') { Y.kodAcik = true; ciz(); return; }
+    if (n === 'kodGoster') { Y.kodAcik = true; olay('yapay-zeka/serbest-sor/kodu-gosterdi'); ciz(); return; }
     if (n === 'diger') { sor(d === 'sql' ? 'python' : 'sql'); return; }
     if (Y.goster !== d) {   // diğer dildeki kodu editöre koymak: o dile geç
       S.serbestKod[Y.goster] = g.kod; S.serbestDil = Y.goster;
@@ -4795,6 +4809,7 @@ async function dosyaYukle(f, secenek = {}) {
     }
     if (!Object.keys(tablolar).length) throw new Error('Dosyada okunabilir bir tablo bulunamadı. İlk satırın sütun adları olduğundan emin ol.');
     VS.yuklenen = { ad: f.name.replace(/\.[^.]+$/, ''), tablolar, sorular: [], meta: metaHesapla(tablolar) };
+    olay('veri/kendi-verisini-yukledi');
     delete gonderilen.yuklenen; Object.keys(beklenenCache).filter(k => k.startsWith('yuklenen:')).forEach(k => delete beklenenCache[k]);
     if (pyYukluVS === 'yuklenen') pyYukluVS = null;
     S.aktifId.yuklenen = null;
@@ -4855,6 +4870,7 @@ Sadece şu JSON'u döndür:
 async function soruUret(dil, adet) {
   const Y = VS.yuklenen; if (!Y || S.uretiliyor) return;
   S.uretiliyor = true; const durum = () => $('#uretDurum');
+  olay(`yapay-zeka/soru-uret/${dil}/${aiTur()}`);
   const btn = $('#uretForm button[type=submit]'); if (btn) { btn.disabled = true; btn.textContent = 'Üretiliyor…'; }
   const diller = dil === 'ikisi' ? ['sql', 'python'] : [dil];
   const gecen = [], elenen = [], hatalar = [];
