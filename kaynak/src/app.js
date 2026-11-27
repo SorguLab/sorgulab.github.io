@@ -1464,8 +1464,11 @@ async function hataAcikla(q, kod, gel, bek, sonuc) {
   const el = document.createElement('div');
   el.className = 'ek-kutu kClaude';
   if (!aiTur()) { aiPanelAc(); return; }
-  el.innerHTML = '<div class="ek-baslik">' + aiIyelik() + ' yorumu</div><div class="claude-metin"><div class="yukleniyor">Kodun inceleniyor…</div></div>';
+  el.innerHTML = '<div class="ek-baslik">' + aiIyelik() + ' yorumu <span class="katli-not">· kapalı, açmak için kulakçığa bas</span></div><button class="kutu-kulak" aria-expanded="true" title="Kapat / aç" aria-label="Yorumu kapat">▴</button><div class="claude-metin"><div class="yukleniyor">Kodun inceleniyor…</div></div>';
   const ek = $('#ekKutular'); const eski = $('.kClaude', ek); if (eski) eski.remove(); ek.prepend(el);
+  // Kulakçık: yorumu katlayıp çalışmaya devam et, gerekince tekrar aç
+  const kulak = $('.kutu-kulak', el);
+  kulak.onclick = () => { const k = el.classList.toggle('katli'); kulak.textContent = k ? '▾' : '▴'; kulak.setAttribute('aria-expanded', !k); kulak.setAttribute('aria-label', k ? 'Yorumu aç' : 'Yorumu kapat'); };
   const hedef = $('.claude-metin', el);
   const prompt = `Sen sabırlı bir veri analizi eğitmenisin. Öğrencin bir ${q.dil === 'sql' ? 'SQL (SQLite)' : 'Python (pandas)'} alıştırmasında yanlış cevap verdi. Türkçe, kısa ve öğretici bir geri bildirim ver:
 - Kodundaki asıl hatayı ya da eksik düşünceyi açıkça söyle (neden yanlış sonuç ürettiğini).
