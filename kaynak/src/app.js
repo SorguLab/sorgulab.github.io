@@ -1431,6 +1431,7 @@ function soruCalismaCiz(host, q, { mod, liste, onKontrol }) {
     let el = $('#' + id, ek);
     if (!el) { el = document.createElement('div'); el.id = id; el.className = 'ek-kutu ' + id; ek.appendChild(el); }
     el.innerHTML = `<div class="ek-baslik">${baslik}</div>${ic}`;
+    kulakEkle(el);
     return el;
   }
   function cevapGoster() {
@@ -1460,15 +1461,22 @@ function tabloOzet(t, n = 8) {
 function semaOzet() {
   return Object.entries(metaAl(S.veriSeti)).map(([ad, t]) => `${ad}(${t.columns.map((c, i) => `${c} ${t.types[i]}`).join(', ')}) — ${t.n} satır`).join('\n');
 }
+// Ek kutulara (ipucu, örnek çözüm, açıklama, yapay zekâ yorumu) kapat/aç kulakçığı: kutu tek satıra iner, editör ve çıktı yukarı gelir
+const KULAK_HTML = '<span class="katli-not">· kapalı, açmak için kulakçığa bas</span>';
+function kulakEkle(el) {
+  const b = el.querySelector('.ek-baslik'); if (b && !b.querySelector('.katli-not')) b.insertAdjacentHTML('beforeend', ' ' + KULAK_HTML);
+  el.classList.remove('katli'); el.classList.add('kulakli');
+  const k = document.createElement('button'); k.className = 'kutu-kulak'; k.textContent = '▴'; k.title = 'Kapat / aç'; k.setAttribute('aria-label', 'Kutuyu kapat'); k.setAttribute('aria-expanded', 'true');
+  k.onclick = () => { const kt = el.classList.toggle('katli'); k.textContent = kt ? '▾' : '▴'; k.setAttribute('aria-expanded', !kt); k.setAttribute('aria-label', kt ? 'Kutuyu aç' : 'Kutuyu kapat'); };
+  el.insertBefore(k, el.firstChild.nextSibling);
+}
 async function hataAcikla(q, kod, gel, bek, sonuc) {
   const el = document.createElement('div');
   el.className = 'ek-kutu kClaude';
   if (!aiTur()) { aiPanelAc(); return; }
-  el.innerHTML = '<div class="ek-baslik">' + aiIyelik() + ' yorumu <span class="katli-not">· kapalı, açmak için kulakçığa bas</span></div><button class="kutu-kulak" aria-expanded="true" title="Kapat / aç" aria-label="Yorumu kapat">▴</button><div class="claude-metin"><div class="yukleniyor">Kodun inceleniyor…</div></div>';
+  el.innerHTML = '<div class="ek-baslik">' + aiIyelik() + ' yorumu</div><div class="claude-metin"><div class="yukleniyor">Kodun inceleniyor…</div></div>';
+  kulakEkle(el);
   const ek = $('#ekKutular'); const eski = $('.kClaude', ek); if (eski) eski.remove(); ek.prepend(el);
-  // Kulakçık: yorumu katlayıp çalışmaya devam et, gerekince tekrar aç
-  const kulak = $('.kutu-kulak', el);
-  kulak.onclick = () => { const k = el.classList.toggle('katli'); kulak.textContent = k ? '▾' : '▴'; kulak.setAttribute('aria-expanded', !k); kulak.setAttribute('aria-label', k ? 'Yorumu aç' : 'Yorumu kapat'); };
   const hedef = $('.claude-metin', el);
   const prompt = `Sen sabırlı bir veri analizi eğitmenisin. Öğrencin bir ${q.dil === 'sql' ? 'SQL (SQLite)' : 'Python (pandas)'} alıştırmasında yanlış cevap verdi. Türkçe, kısa ve öğretici bir geri bildirim ver:
 - Kodundaki asıl hatayı ya da eksik düşünceyi açıkça söyle (neden yanlış sonuç ürettiğini).
