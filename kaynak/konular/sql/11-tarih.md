@@ -28,6 +28,10 @@ ORDER BY yil;
 
 `julianday` bir tarihi gün sayısına çevirir; iki tarihin farkı gün cinsinden süre olur.
 
+:::not
+İş yerinde büyük ihtimalle `DATEDIFF` kullanıyorsun: SQL Server'da `DATEDIFF(DAY, OrderDate, ShippedDate)`, MySQL'de `DATEDIFF(ShippedDate, OrderDate)`. SorguLab'deki sorgular tarayıcıda **SQLite** ile çalışıyor ve SQLite'ta `DATEDIFF` yok; aynı işi `julianday(bitiş) - julianday(başlangıç)` yapıyor. Mantık aynı: büyük tarihten küçüğü çıkarınca gün sayısı çıkar. Benzer şekilde `YEAR(tarih)` / `MONTH(tarih)` yerine burada `strftime('%Y', tarih)` / `strftime('%m', tarih)` yazılır. Diğer farklar için **Lehçe farkları** konusuna bak.
+:::
+
 ```sql northwind
 SELECT OrderID, OrderDate, ShippedDate,
        julianday(ShippedDate) - julianday(OrderDate) AS kargo_gunu
